@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "permissionMode": "default",
+    "allow": [
+      "Read",
+      "Write",
+      "Edit",
+      "Bash",
+      "Git",
+      "Npm",
+      "Pip",
+      "Grep",
+      "Glob",
+      "Rm"
+    ],
+    "deny": [],
+    "additionalDirectories": []
+  }
+}
