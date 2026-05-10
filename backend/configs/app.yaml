@@ -3,3 +3,7 @@ mock_mode: false
 server:
   host: "127.0.0.1"
 daily_target: 20
+ai:
+  base_url: "https://api.deepseek.com"
+  api_key: ""
+  model: "deepseek-chat"

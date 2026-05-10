@@ -1,9 +1,11 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/vocablock/v2/internal/api/mock"
 )
@@ -19,13 +21,59 @@ func (s *Server) handleTTSWord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = id // TODO: load word from DB, synthesize audio
+	if s.TTSProvider == nil {
+		writeJSON(w, map[string]interface{}{
+			"url":    fmt.Sprintf("/api/v1/tts/word/%d", id),
+			"format": "mp3",
+			"cached": false,
+			"status": "not_configured",
+		})
+		return
+	}
+
+	// Load word from DB to get its reading and word
+	if s.DB == nil {
+		writeError(w, 500, "database not available")
+		return
+	}
+
+	word, err := s.DB.GetWord(id)
+	if err != nil || word == nil {
+		writeError(w, 404, "word not found")
+		return
+	}
+
+	// Determine voice from active language config
+	voice := ""
+	if lc, ok := s.Config.Languages[s.Config.App.ActiveLang]; ok {
+		voice = lc.TTS.Voice
+	}
+
+	text := word.Word
+	if word.Reading != "" {
+		text = word.Reading
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	path, err := s.TTSProvider.Generate(ctx, voice, text)
+	if err != nil {
+		writeJSON(w, map[string]interface{}{
+			"url":    "",
+			"format": "mp3",
+			"cached": false,
+			"status": "error",
+			"error":  err.Error(),
+		})
+		return
+	}
 
 	writeJSON(w, map[string]interface{}{
-		"url":    fmt.Sprintf("/api/v1/tts/word/%d", id),
+		"url":    fmt.Sprintf("/data/audio/%s", path),
 		"format": "mp3",
-		"cached": false,
-		"status": "not_configured",
+		"cached": true,
+		"status": "ok",
 	})
 }
 
@@ -34,10 +82,50 @@ func (s *Server) handleTTSText(w http.ResponseWriter, r *http.Request) {
 		mock.HandleTTSText(w, r); return
 	}
 
+	if s.TTSProvider == nil {
+		writeJSON(w, map[string]interface{}{
+			"url":    "",
+			"format": "mp3",
+			"cached": false,
+			"status": "not_configured",
+		})
+		return
+	}
+
+	var req struct {
+		Text  string `json:"text"`
+		Voice string `json:"voice"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	if req.Voice == "" {
+		if lc, ok := s.Config.Languages[s.Config.App.ActiveLang]; ok {
+			req.Voice = lc.TTS.Voice
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	path, err := s.TTSProvider.Generate(ctx, req.Voice, req.Text)
+	if err != nil {
+		writeJSON(w, map[string]interface{}{
+			"url":    "",
+			"format": "mp3",
+			"cached": false,
+			"status": "error",
+			"error":  err.Error(),
+		})
+		return
+	}
+
 	writeJSON(w, map[string]interface{}{
-		"url":    "",
+		"url":    fmt.Sprintf("/data/audio/%s", path),
 		"format": "mp3",
-		"cached": false,
-		"status": "not_configured",
+		"cached": true,
+		"status": "ok",
 	})
 }

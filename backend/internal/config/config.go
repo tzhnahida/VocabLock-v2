@@ -11,12 +11,21 @@ import (
 // ——— App config ———
 
 type AppConfig struct {
-	ActiveLang string `yaml:"active_lang"`
-	MockMode   bool   `yaml:"mock_mode"`
-	Server     struct {
+	ActiveLang  string   `yaml:"active_lang"`
+	MockMode    bool     `yaml:"mock_mode"`
+	Server      struct {
 		Host string `yaml:"host"`
 	} `yaml:"server"`
-	DailyTarget int `yaml:"daily_target"`
+	DailyTarget int      `yaml:"daily_target"`
+	AI          AIConfig `yaml:"ai"`
+}
+
+// ——— AI config ———
+
+type AIConfig struct {
+	BaseURL string `yaml:"base_url"`
+	APIKey  string `yaml:"api_key"`
+	Model   string `yaml:"model"`
 }
 
 // ——— TTS config ———

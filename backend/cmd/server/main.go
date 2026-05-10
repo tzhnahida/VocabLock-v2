@@ -6,10 +6,14 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/vocablock/v2/internal/ai"
 	"github.com/vocablock/v2/internal/api"
 	"github.com/vocablock/v2/internal/config"
 	"github.com/vocablock/v2/internal/db"
+	"github.com/vocablock/v2/internal/dict"
+	"github.com/vocablock/v2/internal/tts"
 )
 
 func main() {
@@ -43,6 +47,41 @@ func main() {
 	}
 
 	srv := api.NewServer(cfg.App.MockMode, cfg, database)
+
+	// Wire AI client (if configured)
+	if cfg.App.AI.APIKey != "" && !cfg.App.MockMode {
+		srv.AI = ai.NewClient(ai.Config{
+			BaseURL: cfg.App.AI.BaseURL,
+			APIKey:  cfg.App.AI.APIKey,
+			Model:   cfg.App.AI.Model,
+			Timeout: 30 * time.Second,
+		})
+		fmt.Println("  AI: configured")
+	}
+
+	// Wire TTS provider (if configured for active language)
+	if lang.TTS.Provider != "" && !cfg.App.MockMode {
+		provCfg, ok := cfg.TTS.TTS.Providers[lang.TTS.Provider]
+		if ok {
+			provider, err := tts.NewProvider(lang.TTS.Provider, provCfg, "data/audio")
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "tts init warning: %v\n", err)
+			} else {
+				srv.TTSProvider = provider
+				fmt.Printf("  TTS: %s (%s)\n", lang.TTS.Provider, lang.TTS.Voice)
+			}
+		}
+	}
+
+	// Wire Dict provider (if configured for active language)
+	if lang.Dict.Provider != "" && !cfg.App.MockMode {
+		provCfg, ok := cfg.Dict.Dict.Providers[lang.Dict.Provider]
+		if ok {
+			srv.DictProvider = dict.NewProvider(lang.Dict.Provider, provCfg)
+			fmt.Printf("  Dict: %s\n", lang.Dict.Provider)
+		}
+	}
+
 	if err := srv.Start(); err != nil {
 		fmt.Fprintf(os.Stderr, "server start error: %v\n", err)
 		os.Exit(1)

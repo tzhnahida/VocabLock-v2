@@ -9,8 +9,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/vocablock/v2/internal/ai"
 	"github.com/vocablock/v2/internal/config"
 	"github.com/vocablock/v2/internal/db"
+	"github.com/vocablock/v2/internal/dict"
+	"github.com/vocablock/v2/internal/tts"
 )
 
 type Server struct {
@@ -20,6 +23,11 @@ type Server struct {
 	Mock   bool
 	Config *config.Config
 	DB     *db.Database
+
+	// Optional — nil means not configured, handlers fall back gracefully
+	AI         *ai.Client
+	TTSProvider *tts.Provider
+	DictProvider *dict.Provider
 }
 
 func NewServer(mock bool, cfg *config.Config, database *db.Database) *Server {

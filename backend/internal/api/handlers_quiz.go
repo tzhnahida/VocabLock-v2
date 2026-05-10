@@ -1,10 +1,13 @@
 package api
 
 import (
+	"context"
+	"encoding/json"
 	"math/rand"
 	"net/http"
 	"time"
 
+	"github.com/vocablock/v2/internal/ai"
 	"github.com/vocablock/v2/internal/api/mock"
 	"github.com/vocablock/v2/internal/db"
 	"github.com/vocablock/v2/internal/engine"
@@ -142,7 +145,11 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 	strictness := strictnessForType(req.QuestionType)
 
 	// Run 3-tier judge: exact → regex → (AI if available)
-	result := judge.Judge(req.Answer, expected, strictness, nil)
+	var aiCallback func(user, expected string) (*judge.Result, error)
+	if s.AI != nil {
+		aiCallback = s.makeAIJudge(req.QuestionType, word)
+	}
+	result := judge.Judge(req.Answer, expected, strictness, aiCallback)
 
 	// Update SM-2
 	quality := engine.QualityFromScore(result.Score)
@@ -268,5 +275,60 @@ func strictnessForType(qType string) judge.Strictness {
 		return judge.Strict
 	default:
 		return judge.Normal
+	}
+}
+
+func (s *Server) makeAIJudge(qType string, word *db.Word) func(user, expected string) (*judge.Result, error) {
+	return func(userAnswer, expectedAnswer string) (*judge.Result, error) {
+		if s.AI == nil {
+			return nil, nil
+		}
+
+		pt, err := ai.LoadPrompt("judge")
+		if err != nil {
+			return nil, err
+		}
+
+		// Determine explanation language from active language config
+		explLang := "en"
+		if lc, ok := s.Config.Languages[s.Config.App.ActiveLang]; ok {
+			explLang = lc.PromptContext.ExplanationLang
+		}
+
+		messages, err := pt.BuildMessages(&ai.PromptVars{
+			Word:            word.Word,
+			Reading:         word.Reading,
+			Meaning:         word.Meaning,
+			UserAnswer:      userAnswer,
+			ExpectedAnswer:  expectedAnswer,
+			ExplanationLang: explLang,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+		defer cancel()
+
+		response, err := s.AI.Chat(ctx, messages)
+		if err != nil {
+			return nil, err
+		}
+
+		// Parse AI JSON response
+		var aiResult struct {
+			Correct  bool    `json:"correct"`
+			Score    float64 `json:"score"`
+			Feedback string  `json:"feedback"`
+		}
+		if err := json.Unmarshal([]byte(response), &aiResult); err != nil {
+			return nil, err
+		}
+
+		return &judge.Result{
+			Correct:  aiResult.Correct,
+			Score:    aiResult.Score,
+			Feedback: aiResult.Feedback,
+		}, nil
 	}
 }
