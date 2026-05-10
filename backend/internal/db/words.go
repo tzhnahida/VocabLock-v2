@@ -3,12 +3,68 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"time"
 )
+
+type wordScanner struct {
+	ID             int64
+	Word           string
+	Reading        string
+	Meaning        string
+	POS            string
+	Language       string
+	Source         string
+	EasinessFactor float64
+	Interval       int
+	Repetitions    int
+	NextReviewAt   sql.NullString
+	LastReviewAt   sql.NullString
+	TotalAttempts  int
+	TotalCorrect   int
+	CreatedAt      string
+	UpdatedAt      string
+}
+
+func (s *wordScanner) toWord() *Word {
+	return &Word{
+		ID:             s.ID,
+		Word:           s.Word,
+		Reading:        s.Reading,
+		Meaning:        s.Meaning,
+		POS:            s.POS,
+		Language:       s.Language,
+		Source:         s.Source,
+		EasinessFactor: s.EasinessFactor,
+		Interval:       s.Interval,
+		Repetitions:    s.Repetitions,
+		NextReviewAt:   NullTime(s.NextReviewAt),
+		LastReviewAt:   NullTime(s.LastReviewAt),
+		TotalAttempts:  s.TotalAttempts,
+		TotalCorrect:   s.TotalCorrect,
+		CreatedAt:      TimeStr(s.CreatedAt),
+		UpdatedAt:      TimeStr(s.UpdatedAt),
+	}
+}
+
+func scanWordRow(row interface{ Scan(...interface{}) error }) (*Word, error) {
+	var s wordScanner
+	err := row.Scan(
+		&s.ID, &s.Word, &s.Reading, &s.Meaning, &s.POS, &s.Language, &s.Source,
+		&s.EasinessFactor, &s.Interval, &s.Repetitions,
+		&s.NextReviewAt, &s.LastReviewAt,
+		&s.TotalAttempts, &s.TotalCorrect, &s.CreatedAt, &s.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return s.toWord(), nil
+}
 
 func (d *Database) InsertWord(w *Word) (int64, error) {
 	r, err := d.DB.Exec(`
-		INSERT INTO words (word, reading, meaning, pos, language, source)
-		VALUES (?, ?, ?, ?, ?, ?)
+		INSERT INTO words (word, reading, meaning, pos, language, source,
+		                   easiness_factor, interval, repetitions)
+		VALUES (?, ?, ?, ?, ?, ?, 2.5, 0, 0)
 	`, w.Word, w.Reading, w.Meaning, w.POS, w.Language, w.Source)
 	if err != nil {
 		return 0, fmt.Errorf("insert word: %w", err)
@@ -17,19 +73,14 @@ func (d *Database) InsertWord(w *Word) (int64, error) {
 }
 
 func (d *Database) GetWord(id int64) (*Word, error) {
-	w := &Word{}
-	err := d.DB.QueryRow(`
+	row := d.DB.QueryRow(`
 		SELECT id, word, reading, meaning, pos, language, source,
 		       easiness_factor, interval, repetitions,
 		       next_review_at, last_review_at,
 		       total_attempts, total_correct, created_at, updated_at
 		FROM words WHERE id = ?
-	`, id).Scan(
-		&w.ID, &w.Word, &w.Reading, &w.Meaning, &w.POS, &w.Language, &w.Source,
-		&w.EasinessFactor, &w.Interval, &w.Repetitions,
-		&w.NextReviewAt, &w.LastReviewAt,
-		&w.TotalAttempts, &w.TotalCorrect, &w.CreatedAt, &w.UpdatedAt,
-	)
+	`, id)
+	w, err := scanWordRow(row)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -71,13 +122,8 @@ func (d *Database) ListWords(language string, limit, offset int) ([]*Word, int, 
 
 	var words []*Word
 	for rows.Next() {
-		w := &Word{}
-		if err := rows.Scan(
-			&w.ID, &w.Word, &w.Reading, &w.Meaning, &w.POS, &w.Language, &w.Source,
-			&w.EasinessFactor, &w.Interval, &w.Repetitions,
-			&w.NextReviewAt, &w.LastReviewAt,
-			&w.TotalAttempts, &w.TotalCorrect, &w.CreatedAt, &w.UpdatedAt,
-		); err != nil {
+		w, err := scanWordRow(rows)
+		if err != nil {
 			return nil, 0, fmt.Errorf("scan word: %w", err)
 		}
 		words = append(words, w)
@@ -86,6 +132,17 @@ func (d *Database) ListWords(language string, limit, offset int) ([]*Word, int, 
 }
 
 func (d *Database) UpdateWord(w *Word) error {
+	nextRev := sql.NullString{}
+	if w.NextReviewAt != nil {
+		nextRev.String = w.NextReviewAt.Format("2006-01-02 15:04:05")
+		nextRev.Valid = true
+	}
+	lastRev := sql.NullString{}
+	if w.LastReviewAt != nil {
+		lastRev.String = w.LastReviewAt.Format("2006-01-02 15:04:05")
+		lastRev.Valid = true
+	}
+
 	_, err := d.DB.Exec(`
 		UPDATE words SET word=?, reading=?, meaning=?, pos=?,
 		       easiness_factor=?, interval=?, repetitions=?,
@@ -95,7 +152,7 @@ func (d *Database) UpdateWord(w *Word) error {
 		WHERE id=?
 	`, w.Word, w.Reading, w.Meaning, w.POS,
 		w.EasinessFactor, w.Interval, w.Repetitions,
-		w.NextReviewAt, w.LastReviewAt,
+		nextRev, lastRev,
 		w.TotalAttempts, w.TotalCorrect, w.ID)
 	if err != nil {
 		return fmt.Errorf("update word: %w", err)
@@ -143,13 +200,8 @@ func (d *Database) GetReviewWords(language string, limit int) ([]*Word, error) {
 
 	var words []*Word
 	for rows.Next() {
-		w := &Word{}
-		if err := rows.Scan(
-			&w.ID, &w.Word, &w.Reading, &w.Meaning, &w.POS, &w.Language, &w.Source,
-			&w.EasinessFactor, &w.Interval, &w.Repetitions,
-			&w.NextReviewAt, &w.LastReviewAt,
-			&w.TotalAttempts, &w.TotalCorrect, &w.CreatedAt, &w.UpdatedAt,
-		); err != nil {
+		w, err := scanWordRow(rows)
+		if err != nil {
 			return nil, fmt.Errorf("scan review word: %w", err)
 		}
 		words = append(words, w)
@@ -185,19 +237,17 @@ func (d *Database) GetWordsByIDs(ids []int64) ([]*Word, error) {
 
 	var words []*Word
 	for rows.Next() {
-		w := &Word{}
-		if err := rows.Scan(
-			&w.ID, &w.Word, &w.Reading, &w.Meaning, &w.POS, &w.Language, &w.Source,
-			&w.EasinessFactor, &w.Interval, &w.Repetitions,
-			&w.NextReviewAt, &w.LastReviewAt,
-			&w.TotalAttempts, &w.TotalCorrect, &w.CreatedAt, &w.UpdatedAt,
-		); err != nil {
+		w, err := scanWordRow(rows)
+		if err != nil {
 			return nil, fmt.Errorf("scan word: %w", err)
 		}
 		words = append(words, w)
 	}
 	return words, nil
 }
+
+// Ensure time import is used
+var _ = time.Now
 
 func (d *Database) BulkInsertWords(words []*Word) error {
 	tx, err := d.DB.Begin()
@@ -207,8 +257,9 @@ func (d *Database) BulkInsertWords(words []*Word) error {
 	defer tx.Rollback()
 
 	stmt, err := tx.Prepare(`
-		INSERT INTO words (word, reading, meaning, pos, language, source)
-		VALUES (?, ?, ?, ?, ?, ?)
+		INSERT INTO words (word, reading, meaning, pos, language, source,
+		                   easiness_factor, interval, repetitions)
+		VALUES (?, ?, ?, ?, ?, ?, 2.5, 0, 0)
 	`)
 	if err != nil {
 		return fmt.Errorf("prepare: %w", err)

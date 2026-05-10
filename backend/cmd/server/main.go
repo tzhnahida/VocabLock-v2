@@ -9,6 +9,7 @@ import (
 
 	"github.com/vocablock/v2/internal/api"
 	"github.com/vocablock/v2/internal/config"
+	"github.com/vocablock/v2/internal/db"
 )
 
 func main() {
@@ -31,7 +32,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	srv := api.NewServer(cfg.App.MockMode)
+	var database *db.Database
+	if !cfg.App.MockMode {
+		database, err = db.Open("data")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "database error: %v\n", err)
+			os.Exit(1)
+		}
+		defer database.Close()
+	}
+
+	srv := api.NewServer(cfg.App.MockMode, cfg, database)
 	if err := srv.Start(); err != nil {
 		fmt.Fprintf(os.Stderr, "server start error: %v\n", err)
 		os.Exit(1)
@@ -41,8 +52,6 @@ func main() {
 	fmt.Printf("  HTTP: http://127.0.0.1:%d\n", srv.Port)
 	fmt.Printf("  Token: %s\n", srv.Token)
 	fmt.Printf("  Mock: %v\n", cfg.App.MockMode)
-
-	// TODO: lock screen, tray, spawn Flutter
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)

@@ -34,11 +34,13 @@ func (d *Database) GetReviewLogs(wordID int64, limit int) ([]*ReviewLog, error) 
 	for rows.Next() {
 		l := &ReviewLog{}
 		var correct int
+		var createdAt string
 		if err := rows.Scan(&l.ID, &l.WordID, &l.QuestionType, &l.UserAnswer, &l.ExpectedAnswer,
-			&correct, &l.Score, &l.Source, &l.CreatedAt); err != nil {
+			&correct, &l.Score, &l.Source, &createdAt); err != nil {
 			return nil, fmt.Errorf("scan review log: %w", err)
 		}
 		l.Correct = correct == 1
+		l.CreatedAt = TimeStr(createdAt)
 		logs = append(logs, l)
 	}
 	return logs, nil

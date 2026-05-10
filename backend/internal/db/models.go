@@ -1,6 +1,34 @@
 package db
 
-import "time"
+import (
+	"database/sql"
+	"time"
+)
+
+// NullTime scans a possibly-null SQLite datetime string into *time.Time.
+func NullTime(s sql.NullString) *time.Time {
+	if !s.Valid || s.String == "" {
+		return nil
+	}
+	t, err := time.Parse("2006-01-02 15:04:05", s.String)
+	if err != nil {
+		// Try RFC3339
+		t, err = time.Parse(time.RFC3339, s.String)
+		if err != nil {
+			return nil
+		}
+	}
+	return &t
+}
+
+// TimeStr parses a non-null SQLite datetime string.
+func TimeStr(s string) time.Time {
+	t, err := time.Parse("2006-01-02 15:04:05", s)
+	if err != nil {
+		t, _ = time.Parse(time.RFC3339, s)
+	}
+	return t
+}
 
 type Word struct {
 	ID             int64      `json:"id"`

@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	_ "modernc.org/sqlite"
@@ -13,6 +14,9 @@ type Database struct {
 }
 
 func Open(dataDir string) (*Database, error) {
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		return nil, fmt.Errorf("create data dir: %w", err)
+	}
 	path := filepath.Join(dataDir, "vocablock.db")
 	db, err := sql.Open("sqlite", path)
 	if err != nil {

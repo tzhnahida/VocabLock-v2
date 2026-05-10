@@ -8,22 +8,29 @@ import (
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/vocablock/v2/internal/config"
+	"github.com/vocablock/v2/internal/db"
 )
 
 type Server struct {
-	http    *http.Server
-	Port    int
-	Token   string
-	Mock    bool
+	http   *http.Server
+	Port   int
+	Token  string
+	Mock   bool
+	Config *config.Config
+	DB     *db.Database
 }
 
-func NewServer(mock bool) *Server {
+func NewServer(mock bool, cfg *config.Config, database *db.Database) *Server {
 	token := make([]byte, 16)
 	rand.Read(token)
 
 	return &Server{
-		Token: hex.EncodeToString(token),
-		Mock:  mock,
+		Token:  hex.EncodeToString(token),
+		Mock:   mock,
+		Config: cfg,
+		DB:     database,
 	}
 }
 

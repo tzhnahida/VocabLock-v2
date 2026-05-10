@@ -12,6 +12,10 @@ frontend/pubspec.lock
 
 # Build output
 *.exe
+*.exe~
+*.tmp
+stdout.txt
+stderr.txt
 build/bin/
 
 # Runtime data
