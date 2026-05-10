@@ -1,0 +1,17 @@
+import 'api_client.dart';
+
+class AiApi {
+  final ApiClient _client;
+
+  AiApi(this._client);
+
+  Future<Map<String, dynamic>> chat(String message) async {
+    final r = await _client.post('/api/v1/ai/chat', data: {'message': message});
+    return r.data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> getProfile() async {
+    final r = await _client.get('/api/v1/ai/profile');
+    return r.data as Map<String, dynamic>;
+  }
+}
