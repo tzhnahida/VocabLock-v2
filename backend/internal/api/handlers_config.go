@@ -52,7 +52,38 @@ func (s *Server) handleConfigUpdate(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
 		mock.HandleConfigUpdate(w, r); return
 	}
-	writeNotImplemented(w)
+
+	var req map[string]interface{}
+	if err := readJSON(r, &req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	if v, ok := req["active_lang"]; ok {
+		if lang, ok := v.(string); ok {
+			if _, exists := s.Config.Languages[lang]; exists {
+				s.Config.App.ActiveLang = lang
+			} else {
+				writeError(w, 400, "unknown language: "+lang)
+				return
+			}
+		}
+	}
+
+	if v, ok := req["daily_target"]; ok {
+		switch n := v.(type) {
+		case float64:
+			if n > 0 && n <= 200 {
+				s.Config.App.DailyTarget = int(n)
+			}
+		}
+	}
+
+	writeJSON(w, map[string]interface{}{
+		"updated":      true,
+		"active_lang":  s.Config.App.ActiveLang,
+		"daily_target": s.Config.App.DailyTarget,
+	})
 }
 
 func (s *Server) handleConfigPassword(w http.ResponseWriter, r *http.Request) {

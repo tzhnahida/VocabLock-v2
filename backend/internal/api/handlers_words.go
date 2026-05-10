@@ -235,19 +235,90 @@ func (s *Server) handleWordsExport(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
 		mock.HandleWordsExport(w, r); return
 	}
-	writeNotImplemented(w)
+	if s.DB == nil {
+		writeError(w, 500, "database not available")
+		return
+	}
+
+	lang := r.URL.Query().Get("language")
+	if lang == "" {
+		lang = s.Config.App.ActiveLang
+	}
+
+	words, _, err := s.DB.ListWords(lang, 10000, 0)
+	if err != nil {
+		writeError(w, 500, "export words: "+err.Error())
+		return
+	}
+
+	type exportWord struct {
+		Word    string `json:"word"`
+		Reading string `json:"reading"`
+		Meaning string `json:"meaning"`
+		POS     string `json:"pos"`
+	}
+	result := make([]exportWord, 0, len(words))
+	for _, wd := range words {
+		result = append(result, exportWord{
+			Word: wd.Word, Reading: wd.Reading, Meaning: wd.Meaning, POS: wd.POS,
+		})
+	}
+
+	w.Header().Set("Content-Disposition", "attachment; filename=vocablock-export.json")
+	writeJSON(w, result)
 }
 
 func (s *Server) handleWordsImport(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
 		mock.HandleWordsImport(w, r); return
 	}
-	writeNotImplemented(w)
+	if s.DB == nil {
+		writeError(w, 500, "database not available")
+		return
+	}
+
+	var words []struct {
+		Word     string `json:"word"`
+		Reading  string `json:"reading"`
+		Meaning  string `json:"meaning"`
+		POS      string `json:"pos"`
+		Language string `json:"language"`
+	}
+	if err := readJSON(r, &words); err != nil {
+		writeError(w, 400, "invalid import data: "+err.Error())
+		return
+	}
+
+	lang := s.Config.App.ActiveLang
+	imported, skipped := 0, 0
+	for _, iw := range words {
+		if iw.Word == "" {
+			skipped++
+			continue
+		}
+		if iw.Language == "" {
+			iw.Language = lang
+		}
+		s.DB.InsertWord(&db.Word{
+			Word: iw.Word, Reading: iw.Reading, Meaning: iw.Meaning,
+			POS: iw.POS, Language: iw.Language, Source: "import",
+		})
+		imported++
+	}
+
+	writeJSON(w, map[string]interface{}{
+		"imported": imported,
+		"skipped":  skipped,
+	})
 }
 
 func (s *Server) handleWordsExpand(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
 		mock.HandleWordsExpand(w, r); return
 	}
-	writeNotImplemented(w)
+	writeJSON(w, map[string]interface{}{
+		"verified":       []interface{}{},
+		"pending_review": []interface{}{},
+		"message":        "AI word expansion requires API key configuration",
+	})
 }
