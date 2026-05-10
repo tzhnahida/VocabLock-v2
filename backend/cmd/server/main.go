@@ -4,7 +4,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
+	"github.com/vocablock/v2/internal/api"
 	"github.com/vocablock/v2/internal/config"
 )
 
@@ -20,18 +23,31 @@ func main() {
 
 	if *mockMode {
 		cfg.App.MockMode = true
-		fmt.Println("Running in mock mode")
 	}
-
-	fmt.Printf("VocabLock v2 starting (lang=%s, daily_target=%d)\n",
-		cfg.App.ActiveLang, cfg.App.DailyTarget)
 
 	lang, ok := cfg.Languages[cfg.App.ActiveLang]
 	if !ok {
 		fmt.Fprintf(os.Stderr, "active language %q not configured\n", cfg.App.ActiveLang)
 		os.Exit(1)
 	}
-	fmt.Printf("  Language: %s (%s)\n", lang.Lang.DisplayName, lang.Lang.NativeName)
 
-	// TODO: start HTTP server, lock screen, tray, spawn Flutter
+	srv := api.NewServer(cfg.App.MockMode)
+	if err := srv.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "server start error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("VocabLock v2 — %s (%s)\n", lang.Lang.DisplayName, lang.Lang.NativeName)
+	fmt.Printf("  HTTP: http://127.0.0.1:%d\n", srv.Port)
+	fmt.Printf("  Token: %s\n", srv.Token)
+	fmt.Printf("  Mock: %v\n", cfg.App.MockMode)
+
+	// TODO: lock screen, tray, spawn Flutter
+
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+	<-sig
+
+	fmt.Println("\nShutting down...")
+	srv.Shutdown()
 }
