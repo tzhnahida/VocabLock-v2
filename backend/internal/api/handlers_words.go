@@ -1,9 +1,14 @@
 package api
 
 import (
+	"context"
+	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
+	"github.com/vocablock/v2/internal/ai"
 	"github.com/vocablock/v2/internal/api/mock"
 	"github.com/vocablock/v2/internal/db"
 )
@@ -316,9 +321,179 @@ func (s *Server) handleWordsExpand(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
 		mock.HandleWordsExpand(w, r); return
 	}
+	if s.DB == nil {
+		writeError(w, 500, "database not available")
+		return
+	}
+	if s.AI == nil {
+		writeJSON(w, map[string]interface{}{
+			"verified":       []interface{}{},
+			"pending_review": []interface{}{},
+			"message":        "AI word expansion requires API key configuration",
+		})
+		return
+	}
+
+	lang := s.Config.App.ActiveLang
+
+	// Parse optional request body
+	var req struct {
+		Count   int      `json:"count"`
+		Context []string `json:"context"`
+	}
+	req.Count = 5
+	if err := readJSON(r, &req); err != nil {
+		req.Count = 5
+		req.Context = nil
+	}
+	if req.Count <= 0 || req.Count > 20 {
+		req.Count = 5
+	}
+
+	// Build context from recently mastered words
+	recentContext := ""
+	if len(req.Context) > 0 {
+		recentContext = strings.Join(req.Context, ", ")
+	} else {
+		recentWords, _ := s.DB.GetReviewWords(lang, 5)
+		parts := make([]string, 0, len(recentWords))
+		for _, w := range recentWords {
+			parts = append(parts, w.Word)
+		}
+		recentContext = strings.Join(parts, ", ")
+	}
+	if recentContext == "" {
+		recentContext = "(new learner, no words yet)"
+	}
+
+	// Load expand prompt
+	pt, err := ai.LoadPrompt("expand")
+	if err != nil {
+		writeError(w, 500, "load prompt: "+err.Error())
+		return
+	}
+
+	teacherRole := "Language Teacher"
+	level := "beginner"
+	if lc, ok := s.Config.Languages[lang]; ok {
+		teacherRole = lc.PromptContext.TeacherRole
+		for lvl := range lc.PromptContext.LevelDescriptions {
+			level = lvl
+			break
+		}
+	}
+
+	messages, err := pt.BuildMessages(&ai.PromptVars{
+		TeacherRole: teacherRole,
+		Level:       level,
+		ExtraContext: recentContext,
+	})
+	if err != nil {
+		writeError(w, 500, "build prompt: "+err.Error())
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	response, err := s.AI.Chat(ctx, messages)
+	if err != nil {
+		writeJSON(w, map[string]interface{}{
+			"verified":       []interface{}{},
+			"pending_review": []interface{}{},
+			"message":        "AI temporarily unavailable: " + err.Error(),
+		})
+		return
+	}
+
+	// Parse AI JSON response
+	var aiResult struct {
+		Words []struct {
+			Word       string `json:"word"`
+			Reading    string `json:"reading"`
+			Meaning    string `json:"meaning"`
+			POS        string `json:"pos"`
+			Confidence string `json:"confidence"`
+		} `json:"words"`
+	}
+	if err := json.Unmarshal([]byte(response), &aiResult); err != nil {
+		writeError(w, 500, "parse AI response: "+err.Error())
+		return
+	}
+
+	// Classify and insert
+	var verified []map[string]interface{}
+	var pendingReview []map[string]interface{}
+
+	for _, aiw := range aiResult.Words {
+		if aiw.Word == "" {
+			continue
+		}
+		if aiw.Confidence == "" {
+			aiw.Confidence = "medium"
+		}
+
+		entry := map[string]interface{}{
+			"word":       aiw.Word,
+			"reading":    aiw.Reading,
+			"meaning":    aiw.Meaning,
+			"pos":        aiw.POS,
+			"confidence": aiw.Confidence,
+			"source":     "ai_expansion",
+		}
+
+		// Verify against dictionary if available
+		verifiedByDict := false
+		if s.DictProvider != nil {
+			lookupCtx, lookupCancel := context.WithTimeout(r.Context(), 5*time.Second)
+			result, lookupErr := s.DictProvider.Lookup(lookupCtx, aiw.Word)
+			lookupCancel()
+			if lookupErr == nil && result != nil && result.Found {
+				verifiedByDict = true
+				// Use dict-provided data when available (more reliable)
+				if result.Reading != "" {
+					aiw.Reading = result.Reading
+				}
+				if result.Meaning != "" {
+					aiw.Meaning = result.Meaning
+				}
+				if result.POS != "" {
+					aiw.POS = result.POS
+				}
+				entry["reading"] = aiw.Reading
+				entry["meaning"] = aiw.Meaning
+				entry["pos"] = aiw.POS
+			}
+		}
+
+		if verifiedByDict {
+			_, insertErr := s.DB.InsertWord(&db.Word{
+				Word:       aiw.Word,
+				Reading:    aiw.Reading,
+				Meaning:    aiw.Meaning,
+				POS:        aiw.POS,
+				Language:   lang,
+				Source:     "ai_expansion",
+				Confidence: aiw.Confidence,
+			})
+			if insertErr != nil {
+				entry["insert_error"] = insertErr.Error()
+			}
+			verified = append(verified, entry)
+		} else {
+			pendingReview = append(pendingReview, entry)
+		}
+	}
+
+	if verified == nil {
+		verified = []map[string]interface{}{}
+	}
+	if pendingReview == nil {
+		pendingReview = []map[string]interface{}{}
+	}
+
 	writeJSON(w, map[string]interface{}{
-		"verified":       []interface{}{},
-		"pending_review": []interface{}{},
-		"message":        "AI word expansion requires API key configuration",
+		"verified":       verified,
+		"pending_review": pendingReview,
 	})
 }

@@ -14,6 +14,7 @@ type wordScanner struct {
 	POS            string
 	Language       string
 	Source         string
+	Confidence     string
 	EasinessFactor float64
 	Interval       int
 	Repetitions    int
@@ -34,6 +35,7 @@ func (s *wordScanner) toWord() *Word {
 		POS:            s.POS,
 		Language:       s.Language,
 		Source:         s.Source,
+		Confidence:     s.Confidence,
 		EasinessFactor: s.EasinessFactor,
 		Interval:       s.Interval,
 		Repetitions:    s.Repetitions,
@@ -49,7 +51,7 @@ func (s *wordScanner) toWord() *Word {
 func scanWordRow(row interface{ Scan(...interface{}) error }) (*Word, error) {
 	var s wordScanner
 	err := row.Scan(
-		&s.ID, &s.Word, &s.Reading, &s.Meaning, &s.POS, &s.Language, &s.Source,
+		&s.ID, &s.Word, &s.Reading, &s.Meaning, &s.POS, &s.Language, &s.Source, &s.Confidence,
 		&s.EasinessFactor, &s.Interval, &s.Repetitions,
 		&s.NextReviewAt, &s.LastReviewAt,
 		&s.TotalAttempts, &s.TotalCorrect, &s.CreatedAt, &s.UpdatedAt,
@@ -62,10 +64,10 @@ func scanWordRow(row interface{ Scan(...interface{}) error }) (*Word, error) {
 
 func (d *Database) InsertWord(w *Word) (int64, error) {
 	r, err := d.DB.Exec(`
-		INSERT INTO words (word, reading, meaning, pos, language, source,
+		INSERT INTO words (word, reading, meaning, pos, language, source, confidence,
 		                   easiness_factor, interval, repetitions)
-		VALUES (?, ?, ?, ?, ?, ?, 2.5, 0, 0)
-	`, w.Word, w.Reading, w.Meaning, w.POS, w.Language, w.Source)
+		VALUES (?, ?, ?, ?, ?, ?, ?, 2.5, 0, 0)
+	`, w.Word, w.Reading, w.Meaning, w.POS, w.Language, w.Source, w.Confidence)
 	if err != nil {
 		return 0, fmt.Errorf("insert word: %w", err)
 	}
@@ -74,7 +76,7 @@ func (d *Database) InsertWord(w *Word) (int64, error) {
 
 func (d *Database) GetWord(id int64) (*Word, error) {
 	row := d.DB.QueryRow(`
-		SELECT id, word, reading, meaning, pos, language, source,
+		SELECT id, word, reading, meaning, pos, language, source, confidence,
 		       easiness_factor, interval, repetitions,
 		       next_review_at, last_review_at,
 		       total_attempts, total_correct, created_at, updated_at
@@ -103,7 +105,7 @@ func (d *Database) ListWords(language string, limit, offset int) ([]*Word, int, 
 	}
 
 	query := `
-		SELECT id, word, reading, meaning, pos, language, source,
+		SELECT id, word, reading, meaning, pos, language, source, confidence,
 		       easiness_factor, interval, repetitions,
 		       next_review_at, last_review_at,
 		       total_attempts, total_correct, created_at, updated_at
@@ -184,7 +186,7 @@ func (d *Database) ResetWord(id int64) error {
 
 func (d *Database) GetReviewWords(language string, limit int) ([]*Word, error) {
 	rows, err := d.DB.Query(`
-		SELECT id, word, reading, meaning, pos, language, source,
+		SELECT id, word, reading, meaning, pos, language, source, confidence,
 		       easiness_factor, interval, repetitions,
 		       next_review_at, last_review_at,
 		       total_attempts, total_correct, created_at, updated_at
@@ -214,7 +216,7 @@ func (d *Database) GetWordsByIDs(ids []int64) ([]*Word, error) {
 		return nil, nil
 	}
 	query := `
-		SELECT id, word, reading, meaning, pos, language, source,
+		SELECT id, word, reading, meaning, pos, language, source, confidence,
 		       easiness_factor, interval, repetitions,
 		       next_review_at, last_review_at,
 		       total_attempts, total_correct, created_at, updated_at
@@ -257,9 +259,9 @@ func (d *Database) BulkInsertWords(words []*Word) error {
 	defer tx.Rollback()
 
 	stmt, err := tx.Prepare(`
-		INSERT INTO words (word, reading, meaning, pos, language, source,
+		INSERT INTO words (word, reading, meaning, pos, language, source, confidence,
 		                   easiness_factor, interval, repetitions)
-		VALUES (?, ?, ?, ?, ?, ?, 2.5, 0, 0)
+		VALUES (?, ?, ?, ?, ?, ?, ?, 2.5, 0, 0)
 	`)
 	if err != nil {
 		return fmt.Errorf("prepare: %w", err)
@@ -267,7 +269,7 @@ func (d *Database) BulkInsertWords(words []*Word) error {
 	defer stmt.Close()
 
 	for _, w := range words {
-		if _, err := stmt.Exec(w.Word, w.Reading, w.Meaning, w.POS, w.Language, w.Source); err != nil {
+		if _, err := stmt.Exec(w.Word, w.Reading, w.Meaning, w.POS, w.Language, w.Source, w.Confidence); err != nil {
 			return fmt.Errorf("insert: %w", err)
 		}
 	}

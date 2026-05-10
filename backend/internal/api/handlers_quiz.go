@@ -22,6 +22,30 @@ var vocabTypes = []engine.QuestionType{
 	engine.TypeReading,
 }
 
+// pickQuestionType selects a random question type from the active language config.
+// AI-dependent types are skipped when s.AI is nil.
+func (s *Server) pickQuestionType() engine.QuestionType {
+	lc, ok := s.Config.Languages[s.Config.App.ActiveLang]
+	if !ok || len(lc.QuestionTypes) == 0 {
+		return vocabTypes[rand.Intn(len(vocabTypes))]
+	}
+
+	available := make([]engine.QuestionType, 0, len(lc.QuestionTypes))
+	for _, qtStr := range lc.QuestionTypes {
+		qt := engine.QuestionType(qtStr)
+		if isAIType(qt) && s.AI == nil {
+			continue
+		}
+		available = append(available, qt)
+	}
+
+	if len(available) == 0 {
+		return vocabTypes[rand.Intn(len(vocabTypes))]
+	}
+
+	return available[rand.Intn(len(available))]
+}
+
 func (s *Server) handleQuizProgress(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
 		mock.HandleQuizProgress(w, r); return
@@ -78,8 +102,8 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	// Fetch distractors for choice questions (from other words)
 	distractors := wordsToInfos(words[1:])
 
-	// Pick a random vocabulary question type
-	qType := vocabTypes[rand.Intn(len(vocabTypes))]
+	// Pick a random question type from active language config
+	qType := s.pickQuestionType()
 
 	var q *engine.Question
 	switch qType {
@@ -91,6 +115,26 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 		q = engine.GenerateSpelling(info)
 	case engine.TypeReading:
 		q = engine.GenerateReading(info)
+	case engine.TypeListening, engine.TypeReadingComp, engine.TypeGrammar:
+		q, err = s.aiGenerateQuestion(r.Context(), info, qType)
+		if err != nil {
+			// AI failed — fall back to a vocabulary question
+			ft := vocabTypes[rand.Intn(len(vocabTypes))]
+			switch ft {
+			case engine.TypeChoice:
+				q = engine.GenerateChoice(info, distractors)
+			case engine.TypeFill:
+				q = engine.GenerateFill(info)
+			case engine.TypeSpelling:
+				q = engine.GenerateSpelling(info)
+			case engine.TypeReading:
+				q = engine.GenerateReading(info)
+			default:
+				q = engine.GenerateChoice(info, distractors)
+			}
+		} else {
+			s.cacheQuestion(q)
+		}
 	default:
 		q = engine.GenerateChoice(info, distractors)
 	}
@@ -142,6 +186,10 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 
 	// Determine expected answer based on question type
 	expected := expectedAnswer(req.QuestionType, word)
+	// For AI-generated questions, retrieve the expected answer from cache
+	if cachedQ := s.getAndDelCachedQuestion(req.QuestionID); cachedQ != nil {
+		expected = cachedQ.Answer
+	}
 	strictness := strictnessForType(req.QuestionType)
 
 	// Run 3-tier judge: exact → regex → (AI if available)
@@ -264,6 +312,8 @@ func expectedAnswer(qType string, w *db.Word) string {
 		return w.Word
 	case engine.TypeReading:
 		return w.Reading
+	case engine.TypeListening:
+		return w.Meaning
 	default:
 		return w.Meaning
 	}

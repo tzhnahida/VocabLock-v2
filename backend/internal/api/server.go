@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/vocablock/v2/internal/ai"
 	"github.com/vocablock/v2/internal/config"
 	"github.com/vocablock/v2/internal/db"
 	"github.com/vocablock/v2/internal/dict"
+	"github.com/vocablock/v2/internal/engine"
 	"github.com/vocablock/v2/internal/tts"
 )
 
@@ -28,6 +30,10 @@ type Server struct {
 	AI         *ai.Client
 	TTSProvider *tts.Provider
 	DictProvider *dict.Provider
+
+	// Question cache for AI-generated questions (maps question_id → Answer)
+	questionCache   map[string]*engine.Question
+	questionCacheMu sync.RWMutex
 }
 
 func NewServer(mock bool, cfg *config.Config, database *db.Database) *Server {
@@ -35,10 +41,11 @@ func NewServer(mock bool, cfg *config.Config, database *db.Database) *Server {
 	rand.Read(token)
 
 	return &Server{
-		Token:  hex.EncodeToString(token),
-		Mock:   mock,
-		Config: cfg,
-		DB:     database,
+		Token:         hex.EncodeToString(token),
+		Mock:          mock,
+		Config:        cfg,
+		DB:            database,
+		questionCache: make(map[string]*engine.Question),
 	}
 }
 
@@ -72,4 +79,23 @@ func (s *Server) Shutdown() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	return s.http.Shutdown(ctx)
+}
+
+func (s *Server) cacheQuestion(q *engine.Question) {
+	s.questionCacheMu.Lock()
+	defer s.questionCacheMu.Unlock()
+	if len(s.questionCache) > 1000 {
+		s.questionCache = make(map[string]*engine.Question)
+	}
+	s.questionCache[q.ID] = q
+}
+
+func (s *Server) getAndDelCachedQuestion(id string) *engine.Question {
+	s.questionCacheMu.Lock()
+	defer s.questionCacheMu.Unlock()
+	q, ok := s.questionCache[id]
+	if ok {
+		delete(s.questionCache, id)
+	}
+	return q
 }

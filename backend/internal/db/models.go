@@ -38,6 +38,7 @@ type Word struct {
 	POS            string     `json:"pos"`
 	Language       string     `json:"language"`
 	Source         string     `json:"source"`
+	Confidence     string     `json:"confidence"`
 	EasinessFactor float64    `json:"easiness_factor"`
 	Interval       int        `json:"interval"`
 	Repetitions    int        `json:"repetitions"`

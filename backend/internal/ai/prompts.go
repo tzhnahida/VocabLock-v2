@@ -31,6 +31,7 @@ type PromptVars struct {
 	TeacherRole    string
 	ExplanationLang string
 	ExtraContext   string
+	QuestionType   string
 }
 
 func LoadPrompt(name string) (*PromptTemplate, error) {

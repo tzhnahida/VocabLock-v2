@@ -1,5 +1,10 @@
 package db
 
+import (
+	"fmt"
+	"strings"
+)
+
 func (d *Database) migrate() error {
 	_, err := d.DB.Exec(`
 		CREATE TABLE IF NOT EXISTS words (
@@ -51,5 +56,16 @@ func (d *Database) migrate() error {
 		CREATE INDEX IF NOT EXISTS idx_review_log_word_id ON review_log(word_id);
 		CREATE INDEX IF NOT EXISTS idx_review_log_created ON review_log(created_at);
 	`)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Phase 2: add confidence column for AI-expanded words
+	if _, err := d.DB.Exec(`ALTER TABLE words ADD COLUMN confidence TEXT NOT NULL DEFAULT ''`); err != nil {
+		if !strings.Contains(err.Error(), "duplicate column") {
+			return fmt.Errorf("add confidence column: %w", err)
+		}
+	}
+
+	return nil
 }

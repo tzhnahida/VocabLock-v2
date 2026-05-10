@@ -454,3 +454,72 @@ func TestIsConsecutive(t *testing.T) {
 		t.Error("invalid date should not be consecutive")
 	}
 }
+
+func TestInsertWordWithConfidence(t *testing.T) {
+	d := openTestDB(t)
+
+	id, err := d.InsertWord(&Word{
+		Word: "test", Language: "en", Source: "ai_expansion", Confidence: "high",
+	})
+	if err != nil {
+		t.Fatalf("InsertWord: %v", err)
+	}
+
+	w, err := d.GetWord(id)
+	if err != nil {
+		t.Fatalf("GetWord: %v", err)
+	}
+	if w == nil {
+		t.Fatal("word not found")
+	}
+	if w.Confidence != "high" {
+		t.Errorf("confidence = %q, want high", w.Confidence)
+	}
+	if w.Source != "ai_expansion" {
+		t.Errorf("source = %q, want ai_expansion", w.Source)
+	}
+}
+
+func TestBulkInsertWordsWithConfidence(t *testing.T) {
+	d := openTestDB(t)
+
+	words := []*Word{
+		{Word: "a", Language: "en", Source: "ai_expansion", Confidence: "high"},
+		{Word: "b", Language: "en", Source: "ai_expansion", Confidence: "low"},
+	}
+	if err := d.BulkInsertWords(words); err != nil {
+		t.Fatalf("BulkInsertWords: %v", err)
+	}
+
+	all, _, err := d.ListWords("en", 10, 0)
+	if err != nil {
+		t.Fatalf("ListWords: %v", err)
+	}
+	if len(all) != 2 {
+		t.Fatalf("expected 2 words, got %d", len(all))
+	}
+	for _, w := range all {
+		if w.Source != "ai_expansion" {
+			t.Errorf("word %q: source = %q, want ai_expansion", w.Word, w.Source)
+		}
+		if w.Confidence == "" {
+			t.Errorf("word %q: confidence is empty", w.Word)
+		}
+	}
+}
+
+func TestInsertWordDefaultConfidence(t *testing.T) {
+	d := openTestDB(t)
+
+	id, err := d.InsertWord(&Word{Word: "manual", Language: "en"})
+	if err != nil {
+		t.Fatalf("InsertWord: %v", err)
+	}
+	w, _ := d.GetWord(id)
+	if w.Confidence != "" {
+		t.Errorf("confidence = %q, want empty (default)", w.Confidence)
+	}
+	if w.Source != "" {
+		t.Errorf("source = %q, want empty", w.Source)
+	}
+}
