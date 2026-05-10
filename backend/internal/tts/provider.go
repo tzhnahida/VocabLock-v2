@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"time"
 
 	"github.com/vocablock/v2/internal/config"
 )
@@ -43,8 +42,6 @@ func (p *Provider) Generate(ctx context.Context, voice, text string) (string, er
 		"output": key + "." + p.cfg.Format,
 	})
 
-	// Create output dir
-	tmpPath := filepathAbs(key + "." + p.cfg.Format)
 	outputPath := filepathAbs(key + "." + p.cfg.Format)
 
 	// Ensure the output path variable is set correctly
