@@ -1,13 +1,23 @@
 package api
 
 import (
+	"math/rand"
 	"net/http"
 	"time"
 
 	"github.com/vocablock/v2/internal/api/mock"
 	"github.com/vocablock/v2/internal/db"
 	"github.com/vocablock/v2/internal/engine"
+	"github.com/vocablock/v2/internal/engine/judge"
 )
+
+// vocabTypes are question types that operate on a single word (no AI needed).
+var vocabTypes = []engine.QuestionType{
+	engine.TypeChoice,
+	engine.TypeFill,
+	engine.TypeSpelling,
+	engine.TypeReading,
+}
 
 func (s *Server) handleQuizProgress(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
@@ -43,8 +53,8 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 
 	lang := s.Config.App.ActiveLang
 
-	// Get words due for review (NULLS FIRST = new words first)
-	words, err := s.DB.GetReviewWords(lang, 1)
+	// Get words due for review
+	words, err := s.DB.GetReviewWords(lang, 10)
 	if err != nil {
 		writeError(w, 500, "get review words: "+err.Error())
 		return
@@ -58,27 +68,42 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Pick the first due word
 	word := words[0]
-	info := &engine.WordInfo{
-		ID:      word.ID,
-		Word:    word.Word,
-		Reading: word.Reading,
-		Meaning: word.Meaning,
-		POS:     word.POS,
+	info := wordToInfo(word)
+
+	// Fetch distractors for choice questions (from other words)
+	distractors := wordsToInfos(words[1:])
+
+	// Pick a random vocabulary question type
+	qType := vocabTypes[rand.Intn(len(vocabTypes))]
+
+	var q *engine.Question
+	switch qType {
+	case engine.TypeChoice:
+		q = engine.GenerateChoice(info, distractors)
+	case engine.TypeFill:
+		q = engine.GenerateFill(info)
+	case engine.TypeSpelling:
+		q = engine.GenerateSpelling(info)
+	case engine.TypeReading:
+		q = engine.GenerateReading(info)
+	default:
+		q = engine.GenerateChoice(info, distractors)
 	}
 
-	// Generate a choice question using the word itself (distractors come from other words)
-	q := engine.GenerateChoice(info, nil)
-
-	writeJSON(w, map[string]interface{}{
+	resp := map[string]interface{}{
 		"id":      q.ID,
 		"type":    q.Type,
 		"word_id": q.WordID,
 		"word":    q.Word,
 		"reading": q.Reading,
 		"prompt":  q.Prompt,
-		"options": q.Options,
-	})
+	}
+	if len(q.Options) > 0 {
+		resp["options"] = q.Options
+	}
+	writeJSON(w, resp)
 }
 
 func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
@@ -91,9 +116,10 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		QuestionID string `json:"question_id"`
-		WordID     int64  `json:"word_id"`
-		Answer     string `json:"answer"`
+		QuestionID   string `json:"question_id"`
+		WordID       int64  `json:"word_id"`
+		QuestionType string `json:"question_type"`
+		Answer       string `json:"answer"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -111,16 +137,15 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Judge: exact match on meaning
-	correct := req.Answer == word.Meaning
-	score := 0.0
-	if correct {
-		score = 1.0
-	}
+	// Determine expected answer based on question type
+	expected := expectedAnswer(req.QuestionType, word)
+	strictness := strictnessForType(req.QuestionType)
+
+	// Run 3-tier judge: exact → regex → (AI if available)
+	result := judge.Judge(req.Answer, expected, strictness, nil)
 
 	// Update SM-2
-	quality := engine.QualityFromScore(score)
-
+	quality := engine.QualityFromScore(result.Score)
 	sm2 := engine.SM2(word.EasinessFactor, word.Interval, word.Repetitions, quality, time.Now())
 	if sm2 != nil {
 		word.EasinessFactor = sm2.EasinessFactor
@@ -131,7 +156,7 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	word.LastReviewAt = &now
 	word.TotalAttempts++
-	if correct {
+	if result.Correct {
 		word.TotalCorrect++
 	}
 
@@ -141,27 +166,25 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Log review
-	logEntry := &db.ReviewLog{
+	qType := req.QuestionType
+	if qType == "" {
+		qType = "choice"
+	}
+	s.DB.InsertReviewLog(&db.ReviewLog{
 		WordID:         word.ID,
-		QuestionType:   "choice",
+		QuestionType:   qType,
 		UserAnswer:     req.Answer,
-		ExpectedAnswer: word.Meaning,
-		Correct:        correct,
-		Score:          score,
-		Source:         "exact",
-	}
-	s.DB.InsertReviewLog(logEntry)
-
-	feedback := "Correct!"
-	if !correct {
-		feedback = "Incorrect. The answer is: " + word.Meaning
-	}
+		ExpectedAnswer: expected,
+		Correct:        result.Correct,
+		Score:          result.Score,
+		Source:         string(result.Source),
+	})
 
 	writeJSON(w, map[string]interface{}{
-		"correct":        correct,
-		"score":          score,
-		"feedback":       feedback,
-		"source":         "exact",
+		"correct":        result.Correct,
+		"score":          result.Score,
+		"feedback":       result.Feedback,
+		"source":         result.Source,
 		"next_review_at": word.NextReviewAt,
 	})
 }
@@ -203,7 +226,47 @@ func (s *Server) handleQuizComplete(w http.ResponseWriter, r *http.Request) {
 	reviewed, _, _ := s.DB.GetTodayStats(lang)
 
 	writeJSON(w, map[string]interface{}{
-		"completed":         true,
-		"daily_target_met":  reviewed >= s.Config.App.DailyTarget,
+		"completed":        true,
+		"daily_target_met": reviewed >= s.Config.App.DailyTarget,
 	})
+}
+
+// ——— helpers ———
+
+func wordToInfo(w *db.Word) *engine.WordInfo {
+	return &engine.WordInfo{
+		ID:      w.ID,
+		Word:    w.Word,
+		Reading: w.Reading,
+		Meaning: w.Meaning,
+		POS:     w.POS,
+	}
+}
+
+func wordsToInfos(words []*db.Word) []*engine.WordInfo {
+	infos := make([]*engine.WordInfo, len(words))
+	for i, w := range words {
+		infos[i] = wordToInfo(w)
+	}
+	return infos
+}
+
+func expectedAnswer(qType string, w *db.Word) string {
+	switch engine.QuestionType(qType) {
+	case engine.TypeFill, engine.TypeSpelling:
+		return w.Word
+	case engine.TypeReading:
+		return w.Reading
+	default:
+		return w.Meaning
+	}
+}
+
+func strictnessForType(qType string) judge.Strictness {
+	switch engine.QuestionType(qType) {
+	case engine.TypeSpelling:
+		return judge.Strict
+	default:
+		return judge.Normal
+	}
 }
