@@ -18,6 +18,11 @@ stdout.txt
 stderr.txt
 build/bin/
 
+# Secrets (never commit API keys)
+.env
+*.pem
+*.key
+
 # Runtime data
 *.db
 data/

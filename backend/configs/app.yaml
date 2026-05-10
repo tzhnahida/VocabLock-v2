@@ -5,5 +5,6 @@ server:
 daily_target: 20
 ai:
   base_url: "https://api.deepseek.com"
+  # api_key: set via VOCABLOCK_AI_KEY env var (never commit the real key)
   api_key: ""
   model: "deepseek-chat"

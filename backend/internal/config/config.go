@@ -113,6 +113,17 @@ func Load(configDir string) (*Config, error) {
 		return nil, err
 	}
 
+	// Env var overrides (keeps secrets out of committed yaml)
+	if v := os.Getenv("VOCABLOCK_AI_KEY"); v != "" {
+		cfg.App.AI.APIKey = v
+	}
+	if v := os.Getenv("VOCABLOCK_AI_BASE_URL"); v != "" {
+		cfg.App.AI.BaseURL = v
+	}
+	if v := os.Getenv("VOCABLOCK_AI_MODEL"); v != "" {
+		cfg.App.AI.Model = v
+	}
+
 	// tts.yaml
 	if err := loadYAML(filepath.Join(configDir, "tts.yaml"), &cfg.TTS); err != nil {
 		return nil, err
