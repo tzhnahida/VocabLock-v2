@@ -1,0 +1,55 @@
+package db
+
+func (d *Database) migrate() error {
+	_, err := d.DB.Exec(`
+		CREATE TABLE IF NOT EXISTS words (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			word TEXT NOT NULL,
+			reading TEXT NOT NULL DEFAULT '',
+			meaning TEXT NOT NULL DEFAULT '',
+			pos TEXT NOT NULL DEFAULT '',
+			language TEXT NOT NULL DEFAULT '',
+			source TEXT NOT NULL DEFAULT 'manual',
+			easiness_factor REAL NOT NULL DEFAULT 2.5,
+			interval INTEGER NOT NULL DEFAULT 0,
+			repetitions INTEGER NOT NULL DEFAULT 0,
+			next_review_at TEXT,
+			last_review_at TEXT,
+			total_attempts INTEGER NOT NULL DEFAULT 0,
+			total_correct INTEGER NOT NULL DEFAULT 0,
+			created_at TEXT NOT NULL DEFAULT (datetime('now')),
+			updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+		);
+
+		CREATE TABLE IF NOT EXISTS review_log (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			word_id INTEGER NOT NULL,
+			question_type TEXT NOT NULL,
+			user_answer TEXT NOT NULL DEFAULT '',
+			expected_answer TEXT NOT NULL DEFAULT '',
+			correct INTEGER NOT NULL DEFAULT 0,
+			score REAL NOT NULL DEFAULT 0.0,
+			source TEXT NOT NULL DEFAULT 'exact',
+			created_at TEXT NOT NULL DEFAULT (datetime('now')),
+			FOREIGN KEY (word_id) REFERENCES words(id)
+		);
+
+		CREATE TABLE IF NOT EXISTS daily_stats (
+			date TEXT PRIMARY KEY,
+			words_reviewed INTEGER NOT NULL DEFAULT 0,
+			words_correct INTEGER NOT NULL DEFAULT 0,
+			time_spent_sec INTEGER NOT NULL DEFAULT 0
+		);
+
+		CREATE TABLE IF NOT EXISTS config (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL DEFAULT ''
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_words_next_review ON words(next_review_at);
+		CREATE INDEX IF NOT EXISTS idx_words_language ON words(language);
+		CREATE INDEX IF NOT EXISTS idx_review_log_word_id ON review_log(word_id);
+		CREATE INDEX IF NOT EXISTS idx_review_log_created ON review_log(created_at);
+	`)
+	return err
+}
