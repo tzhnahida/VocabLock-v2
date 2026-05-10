@@ -1,2 +1,5 @@
 active_lang: en
 mock_mode: false
+server:
+  host: "127.0.0.1"
+daily_target: 20

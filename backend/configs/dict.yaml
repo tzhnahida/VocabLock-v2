@@ -1,0 +1,22 @@
+dict:
+  providers:
+    jmdict:
+      lang: ja
+      binary: 'dict\ja\lookup.exe'
+      args:
+        - '--word'
+        - '{word}'
+      format: json
+    webster:
+      lang: en
+      binary: 'dict\en\lookup.bat'
+      args:
+        - '{word}'
+      format: json
+    cedict:
+      lang: zh
+      binary: 'dict\zh\lookup.ps1'
+      args:
+        - '-Word'
+        - '{word}'
+      format: json

@@ -19,10 +19,19 @@ func main() {
 	}
 
 	if *mockMode {
+		cfg.App.MockMode = true
 		fmt.Println("Running in mock mode")
 	}
 
-	fmt.Printf("VocabLock v2 starting (lang=%s)\n", cfg.ActiveLang)
+	fmt.Printf("VocabLock v2 starting (lang=%s, daily_target=%d)\n",
+		cfg.App.ActiveLang, cfg.App.DailyTarget)
+
+	lang, ok := cfg.Languages[cfg.App.ActiveLang]
+	if !ok {
+		fmt.Fprintf(os.Stderr, "active language %q not configured\n", cfg.App.ActiveLang)
+		os.Exit(1)
+	}
+	fmt.Printf("  Language: %s (%s)\n", lang.Lang.DisplayName, lang.Lang.NativeName)
 
 	// TODO: start HTTP server, lock screen, tray, spawn Flutter
 }
