@@ -65,7 +65,7 @@ func (s *Server) Start() error {
 	s.http = &http.Server{
 		Handler:      withMiddleware(mux, s.Token),
 		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 30 * time.Second,
+		WriteTimeout: 1200 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 

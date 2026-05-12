@@ -163,18 +163,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Future<void> _requestProfile() async {
+    await _doRequestProfile();
+  }
+
+  Future<void> _doRequestProfile() async {
     setState(() => _chatLoading = true);
     final prompt = '请根据以上对话，生成一份详细的学习培养方案，必须包含以下所有字段：\n'
         '- 学习语言与等级\n- 当前水平评估\n- 每日可投入时间（基于用户回答的具体分钟数）\n'
         '- 每日建议题数（根据可用时间推算，约每题2分钟）\n- 目标正确率（建议80%）\n'
         '- 学习时间安排（具体到时间段）\n- 重点学习方向\n- 难度递进计划\n\n结尾标注：✅ 学习档案已建立';
 
-    String reply;
+    String? reply;
+    bool failed = false;
     if (widget.onAiChat != null) {
       try {
         reply = await widget.onAiChat!(prompt, _chatMsgs);
       } catch (_) {
-        reply = 'AI 连接失败，请重试。';
+        failed = true;
       }
     } else {
       await Future.delayed(const Duration(milliseconds: 800));
@@ -182,10 +187,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
 
     if (!mounted) return;
-    _profileText = reply;
-    _applyProfile(reply);
+    if (failed || reply == null) {
+      setState(() {
+        _chatMsgs.add((role: 'assistant', content: 'AI 响应超时，请点击下方按钮重试。'));
+        _chatLoading = false;
+      });
+      return;
+    }
+    _profileText = reply!;
+    _applyProfile(reply!);
     setState(() {
-      _chatMsgs.add((role: 'assistant', content: reply));
+      _chatMsgs.add((role: 'assistant', content: reply!));
       _chatLoading = false;
       _profileDone = true;
     });
@@ -436,8 +448,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               icon: const Icon(Icons.send), style: IconButton.styleFrom(backgroundColor: AppTheme.primary, foregroundColor: Colors.white)),
         ]),
         const SizedBox(height: 12),
-        if (canRequestProfile)
-          _Btn(label: '生成培养方案', onTap: _requestProfile),
+        if (canRequestProfile || (_roundCount > 0 && !_profileDone && !_chatLoading))
+          _Btn(label: '生成培养方案', onTap: _doRequestProfile),
       ],
       if (_profileDone) ...[
         const SizedBox(height: 12),
