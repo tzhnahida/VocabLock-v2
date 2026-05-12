@@ -34,6 +34,9 @@ type Server struct {
 	// Question cache for AI-generated questions (maps question_id → Answer)
 	questionCache   map[string]*engine.Question
 	questionCacheMu sync.RWMutex
+
+	// Session budget tracks time/type usage for the current day
+	sessionBudget sessionBudget
 }
 
 func NewServer(mock bool, cfg *config.Config, database *db.Database) *Server {
@@ -79,6 +82,71 @@ func (s *Server) Shutdown() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	return s.http.Shutdown(ctx)
+}
+
+// sessionBudget tracks time and type usage during a single day session.
+type sessionBudget struct {
+	mu         sync.Mutex
+	date       string
+	timeUsed   int
+	slowCount  int
+	totalCount int
+}
+
+func (b *sessionBudget) allowType(typeName string, timeBudgetMinutes int, maxSlowRatio float64) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	today := time.Now().Format("2006-01-02")
+	if b.date != today {
+		b.date = today
+		b.timeUsed = 0
+		b.slowCount = 0
+		b.totalCount = 0
+	}
+
+	weight := engine.TimeWeights[typeName]
+	if weight == 0 {
+		weight = 1
+	}
+
+	maxUnits := timeBudgetMinutes * 6
+
+	if b.timeUsed+weight > maxUnits {
+		return false
+	}
+
+	if engine.IsSlowType(typeName) {
+		maxSlow := int(float64(b.totalCount+1) * maxSlowRatio)
+		if b.slowCount >= maxSlow {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (b *sessionBudget) recordType(typeName string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	today := time.Now().Format("2006-01-02")
+	if b.date != today {
+		b.date = today
+		b.timeUsed = 0
+		b.slowCount = 0
+		b.totalCount = 0
+	}
+
+	weight := engine.TimeWeights[typeName]
+	if weight == 0 {
+		weight = 1
+	}
+	b.timeUsed += weight
+	b.totalCount++
+	if engine.IsSlowType(typeName) {
+		b.slowCount++
+	}
 }
 
 func (s *Server) cacheQuestion(q *engine.Question) {

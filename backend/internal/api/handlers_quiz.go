@@ -97,6 +97,18 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 		langQuestionTypes(lang, s.Config), s.AI != nil,
 	)
 
+	// Time budget check: downgrade to fast type if budget/slow-ratio exceeded
+	if !s.sessionBudget.allowType(string(qType), s.Config.App.SessionTimeBudget, s.Config.App.MaxSlowTypeRatio) {
+		fastTypes := []engine.QuestionType{engine.TypeChoice, engine.TypeFill, engine.TypePronounce}
+		for _, ft := range fastTypes {
+			if engine.TimeWeights[string(ft)] < engine.TimeWeights[string(qType)] {
+				qType = ft
+				break
+			}
+		}
+	}
+	s.sessionBudget.recordType(string(qType))
+
 	var q *engine.Question
 	switch qType {
 	case engine.TypeChoice:
