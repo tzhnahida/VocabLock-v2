@@ -375,8 +375,10 @@ func (s *Server) handleWordsExpand(w http.ResponseWriter, r *http.Request) {
 
 	teacherRole := "Language Teacher"
 	level := "beginner"
+	explLang := "zh-CN"
 	if lc, ok := s.Config.Languages[lang]; ok {
 		teacherRole = lc.PromptContext.TeacherRole
+		explLang = lc.PromptContext.ExplanationLang
 		for lvl := range lc.PromptContext.LevelDescriptions {
 			level = lvl
 			break
@@ -384,9 +386,10 @@ func (s *Server) handleWordsExpand(w http.ResponseWriter, r *http.Request) {
 	}
 
 	messages, err := pt.BuildMessages(&ai.PromptVars{
-		TeacherRole: teacherRole,
-		Level:       level,
-		ExtraContext: recentContext,
+		TeacherRole:     teacherRole,
+		Level:           level,
+		ExplanationLang: explLang,
+		ExtraContext:    recentContext,
 	})
 	if err != nil {
 		writeError(w, 500, "build prompt: "+err.Error())

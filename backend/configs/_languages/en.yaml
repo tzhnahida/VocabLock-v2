@@ -16,7 +16,7 @@ question_types:
   - spelling
   - pronounce
   - listening
-  - pronounce_comp
+  - reading_comp
   - grammar
 
 prompt_context:

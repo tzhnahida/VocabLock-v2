@@ -15,7 +15,7 @@ question_types:
   - fill
   - pronounce
   - listening
-  - pronounce_comp
+  - reading_comp
   - grammar
 
 prompt_context:
