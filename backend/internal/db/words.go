@@ -16,6 +16,8 @@ type wordScanner struct {
 	Source         string
 	Confidence     string
 	Direction      string
+	Status         string
+	Tags           string
 	EasinessFactor float64
 	Interval       int
 	Repetitions    int
@@ -38,6 +40,8 @@ func (s *wordScanner) toWord() *Word {
 		Source:         s.Source,
 		Confidence:     s.Confidence,
 		Direction:      s.Direction,
+		Status:         s.Status,
+		Tags:           s.Tags,
 		EasinessFactor: s.EasinessFactor,
 		Interval:       s.Interval,
 		Repetitions:    s.Repetitions,
@@ -50,11 +54,13 @@ func (s *wordScanner) toWord() *Word {
 	}
 }
 
+const wordColumns = `id, word, reading, meaning, pos, language, source, confidence, direction, status, tags, easiness_factor, interval, repetitions, next_review_at, last_review_at, total_attempts, total_correct, created_at, updated_at`
+
 func scanWordRow(row interface{ Scan(...interface{}) error }) (*Word, error) {
 	var s wordScanner
 	err := row.Scan(
 		&s.ID, &s.Word, &s.Reading, &s.Meaning, &s.POS, &s.Language, &s.Source, &s.Confidence,
-		&s.Direction,
+		&s.Direction, &s.Status, &s.Tags,
 		&s.EasinessFactor, &s.Interval, &s.Repetitions,
 		&s.NextReviewAt, &s.LastReviewAt,
 		&s.TotalAttempts, &s.TotalCorrect, &s.CreatedAt, &s.UpdatedAt,
@@ -66,11 +72,14 @@ func scanWordRow(row interface{ Scan(...interface{}) error }) (*Word, error) {
 }
 
 func (d *Database) InsertWord(w *Word) (int64, error) {
+	if w.Status == "" {
+		w.Status = "active"
+	}
 	r, err := d.DB.Exec(`
-		INSERT INTO words (word, reading, meaning, pos, language, source, confidence, direction,
+		INSERT INTO words (word, reading, meaning, pos, language, source, confidence, direction, status, tags,
 		                   easiness_factor, interval, repetitions)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, 2.5, 0, 0)
-	`, w.Word, w.Reading, w.Meaning, w.POS, w.Language, w.Source, w.Confidence, w.Direction)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2.5, 0, 0)
+	`, w.Word, w.Reading, w.Meaning, w.POS, w.Language, w.Source, w.Confidence, w.Direction, w.Status, w.Tags)
 	if err != nil {
 		return 0, fmt.Errorf("insert word: %w", err)
 	}
@@ -78,13 +87,7 @@ func (d *Database) InsertWord(w *Word) (int64, error) {
 }
 
 func (d *Database) GetWord(id int64) (*Word, error) {
-	row := d.DB.QueryRow(`
-		SELECT id, word, reading, meaning, pos, language, source, confidence, direction,
-		       easiness_factor, interval, repetitions,
-		       next_review_at, last_review_at,
-		       total_attempts, total_correct, created_at, updated_at
-		FROM words WHERE id = ?
-	`, id)
+	row := d.DB.QueryRow(`SELECT `+wordColumns+` FROM words WHERE id = ?`, id)
 	w, err := scanWordRow(row)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -100,21 +103,16 @@ func (d *Database) ListWords(language string, limit, offset int) ([]*Word, int, 
 	countQuery := `SELECT COUNT(*) FROM words`
 	args := []interface{}{}
 	if language != "" {
-		countQuery += ` WHERE language = ?`
+		countQuery += ` WHERE language = ? AND status != 'rejected'`
 		args = append(args, language)
 	}
 	if err := d.DB.QueryRow(countQuery, args...).Scan(&count); err != nil {
 		return nil, 0, fmt.Errorf("count words: %w", err)
 	}
 
-	query := `
-		SELECT id, word, reading, meaning, pos, language, source, confidence, direction,
-		       easiness_factor, interval, repetitions,
-		       next_review_at, last_review_at,
-		       total_attempts, total_correct, created_at, updated_at
-		FROM words`
+	query := `SELECT ` + wordColumns + ` FROM words`
 	if language != "" {
-		query += ` WHERE language = ?`
+		query += ` WHERE language = ? AND status != 'rejected'`
 	}
 	query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`
 	args = append(args, limit, offset)
@@ -189,12 +187,9 @@ func (d *Database) ResetWord(id int64) error {
 
 func (d *Database) GetReviewWords(language string, limit int) ([]*Word, error) {
 	rows, err := d.DB.Query(`
-		SELECT id, word, reading, meaning, pos, language, source, confidence, direction,
-		       easiness_factor, interval, repetitions,
-		       next_review_at, last_review_at,
-		       total_attempts, total_correct, created_at, updated_at
+		SELECT `+wordColumns+`
 		FROM words
-		WHERE language = ?
+		WHERE language = ? AND status = 'active'
 		ORDER BY next_review_at ASC NULLS FIRST
 		LIMIT ?
 	`, language, limit)
@@ -218,12 +213,7 @@ func (d *Database) GetWordsByIDs(ids []int64) ([]*Word, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
-	query := `
-		SELECT id, word, reading, meaning, pos, language, source, confidence, direction,
-		       easiness_factor, interval, repetitions,
-		       next_review_at, last_review_at,
-		       total_attempts, total_correct, created_at, updated_at
-		FROM words WHERE id IN (?`
+	query := `SELECT ` + wordColumns + ` FROM words WHERE id IN (?`
 	for i := 1; i < len(ids); i++ {
 		query += ", ?"
 	}
@@ -261,9 +251,9 @@ func (d *Database) BulkInsertWords(words []*Word) error {
 	defer tx.Rollback()
 
 	stmt, err := tx.Prepare(`
-		INSERT INTO words (word, reading, meaning, pos, language, source, confidence, direction,
+		INSERT INTO words (word, reading, meaning, pos, language, source, confidence, direction, status, tags,
 		                   easiness_factor, interval, repetitions)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, 2.5, 0, 0)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2.5, 0, 0)
 	`)
 	if err != nil {
 		return fmt.Errorf("prepare: %w", err)
@@ -271,9 +261,52 @@ func (d *Database) BulkInsertWords(words []*Word) error {
 	defer stmt.Close()
 
 	for _, w := range words {
-		if _, err := stmt.Exec(w.Word, w.Reading, w.Meaning, w.POS, w.Language, w.Source, w.Confidence, w.Direction); err != nil {
+		if w.Status == "" {
+			w.Status = "active"
+		}
+		if _, err := stmt.Exec(w.Word, w.Reading, w.Meaning, w.POS, w.Language, w.Source, w.Confidence, w.Direction, w.Status, w.Tags); err != nil {
 			return fmt.Errorf("insert: %w", err)
 		}
 	}
 	return tx.Commit()
+}
+
+// ——— Pending review ———
+
+func (d *Database) ListPendingReview(language string) ([]*Word, error) {
+	rows, err := d.DB.Query(`
+		SELECT `+wordColumns+` FROM words
+		WHERE language = ? AND status = 'pending_review'
+		ORDER BY created_at DESC
+	`, language)
+	if err != nil {
+		return nil, fmt.Errorf("list pending review: %w", err)
+	}
+	defer rows.Close()
+
+	var words []*Word
+	for rows.Next() {
+		w, err := scanWordRow(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan: %w", err)
+		}
+		words = append(words, w)
+	}
+	return words, nil
+}
+
+func (d *Database) SetWordStatus(id int64, status string) error {
+	_, err := d.DB.Exec(`UPDATE words SET status = ?, updated_at = datetime('now') WHERE id = ?`, status, id)
+	if err != nil {
+		return fmt.Errorf("set word status: %w", err)
+	}
+	return nil
+}
+
+func (d *Database) SetWordTags(id int64, tags string) error {
+	_, err := d.DB.Exec(`UPDATE words SET tags = ?, updated_at = datetime('now') WHERE id = ?`, tags, id)
+	if err != nil {
+		return fmt.Errorf("set word tags: %w", err)
+	}
+	return nil
 }

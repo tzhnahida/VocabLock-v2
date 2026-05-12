@@ -87,10 +87,20 @@ func (d *Database) migrate() error {
 		}
 	}
 
-	// Phase 3: direction for words + training_plans
+	// Phase 3: direction, status, tags for words + training_plans
 	if _, err := d.DB.Exec(`ALTER TABLE words ADD COLUMN direction TEXT NOT NULL DEFAULT ''`); err != nil {
 		if !strings.Contains(err.Error(), "duplicate column") {
 			return fmt.Errorf("add direction column: %w", err)
+		}
+	}
+	if _, err := d.DB.Exec(`ALTER TABLE words ADD COLUMN status TEXT NOT NULL DEFAULT 'active'`); err != nil {
+		if !strings.Contains(err.Error(), "duplicate column") {
+			return fmt.Errorf("add status column: %w", err)
+		}
+	}
+	if _, err := d.DB.Exec(`ALTER TABLE words ADD COLUMN tags TEXT NOT NULL DEFAULT ''`); err != nil {
+		if !strings.Contains(err.Error(), "duplicate column") {
+			return fmt.Errorf("add tags column: %w", err)
 		}
 	}
 

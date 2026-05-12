@@ -36,6 +36,10 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET "+prefix+"/words/export", s.handleWordsExport)
 	mux.HandleFunc("POST "+prefix+"/words/import", s.handleWordsImport)
 	mux.HandleFunc("POST "+prefix+"/words/expand", s.handleWordsExpand)
+	mux.HandleFunc("GET "+prefix+"/words/pending-review", s.handleWordsPendingReview)
+	mux.HandleFunc("POST "+prefix+"/words/pending-review/{id}/accept", s.handleWordsPendingAccept)
+	mux.HandleFunc("POST "+prefix+"/words/pending-review/{id}/reject", s.handleWordsPendingReject)
+	mux.HandleFunc("PUT "+prefix+"/words/{id}/tags", s.handleWordsTags)
 
 	// AI
 	mux.HandleFunc("POST "+prefix+"/ai/chat", s.handleAIChat)

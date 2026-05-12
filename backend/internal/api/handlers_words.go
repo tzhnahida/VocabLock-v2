@@ -492,8 +492,90 @@ func (s *Server) handleWordsExpand(w http.ResponseWriter, r *http.Request) {
 		pendingReview = []map[string]interface{}{}
 	}
 
+		// Store pending_review words in DB for later user judgment
+		for _, entry := range pendingReview {
+			wordStr, _ := entry["word"].(string)
+			readingStr, _ := entry["reading"].(string)
+			meaningStr, _ := entry["meaning"].(string)
+			posStr, _ := entry["pos"].(string)
+			if wordStr != "" {
+				s.DB.InsertWord(&db.Word{
+					Word: wordStr, Reading: readingStr, Meaning: meaningStr,
+					POS: posStr, Language: lang, Source: "ai_expansion", Status: "pending_review",
+				})
+			}
+		}
+
 	writeJSON(w, map[string]interface{}{
 		"verified":       verified,
 		"pending_review": pendingReview,
 	})
+}
+
+// handleWordsPendingReview lists words with pending_review status.
+func (s *Server) handleWordsPendingReview(w http.ResponseWriter, r *http.Request) {
+	if s.DB == nil {
+		writeError(w, 500, "database not available"); return
+	}
+	lang := r.URL.Query().Get("language")
+	if lang == "" {
+		lang = s.Config.App.ActiveLang
+	}
+	words, err := s.DB.ListPendingReview(lang)
+	if err != nil {
+		writeError(w, 500, "list pending: "+err.Error())
+		return
+	}
+	if words == nil {
+		words = []*db.Word{}
+	}
+	writeJSON(w, map[string]interface{}{"words": words})
+}
+
+// handleWordsPendingAccept accepts a pending_review word.
+func (s *Server) handleWordsPendingAccept(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		writeError(w, 400, "invalid word id"); return
+	}
+	if err := s.DB.SetWordStatus(id, "active"); err != nil {
+		writeError(w, 500, "accept word: "+err.Error())
+		return
+	}
+	writeJSON(w, map[string]interface{}{"id": id, "status": "active"})
+}
+
+// handleWordsPendingReject rejects a pending_review word.
+func (s *Server) handleWordsPendingReject(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		writeError(w, 400, "invalid word id"); return
+	}
+	if err := s.DB.SetWordStatus(id, "rejected"); err != nil {
+		writeError(w, 500, "reject word: "+err.Error())
+		return
+	}
+	writeJSON(w, map[string]interface{}{"id": id, "status": "rejected"})
+}
+
+// handleWordsTags updates tags for a word.
+func (s *Server) handleWordsTags(w http.ResponseWriter, r *http.Request) {
+	if s.DB == nil {
+		writeError(w, 500, "database not available"); return
+	}
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		writeError(w, 400, "invalid word id"); return
+	}
+	var req struct {
+		Tags string `json:"tags"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeError(w, 400, "invalid request body"); return
+	}
+	if err := s.DB.SetWordTags(id, req.Tags); err != nil {
+		writeError(w, 500, "set tags: "+err.Error())
+		return
+	}
+	writeJSON(w, map[string]interface{}{"id": id, "tags": req.Tags})
 }
