@@ -32,6 +32,11 @@ type AppConfig struct {
 	ExpandBatchSize     int      `yaml:"expand_batch_size"`
 	ExpandThreshold     float64  `yaml:"expand_threshold"`
 	Theme               string   `yaml:"theme"`
+	// Assignment cadence
+	Assignment          AssignmentConfig `yaml:"assignment"`
+	// Time budget
+	SessionTimeBudget int     `yaml:"session_time_budget"` // minutes
+	MaxSlowTypeRatio  float64 `yaml:"max_slow_type_ratio"` // 0.0–1.0
 	AI                  AIConfig `yaml:"ai"`
 }
 
@@ -77,6 +82,15 @@ type DictProvider struct {
 		Skip   bool     `yaml:"skip"`
 		Custom []string `yaml:"custom"`
 	} `yaml:"health_check"`
+}
+
+// ——— Assignment config ———
+
+type AssignmentConfig struct {
+	CadenceDays   int  `yaml:"cadence_days"`
+	CadenceCount  int  `yaml:"cadence_count"`
+	MaxPerSession int  `yaml:"max_per_session"`
+	AIRecommend   bool `yaml:"ai_recommend"`
 }
 
 // ——— Language config ———

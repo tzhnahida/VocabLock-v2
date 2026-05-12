@@ -20,18 +20,30 @@ type PromptTemplate struct {
 }
 
 type PromptVars struct {
-	Word           string
-	Reading        string
-	Meaning        string
-	POS            string
-	UserAnswer     string
-	ExpectedAnswer string
-	Language       string
-	Level          string
-	TeacherRole    string
+	Word            string
+	Reading         string
+	Meaning         string
+	POS             string
+	UserAnswer      string
+	ExpectedAnswer  string
+	Language        string
+	Level           string
+	TeacherRole     string
 	ExplanationLang string
-	ExtraContext   string
-	QuestionType   string
+	ExtraContext    string
+	QuestionType    string
+	// Assignment fields
+	AssignmentType string
+	Topic          string
+	WordList       string // comma-separated words to use
+	GrammarPoint   string
+	WordCount      int
+	UserSubmission string
+	// Summary/plan fields
+	SessionStats   string // JSON blob of today's stats
+	YesterdayPlan  string
+	WeakPoints     string
+	TrendData      string
 }
 
 func LoadPrompt(name string) (*PromptTemplate, error) {
