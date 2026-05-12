@@ -87,5 +87,26 @@ func (d *Database) migrate() error {
 		}
 	}
 
+	// Phase 3: direction for words + training_plans
+	if _, err := d.DB.Exec(`ALTER TABLE words ADD COLUMN direction TEXT NOT NULL DEFAULT ''`); err != nil {
+		if !strings.Contains(err.Error(), "duplicate column") {
+			return fmt.Errorf("add direction column: %w", err)
+		}
+	}
+
+	if _, err := d.DB.Exec(`
+		CREATE TABLE IF NOT EXISTS training_plans (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			language TEXT NOT NULL,
+			direction TEXT NOT NULL DEFAULT 'general',
+			direction_confidence REAL NOT NULL DEFAULT 0.0,
+			plan_json TEXT NOT NULL DEFAULT '',
+			is_active INTEGER NOT NULL DEFAULT 1,
+			created_at TEXT NOT NULL DEFAULT (datetime('now'))
+		)
+	`); err != nil {
+		return fmt.Errorf("create training_plans table: %w", err)
+	}
+
 	return nil
 }

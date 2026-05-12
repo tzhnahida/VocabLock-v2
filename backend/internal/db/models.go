@@ -39,6 +39,7 @@ type Word struct {
 	Language       string     `json:"language"`
 	Source         string     `json:"source"`
 	Confidence     string     `json:"confidence"`
+	Direction      string     `json:"direction"` // learning domain: general/business/engineering/cs/etc.
 	EasinessFactor float64    `json:"easiness_factor"`
 	Interval       int        `json:"interval"`
 	Repetitions    int        `json:"repetitions"`
