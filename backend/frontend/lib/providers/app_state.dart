@@ -63,7 +63,7 @@ class AppState extends ChangeNotifier {
 
   bool _isFirstRun = false;
   bool get isFirstRun => _isFirstRun;
-  bool _hasProfile = false;
+  bool _hasPlan = false;
 
   bool _dailyCompleted = false;
   bool get dailyCompleted => _dailyCompleted;
@@ -119,8 +119,8 @@ class AppState extends ChangeNotifier {
     } else {
       await _loadApiData();
     }
-    // First run if no languages AND no saved profile/plan from previous session
-    _isFirstRun = _languages.isEmpty && !_hasProfile;
+    // First run only if no languages AND no saved plan
+    _isFirstRun = _languages.isEmpty && !_hasPlan;
     _initialized = true;
     notifyListeners();
   }
@@ -306,10 +306,12 @@ class AppState extends ChangeNotifier {
       }
 
       // Check if training plan exists (indicates onboarding was done)
-      if (_quizApi != null && _languages.isNotEmpty) {
+      // Use active_lang from config if languages list is empty
+      if (_quizApi != null) {
+        final checkLang = _languages.isNotEmpty ? _languages[0].code : 'zh';
         try {
-          final plan = await _quizApi!.getPlan(language: _languages[0].code);
-          _hasProfile = plan.id != null;
+          final plan = await _quizApi!.getPlan(language: checkLang);
+          _hasPlan = plan.id != null;
         } catch (_) {}
       }
 
