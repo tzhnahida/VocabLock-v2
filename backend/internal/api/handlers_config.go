@@ -117,13 +117,16 @@ func (s *Server) handleConfigUpdate(w http.ResponseWriter, r *http.Request) {
 
 	if v, ok := req["active_lang"]; ok {
 		if lang, ok := v.(string); ok {
-			s.Config.App.ActiveLang = lang
-			// Initialize from _languages template on first run
+			// Initialize from _languages template on first run if needed
 			if _, exists := s.Config.Languages[lang]; !exists {
 				if lc := s.tryLoadLanguageTemplate(lang); lc != nil {
 					s.Config.Languages[lang] = lc
+				} else {
+					writeError(w, 400, "unknown language: "+lang)
+					return
 				}
 			}
+			s.Config.App.ActiveLang = lang
 		}
 	}
 

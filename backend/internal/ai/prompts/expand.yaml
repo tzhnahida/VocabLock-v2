@@ -5,6 +5,8 @@ system: |
   Only generate words at the appropriate level with high confidence.
   For each word, provide the written form, reading, meaning, and part of speech.
 
+  IMPORTANT: All output (especially "meaning") MUST be written in {{.ExplanationLang}}.
+
   Respond in JSON format:
   {"words": [{"word": "...", "reading": "...", "meaning": "...", "pos": "...", "confidence": "high|medium|low"}]}
 

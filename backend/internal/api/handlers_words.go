@@ -470,7 +470,12 @@ func (s *Server) handleWordsExpand(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		if verifiedByDict {
+		// Auto-accept: dict verified OR AI high-confidence when dict unavailable
+		dictAvailable := s.DictProvider != nil
+		dictFailed := dictAvailable && !verifiedByDict
+		shouldAutoAccept := verifiedByDict || (!dictAvailable && aiw.Confidence == "high")
+
+		if shouldAutoAccept && !dictFailed {
 			_, insertErr := s.DB.InsertWord(&db.Word{
 				Word:       aiw.Word,
 				Reading:    aiw.Reading,
@@ -485,6 +490,7 @@ func (s *Server) handleWordsExpand(w http.ResponseWriter, r *http.Request) {
 			}
 			verified = append(verified, entry)
 		} else {
+			entry["review_reason"] = "词典未验证，需人工审核"
 			pendingReview = append(pendingReview, entry)
 		}
 	}
