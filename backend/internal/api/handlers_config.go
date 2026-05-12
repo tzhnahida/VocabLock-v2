@@ -17,6 +17,20 @@ func (s *Server) handleConfigGet(w http.ResponseWriter, r *http.Request) {
 		langs = append(langs, code)
 	}
 
+	langDetails := make(map[string]interface{})
+	for code, lc := range s.Config.Languages {
+		ttsVoice := lc.TTS.Voice
+		ttsProvider := lc.TTS.Provider
+		dictProvider := lc.Dict.Provider
+		langDetails[code] = map[string]interface{}{
+			"display_name": lc.Lang.DisplayName,
+			"native_name":  lc.Lang.NativeName,
+			"tts_provider": ttsProvider,
+			"tts_voice":    ttsVoice,
+			"dict_provider": dictProvider,
+		}
+	}
+
 	writeJSON(w, map[string]interface{}{
 		"active_lang":          s.Config.App.ActiveLang,
 		"mock_mode":            s.Config.App.MockMode,
@@ -39,6 +53,7 @@ func (s *Server) handleConfigGet(w http.ResponseWriter, r *http.Request) {
 		"model":                s.Config.App.AI.Model,
 		"base_url":             s.Config.App.AI.BaseURL,
 		"languages":            langs,
+		"language_details":     langDetails,
 		"assignment": map[string]interface{}{
 			"cadence_days":    s.Config.App.Assignment.CadenceDays,
 			"cadence_count":   s.Config.App.Assignment.CadenceCount,

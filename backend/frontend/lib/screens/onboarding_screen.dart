@@ -103,6 +103,26 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     AppTheme.setThemeMode(mode);
   }
 
+  String _voiceForLang(String code) {
+    switch (code) {
+      case 'zh': return 'zh-CN-XiaoxiaoNeural (edge-tts)';
+      case 'ja': return 'ja-JP-NanamiNeural (edge-tts)';
+      case 'en': return 'en-US-JennyNeural (edge-tts)';
+      case 'ko': return 'ko-KR-SunHiNeural (edge-tts)';
+      default: return '未配置';
+    }
+  }
+
+  String _dictForLang(String code) {
+    switch (code) {
+      case 'zh': return 'cedict (中文字典)';
+      case 'ja': return 'jmdict (日文字典)';
+      case 'en': return 'webster (英文字典)';
+      case 'ko': return '未配置';
+      default: return '未配置';
+    }
+  }
+
   Future<void> _testConnection() async {
     if (_apiKey.isEmpty) return;
     setState(() { _testing = true; _testResult = ''; });
@@ -480,6 +500,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       ..._learnLanguages.map((e) => _SelectTile(
         label: '${e.$2}  ${e.$3}', isActive: e.$1 == _learnLang, onTap: () => setState(() => _learnLang = e.$1),
       )),
+      const SizedBox(height: 20),
+      _TtsDictInfo(lang: _learnLang, voice: _voiceForLang(_learnLang), dict: _dictForLang(_learnLang)),
       const SizedBox(height: 24),
       _Label('每日目标', 'Daily Target'),
       Text('正确率 ≥ 80% 方可解锁', style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
@@ -629,6 +651,56 @@ class _Btn extends StatelessWidget {
       child: Text(label, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
     ),
   );
+}
+
+class _TtsDictInfo extends StatelessWidget {
+  final String lang;
+  final String voice;
+  final String dict;
+  const _TtsDictInfo({required this.lang, required this.voice, required this.dict});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.isDark ? const Color(0xFF1A1B2E) : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(Icons.settings_voice, size: 16, color: AppTheme.accent),
+            const SizedBox(width: 8),
+            Text('语音合成 (TTS)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+            const Spacer(),
+            Icon(Icons.check_circle, size: 14, color: Colors.green),
+            const SizedBox(width: 4),
+            Text('已连接', style: TextStyle(fontSize: 11, color: Colors.green)),
+          ]),
+          Padding(
+            padding: const EdgeInsets.only(left: 24, top: 4),
+            child: Text(voice, style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
+          ),
+          const SizedBox(height: 10),
+          Row(children: [
+            Icon(Icons.menu_book, size: 16, color: AppTheme.warm),
+            const SizedBox(width: 8),
+            Text('词典校验 (Dict)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+            const Spacer(),
+            Icon(dict == '未配置' ? Icons.warning_amber : Icons.check_circle, size: 14, color: dict == '未配置' ? Colors.orange : Colors.green),
+            const SizedBox(width: 4),
+            Text(dict == '未配置' ? '未连接' : '已连接', style: TextStyle(fontSize: 11, color: dict == '未配置' ? Colors.orange : Colors.green)),
+          ]),
+          Padding(
+            padding: const EdgeInsets.only(left: 24, top: 4),
+            child: Text(dict, style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 InputDecoration _inputDec(String hint) => InputDecoration(
