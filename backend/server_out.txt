@@ -1,0 +1,8 @@
+  AI: configured
+  TTS: edge-tts (zh-CN-XiaoxiaoNeural)
+  Dict: cedict
+  Flutter: pid=1984
+VocabLock v2 — 中文 (中文)
+  HTTP: http://127.0.0.1:50518
+  Token: 9cebfbe1eaa7eb65679b2e19b7e2fa4e
+  Mock: false

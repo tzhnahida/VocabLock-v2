@@ -417,8 +417,12 @@ func (s *Server) handleWordsExpand(w http.ResponseWriter, r *http.Request) {
 		} `json:"words"`
 	}
 	if err := json.Unmarshal([]byte(response), &aiResult); err != nil {
-		writeError(w, 500, "parse AI response: "+err.Error())
-		return
+		// Try extracting JSON from markdown code blocks
+		cleaned := extractJSON(response)
+		if err2 := json.Unmarshal([]byte(cleaned), &aiResult); err2 != nil {
+			writeError(w, 500, "parse AI response: "+err.Error())
+			return
+		}
 	}
 
 	// Classify and insert
@@ -510,6 +514,30 @@ func (s *Server) handleWordsExpand(w http.ResponseWriter, r *http.Request) {
 		"verified":       verified,
 		"pending_review": pendingReview,
 	})
+}
+
+func extractJSON(s string) string {
+	// Try to find JSON between triple backticks
+	if i := strings.Index(s, "```json"); i != -1 {
+		j := strings.Index(s[i+7:], "```")
+		if j != -1 {
+			return strings.TrimSpace(s[i+7 : i+7+j])
+		}
+	}
+	if i := strings.Index(s, "```"); i != -1 {
+		j := strings.Index(s[i+3:], "```")
+		if j != -1 {
+			return strings.TrimSpace(s[i+3 : i+3+j])
+		}
+	}
+	// Try to find JSON between { and }
+	if i := strings.Index(s, "{"); i != -1 {
+		j := strings.LastIndex(s, "}")
+		if j > i {
+			return s[i : j+1]
+		}
+	}
+	return s
 }
 
 // handleWordsPendingReview lists words with pending_review status.
