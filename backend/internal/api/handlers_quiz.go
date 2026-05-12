@@ -3,47 +3,36 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"math/rand"
 	"net/http"
 	"time"
 
 	"github.com/vocablock/v2/internal/ai"
 	"github.com/vocablock/v2/internal/api/mock"
+	"github.com/vocablock/v2/internal/config"
 	"github.com/vocablock/v2/internal/db"
 	"github.com/vocablock/v2/internal/engine"
 	"github.com/vocablock/v2/internal/engine/judge"
 )
 
-// vocabTypes are question types that operate on a single word (no AI needed).
-var vocabTypes = []engine.QuestionType{
+// nonAITypes are question types that work without AI.
+var nonAITypes = []engine.QuestionType{
 	engine.TypeChoice,
 	engine.TypeFill,
 	engine.TypeSpelling,
 	engine.TypeReading,
 }
 
-// pickQuestionType selects a random question type from the active language config.
-// AI-dependent types are skipped when s.AI is nil.
-func (s *Server) pickQuestionType() engine.QuestionType {
-	lc, ok := s.Config.Languages[s.Config.App.ActiveLang]
+// langQuestionTypes extracts the QuestionType list from the active language config.
+func langQuestionTypes(lang string, cfg *config.Config) []engine.QuestionType {
+	lc, ok := cfg.Languages[lang]
 	if !ok || len(lc.QuestionTypes) == 0 {
-		return vocabTypes[rand.Intn(len(vocabTypes))]
+		return nonAITypes
 	}
-
-	available := make([]engine.QuestionType, 0, len(lc.QuestionTypes))
-	for _, qtStr := range lc.QuestionTypes {
-		qt := engine.QuestionType(qtStr)
-		if isAIType(qt) && s.AI == nil {
-			continue
-		}
-		available = append(available, qt)
+	types := make([]engine.QuestionType, len(lc.QuestionTypes))
+	for i, s := range lc.QuestionTypes {
+		types[i] = engine.QuestionType(s)
 	}
-
-	if len(available) == 0 {
-		return vocabTypes[rand.Intn(len(vocabTypes))]
-	}
-
-	return available[rand.Intn(len(available))]
+	return types
 }
 
 func (s *Server) handleQuizProgress(w http.ResponseWriter, r *http.Request) {
@@ -102,8 +91,11 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	// Fetch distractors for choice questions (from other words)
 	distractors := wordsToInfos(words[1:])
 
-	// Pick a random question type from active language config
-	qType := s.pickQuestionType()
+	// Pick question type based on word's SM-2 state (memory curve)
+	qType := engine.SelectQuestionType(
+		word.NextReviewAt, word.EasinessFactor, word.Interval, word.Repetitions,
+		langQuestionTypes(lang, s.Config), s.AI != nil,
+	)
 
 	var q *engine.Question
 	switch qType {
@@ -118,20 +110,8 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	case engine.TypeListening, engine.TypeReadingComp, engine.TypeGrammar:
 		q, err = s.aiGenerateQuestion(r.Context(), info, qType)
 		if err != nil {
-			// AI failed — fall back to a vocabulary question
-			ft := vocabTypes[rand.Intn(len(vocabTypes))]
-			switch ft {
-			case engine.TypeChoice:
-				q = engine.GenerateChoice(info, distractors)
-			case engine.TypeFill:
-				q = engine.GenerateFill(info)
-			case engine.TypeSpelling:
-				q = engine.GenerateSpelling(info)
-			case engine.TypeReading:
-				q = engine.GenerateReading(info)
-			default:
-				q = engine.GenerateChoice(info, distractors)
-			}
+			// AI failed — fall back to choice (lowest cognitive load)
+			q = engine.GenerateChoice(info, distractors)
 		} else {
 			s.cacheQuestion(q)
 		}

@@ -10,11 +10,6 @@ import (
 	"github.com/vocablock/v2/internal/engine"
 )
 
-// isAIType returns true if the question type requires AI to generate.
-func isAIType(qt engine.QuestionType) bool {
-	return qt == engine.TypeListening || qt == engine.TypeReadingComp || qt == engine.TypeGrammar
-}
-
 // aiGenerateQuestion calls the AI to generate a question of the given type for the word.
 // Returns nil, error on failure (caller should fall back to a vocabulary question).
 func (s *Server) aiGenerateQuestion(ctx context.Context, word *engine.WordInfo, qType engine.QuestionType) (*engine.Question, error) {
