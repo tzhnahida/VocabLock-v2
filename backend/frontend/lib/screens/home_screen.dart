@@ -26,6 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _activeTool = -1;
 
   void _showQuiz(AppState state) {
+    final quizApi = state.quizApi;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -35,6 +36,9 @@ class _HomeScreenState extends State<HomeScreen> {
         onSubmit: ({required questionId, required wordId, required questionType, required answer}) =>
             state.submitAnswer(questionId: questionId, wordId: wordId, questionType: questionType, answer: answer),
         onGetStudyWords: () => state.getStudyWords(),
+        onSummarize: quizApi != null
+            ? () => quizApi.summarize(language: state.activeLangCode)
+            : null,
         onDone: () {
           Navigator.pop(context);
           state.refresh();

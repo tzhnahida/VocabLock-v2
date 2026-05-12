@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import '../models/question.dart';
 import '../models/quiz_result.dart';
 import '../models/word.dart';
+import '../models/session_summary.dart';
 import '../theme/app_theme.dart';
+import 'session_summary_view.dart';
 
 class QuizSheet extends StatefulWidget {
   final Future<Question?> Function() onNextQuestion;
   final Future<SubmitResult?> Function({required String questionId, required int wordId, required String questionType, required String answer}) onSubmit;
   final Future<List<Word>> Function() onGetStudyWords;
+  final Future<SessionSummary?> Function()? onSummarize;
   final VoidCallback onDone;
   final VoidCallback? onComplete;
 
@@ -16,6 +19,7 @@ class QuizSheet extends StatefulWidget {
     required this.onNextQuestion,
     required this.onSubmit,
     required this.onGetStudyWords,
+    this.onSummarize,
     required this.onDone,
     this.onComplete,
   });
@@ -31,7 +35,6 @@ class _QuizSheetState extends State<QuizSheet> {
   List<Word> _studyWords = [];
   int _answered = 0;
   int _correct = 0;
-  double _accuracy = 0;
 
   Question? _question;
   bool _loading = true;
@@ -39,6 +42,11 @@ class _QuizSheetState extends State<QuizSheet> {
   SubmitResult? _result;
   bool _submitting = false;
   bool _sessionComplete = false;
+
+  // Summary
+  bool _summarizing = false;
+  SessionSummary? _summary;
+  bool _showSummary = false;
 
   @override
   void initState() {
@@ -94,7 +102,7 @@ class _QuizSheetState extends State<QuizSheet> {
 
   void _nextQuestion() {
     if (_answered >= _maxQuestions) {
-      setState(() { _sessionComplete = true; _accuracy = _correct / _answered; });
+      setState(() => _sessionComplete = true);
       return;
     }
     _loadQuestion();
@@ -274,7 +282,35 @@ class _QuizSheetState extends State<QuizSheet> {
     );
   }
 
+  void _requestSummary() {
+    if (widget.onSummarize == null || _summarizing) return;
+    setState(() => _summarizing = true);
+    widget.onSummarize!().then((s) {
+      if (!mounted) return;
+      setState(() {
+        _summarizing = false;
+        _summary = s;
+        _showSummary = true;
+      });
+    }).catchError((_) {
+      if (!mounted) return;
+      setState(() => _summarizing = false);
+    });
+  }
+
   Widget _buildComplete() {
+    if (_showSummary) {
+      return SessionSummaryView(
+        summary: _summary,
+        loading: false,
+        onRetry: _requestSummary,
+        onDismiss: () {
+          widget.onComplete?.call();
+          widget.onDone();
+        },
+      );
+    }
+
     final pct = _answered > 0 ? (_correct / _answered * 100).toInt() : 0;
     return Padding(
       padding: const EdgeInsets.all(32),
@@ -290,19 +326,38 @@ class _QuizSheetState extends State<QuizSheet> {
           const SizedBox(height: 16),
           Text('正确 $_correct / $_answered 题', style: TextStyle(fontSize: 14, color: AppTheme.textHint)),
           const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () {
-              widget.onComplete?.call();
-              widget.onDone();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          if (_summarizing)
+            Column(
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 12),
+                Text('AI 正在分析你的学习数据...', style: TextStyle(color: AppTheme.textSecondary)),
+                const SizedBox(height: 16),
+                TextButton(onPressed: () { widget.onComplete?.call(); widget.onDone(); },
+                    child: Text('跳过', style: TextStyle(color: AppTheme.textHint))),
+              ],
+            )
+          else ...[
+            if (widget.onSummarize != null)
+              OutlinedButton.icon(
+                onPressed: _requestSummary,
+                icon: const Icon(Icons.auto_awesome, size: 18),
+                label: const Text('查看 AI 学习总结'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.primary,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () {
+                widget.onComplete?.call();
+                widget.onDone();
+              },
+              child: Text('完成', style: TextStyle(fontSize: 14, color: AppTheme.textHint)),
             ),
-            child: Text('完成', style: TextStyle(fontSize: 16, color: AppTheme.textPrimary)),
-          ),
+          ],
         ],
       ),
     );
