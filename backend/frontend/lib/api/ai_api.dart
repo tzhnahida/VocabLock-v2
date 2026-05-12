@@ -17,4 +17,9 @@ class AiApi {
     final r = await _client.get('/api/v1/ai/profile');
     return r.data as Map<String, dynamic>;
   }
+
+  Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> data) async {
+    final r = await _client.put('/api/v1/ai/profile', data: data);
+    return r.data as Map<String, dynamic>;
+  }
 }

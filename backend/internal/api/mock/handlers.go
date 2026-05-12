@@ -169,7 +169,8 @@ func HandleConfigGet(w http.ResponseWriter, r *http.Request) {
   "model": "deepseek-v4-pro",
   "base_url": "https://api.deepseek.com",
   "custom_models": "",
-  "languages": []
+  "languages": [],
+  "assignment": {"cadence_days":3,"cadence_count":2,"max_per_session":1,"ai_recommend":true}
 }`)
 		return
 	}
@@ -195,7 +196,8 @@ func HandleConfigGet(w http.ResponseWriter, r *http.Request) {
   "model": "deepseek-v4-pro",
   "base_url": "https://api.deepseek.com",
   "custom_models": "",
-  "languages": ["zh"]
+  "languages": ["zh"],
+  "assignment": {"cadence_days":3,"cadence_count":2,"max_per_session":1,"ai_recommend":true}
 }`)
 }
 
@@ -238,13 +240,15 @@ func HandleConfigGetKey(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, `{"key":"model","value":"deepseek-v4-pro"}`)
 	case "base_url":
 		writeJSON(w, `{"key":"base_url","value":"https://api.deepseek.com"}`)
+	case "assignment":
+		writeJSON(w, `{"key":"assignment","value":{"cadence_days":3,"cadence_count":2,"max_per_session":1,"ai_recommend":true}}`)
 	default:
 		writeJSON(w, `{"error":"unknown config key"}`)
 	}
 }
 
 func HandleConfigUpdate(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, `{"updated":true}`)
+	writeJSON(w, `{"updated":true,"assignment":{"cadence_days":3,"cadence_count":2,"max_per_session":1,"ai_recommend":true}}`)
 }
 
 func HandleConfigPassword(w http.ResponseWriter, r *http.Request) {

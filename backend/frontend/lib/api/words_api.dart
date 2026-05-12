@@ -75,4 +75,33 @@ class WordsApi {
     });
     return r.data as Map<String, dynamic>;
   }
+
+  // —— Pending Review ——
+
+  Future<List<Word>> listPendingReview({String? language}) async {
+    final r = await _client.get('/api/v1/words/pending-review', queryParameters: {
+      if (language != null) 'language': language,
+    });
+    final data = r.data as Map<String, dynamic>;
+    return (data['words'] as List<dynamic>)
+        .map((j) => Word.fromJson(j as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<Word> acceptPendingReview(int id) async {
+    final r = await _client.post('/api/v1/words/pending-review/$id/accept');
+    return Word.fromJson(r.data as Map<String, dynamic>);
+  }
+
+  Future<void> rejectPendingReview(int id, {String? reason}) async {
+    await _client.post('/api/v1/words/pending-review/$id/reject', data: {
+      if (reason != null) 'reason': reason,
+    });
+  }
+
+  // —— Tags ——
+
+  Future<void> updateTags(int id, List<String> tags) async {
+    await _client.put('/api/v1/words/$id/tags', data: {'tags': tags});
+  }
 }

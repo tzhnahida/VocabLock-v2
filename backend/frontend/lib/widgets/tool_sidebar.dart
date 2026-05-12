@@ -24,6 +24,8 @@ class ToolSidebar extends StatelessWidget {
     (Icons.insights, 'Stats'),
     (Icons.settings, 'Config'),
     (Icons.smart_toy, 'AI'),
+    (Icons.fact_check, 'Review'),
+    (Icons.assignment, 'Homework'),
   ];
 
   @override

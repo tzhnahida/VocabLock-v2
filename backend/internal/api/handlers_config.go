@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/vocablock/v2/internal/api/mock"
+	"github.com/vocablock/v2/internal/config"
 )
 
 func (s *Server) handleConfigGet(w http.ResponseWriter, r *http.Request) {
@@ -38,6 +39,12 @@ func (s *Server) handleConfigGet(w http.ResponseWriter, r *http.Request) {
 		"model":                s.Config.App.AI.Model,
 		"base_url":             s.Config.App.AI.BaseURL,
 		"languages":            langs,
+		"assignment": map[string]interface{}{
+			"cadence_days":    s.Config.App.Assignment.CadenceDays,
+			"cadence_count":   s.Config.App.Assignment.CadenceCount,
+			"max_per_session": s.Config.App.Assignment.MaxPerSession,
+			"ai_recommend":    s.Config.App.Assignment.AIRecommend,
+		},
 	})
 }
 
@@ -60,6 +67,13 @@ func (s *Server) handleConfigGetKey(w http.ResponseWriter, r *http.Request) {
 			langs = append(langs, code)
 		}
 		value = langs
+	case "assignment":
+		value = map[string]interface{}{
+			"cadence_days":    s.Config.App.Assignment.CadenceDays,
+			"cadence_count":   s.Config.App.Assignment.CadenceCount,
+			"max_per_session": s.Config.App.Assignment.MaxPerSession,
+			"ai_recommend":    s.Config.App.Assignment.AIRecommend,
+		}
 	default:
 		writeError(w, 404, "unknown config key: "+key)
 		return
@@ -102,11 +116,57 @@ func (s *Server) handleConfigUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Assignment config — support both nested "assignment" object and flat keys
+	if v, ok := req["assignment"]; ok {
+		if am, ok := v.(map[string]interface{}); ok {
+			updateAssignmentConfig(&s.Config.App.Assignment, am)
+		}
+	}
+	updateAssignmentConfig(&s.Config.App.Assignment, req)
+
 	writeJSON(w, map[string]interface{}{
 		"updated":      true,
 		"active_lang":  s.Config.App.ActiveLang,
 		"daily_target": s.Config.App.DailyTarget,
+		"assignment": map[string]interface{}{
+			"cadence_days":    s.Config.App.Assignment.CadenceDays,
+			"cadence_count":   s.Config.App.Assignment.CadenceCount,
+			"max_per_session": s.Config.App.Assignment.MaxPerSession,
+			"ai_recommend":    s.Config.App.Assignment.AIRecommend,
+		},
 	})
+}
+
+func updateAssignmentConfig(cfg *config.AssignmentConfig, m map[string]interface{}) {
+	if v, ok := m["cadence_days"]; ok {
+		switch n := v.(type) {
+		case float64:
+			if n >= 1 && n <= 30 {
+				cfg.CadenceDays = int(n)
+			}
+		}
+	}
+	if v, ok := m["cadence_count"]; ok {
+		switch n := v.(type) {
+		case float64:
+			if n >= 1 && n <= 10 {
+				cfg.CadenceCount = int(n)
+			}
+		}
+	}
+	if v, ok := m["max_per_session"]; ok {
+		switch n := v.(type) {
+		case float64:
+			if n >= 1 && n <= 20 {
+				cfg.MaxPerSession = int(n)
+			}
+		}
+	}
+	if v, ok := m["ai_recommend"]; ok {
+		if b, ok := v.(bool); ok {
+			cfg.AIRecommend = b
+		}
+	}
 }
 
 func (s *Server) handleConfigPassword(w http.ResponseWriter, r *http.Request) {

@@ -1,6 +1,9 @@
 import '../models/question.dart';
 import '../models/quiz_result.dart';
 import '../models/stats.dart';
+import '../models/assignment.dart';
+import '../models/session_summary.dart';
+import '../models/training_plan.dart';
 import 'api_client.dart';
 
 class QuizApi {
@@ -51,5 +54,52 @@ class QuizApi {
   Future<Map<String, dynamic>> complete() async {
     final r = await _client.post('/api/v1/quiz/complete');
     return r.data as Map<String, dynamic>;
+  }
+
+  // —— Session ——
+
+  Future<SessionSummary> summarize({String? language}) async {
+    final r = await _client.post('/api/v1/quiz/summarize', data: {
+      if (language != null) 'language': language,
+    });
+    return SessionSummary.fromJson(r.data as Map<String, dynamic>);
+  }
+
+  Future<TrainingPlan> getPlan({String? language}) async {
+    final r = await _client.get('/api/v1/quiz/plan', queryParameters: {
+      if (language != null) 'language': language,
+    });
+    return TrainingPlan.fromJson(r.data as Map<String, dynamic>);
+  }
+
+  Future<void> updateDirection(String direction) async {
+    await _client.put('/api/v1/quiz/direction', data: {'direction': direction});
+  }
+
+  // —— Assignments ——
+
+  Future<AssignmentBatch> getAssignment({String? language}) async {
+    final r = await _client.get('/api/v1/quiz/assignment', queryParameters: {
+      if (language != null) 'language': language,
+    });
+    return AssignmentBatch.fromJson(r.data as Map<String, dynamic>);
+  }
+
+  Future<AssignmentGrade> submitAssignment({
+    required String assignmentId,
+    required String answer,
+  }) async {
+    final r = await _client.post('/api/v1/quiz/assignment/submit', data: {
+      'assignment_id': assignmentId,
+      'answer': answer,
+    });
+    return AssignmentGrade.fromJson(r.data as Map<String, dynamic>);
+  }
+
+  Future<CadenceRecommendation> getCadence({String? language}) async {
+    final r = await _client.get('/api/v1/quiz/assignment/cadence', queryParameters: {
+      if (language != null) 'language': language,
+    });
+    return CadenceRecommendation.fromJson(r.data as Map<String, dynamic>);
   }
 }

@@ -55,6 +55,7 @@ class _ConfigPanelState extends State<ConfigPanel> {
     'expand_threshold': 0.6,
     'model': 'deepseek-v4-pro',
     'base_url': 'https://api.deepseek.com',
+    'assignment': {'cadence_days': 3, 'cadence_count': 2, 'max_per_session': 1, 'ai_recommend': true},
   };
 
   Future<void> _save(String key, dynamic value) async {
@@ -62,10 +63,21 @@ class _ConfigPanelState extends State<ConfigPanel> {
     final configApi = widget.state.configApi;
     if (configApi != null) {
       try {
-        await configApi.updateConfig(activeLang: _config['active_lang'], dailyTarget: _config['daily_target']);
+        final assignment = _config['assignment'] as Map<String, dynamic>?;
+        await configApi.updateConfig(
+          activeLang: _config['active_lang'],
+          dailyTarget: _config['daily_target'],
+          assignment: assignment,
+        );
       } catch (_) {}
     }
     if (mounted) setState(() => _saving = false);
+  }
+
+  void _saveAssignment(String key, dynamic value) {
+    final assignment = Map<String, dynamic>.from(_config['assignment'] as Map<String, dynamic>? ?? {});
+    assignment[key] = value;
+    _save('assignment', assignment);
   }
 
   @override
@@ -114,6 +126,16 @@ class _ConfigPanelState extends State<ConfigPanel> {
             _section('AI 模型'),
             _textField('模型名称', 'model'),
             _textField('API 地址', 'base_url'),
+
+            _section('课后作业节奏'),
+            _assignmentIntField('每几天出一次题', 'cadence_days', 1, 30),
+            _assignmentIntField('每次出几题', 'cadence_count', 1, 10),
+            _assignmentBoolField('AI 智能推荐节奏', 'ai_recommend'),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+              child: Text('如 "每2天1题" 或 "每3天2题"，AI推荐会根据你的学习数据自动调整',
+                  style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
+            ),
 
             _section('逃生限制'),
             _intField('每日密码逃生次数', 'escape_password_limit', 1, 5),
@@ -212,6 +234,61 @@ class _ConfigPanelState extends State<ConfigPanel> {
             width: 44,
             child: Text('${value.toInt()}%', textAlign: TextAlign.end,
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.primary)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _assignmentIntField(String label, String key, int min, int max) {
+    final assignment = _config['assignment'] as Map<String, dynamic>? ?? {};
+    final value = (assignment[key] as num?)?.toInt() ?? 1;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+      margin: const EdgeInsets.only(bottom: 6),
+      decoration: BoxDecoration(color: AppTheme.cardBg, borderRadius: BorderRadius.circular(12)),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: TextStyle(fontSize: 14, color: AppTheme.textPrimary))),
+          SizedBox(
+            width: 44,
+            child: IconButton(
+              icon: const Icon(Icons.remove, size: 18),
+              onPressed: value > min ? () => _saveAssignment(key, value - 1) : null,
+              padding: EdgeInsets.zero,
+            ),
+          ),
+          SizedBox(
+            width: 40,
+            child: Text('$value', textAlign: TextAlign.center, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppTheme.primary)),
+          ),
+          SizedBox(
+            width: 44,
+            child: IconButton(
+              icon: const Icon(Icons.add, size: 18),
+              onPressed: value < max ? () => _saveAssignment(key, value + 1) : null,
+              padding: EdgeInsets.zero,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _assignmentBoolField(String label, String key) {
+    final assignment = _config['assignment'] as Map<String, dynamic>? ?? {};
+    final value = assignment[key] == true;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+      margin: const EdgeInsets.only(bottom: 6),
+      decoration: BoxDecoration(color: AppTheme.cardBg, borderRadius: BorderRadius.circular(12)),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: TextStyle(fontSize: 14, color: AppTheme.textPrimary))),
+          Switch(
+            value: value,
+            activeColor: AppTheme.primary,
+            onChanged: (v) => _saveAssignment(key, v),
           ),
         ],
       ),

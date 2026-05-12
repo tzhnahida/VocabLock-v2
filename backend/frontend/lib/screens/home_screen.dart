@@ -11,6 +11,9 @@ import '../widgets/stats_panel.dart';
 import '../widgets/audio_panel.dart';
 import '../widgets/config_panel.dart';
 import '../widgets/ai_chat_panel.dart';
+import '../widgets/pending_review_panel.dart';
+import '../widgets/assignment_sheet.dart';
+import '../models/assignment.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -49,7 +52,32 @@ class _HomeScreenState extends State<HomeScreen> {
       _showQuiz(state);
       return;
     }
+    if (index == 7) {
+      _showAssignment(state);
+      return;
+    }
     setState(() => _activeTool = index);
+  }
+
+  void _showAssignment(AppState state) {
+    final quizApi = state.quizApi;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => AssignmentSheet(
+        onGetAssignments: () => quizApi?.getAssignment(language: state.activeLangCode) ?? Future.value(const AssignmentBatch(assignments: [])),
+        onSubmit: ({required assignmentId, required answer}) =>
+            quizApi?.submitAssignment(assignmentId: assignmentId, answer: answer) ??
+            Future.value(const AssignmentGrade(original: '', corrected: '', score: 0)),
+        onGetCadence: () => quizApi?.getCadence(language: state.activeLangCode) ??
+            Future.value(const CadenceRecommendation(cadenceDays: 3, cadenceCount: 2)),
+        onDone: () {
+          Navigator.pop(context);
+          state.refresh();
+        },
+      ),
+    );
   }
 
   Widget _buildPanel(AppState state, double width) {
@@ -66,6 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case 3: return StatsPanel(key: ValueKey('stats_$lang'), state: state);
       case 4: return ConfigPanel(key: ValueKey('config_$lang'), state: state);
       case 5: return AIChatPanel(key: ValueKey('ai_$lang'), state: state);
+      case 6: return PendingReviewPanel(key: ValueKey('review_$lang'), state: state);
       default: return DashboardPanel(key: ValueKey('dash_$lang'), state: state, width: width, onStartQuiz: () => _showQuiz(state));
     }
   }

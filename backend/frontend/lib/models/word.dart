@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class Word {
   final int id;
   final String word;
@@ -7,6 +9,9 @@ class Word {
   final String language;
   final String source;
   final String confidence;
+  final String direction;
+  final String status;
+  final List<String> tags;
   final double easinessFactor;
   final int interval;
   final int repetitions;
@@ -26,6 +31,9 @@ class Word {
     this.language = '',
     this.source = '',
     this.confidence = '',
+    this.direction = '',
+    this.status = 'active',
+    this.tags = const [],
     this.easinessFactor = 2.5,
     this.interval = 0,
     this.repetitions = 0,
@@ -46,6 +54,9 @@ class Word {
         language: json['language'] ?? '',
         source: json['source'] ?? '',
         confidence: json['confidence'] ?? '',
+        direction: json['direction'] ?? '',
+        status: json['status'] ?? 'active',
+        tags: _parseTags(json['tags']),
         easinessFactor: (json['easiness_factor'] as num?)?.toDouble() ?? 2.5,
         interval: (json['interval'] as num?)?.toInt() ?? 0,
         repetitions: (json['repetitions'] as num?)?.toInt() ?? 0,
@@ -57,11 +68,28 @@ class Word {
         updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at']) : null,
       );
 
+  static List<String> _parseTags(dynamic tags) {
+    if (tags == null) return const [];
+    if (tags is List) return tags.map((e) => e.toString()).toList();
+    if (tags is String) {
+      if (tags.isEmpty) return const [];
+      try {
+        final parsed = jsonDecode(tags);
+        if (parsed is List) return parsed.map((e) => e.toString()).toList();
+      } catch (_) {}
+      return tags.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    }
+    return const [];
+  }
+
   Map<String, dynamic> toJson() => {
         'word': word,
         'reading': reading,
         'meaning': meaning,
         'pos': pos,
         'language': language,
+        'direction': direction,
+        'status': status,
+        'tags': tags,
       };
 }
