@@ -1,10 +1,14 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/vocablock/v2/internal/api/mock"
 	"github.com/vocablock/v2/internal/config"
+	"gopkg.in/yaml.v3"
 )
 
 func (s *Server) handleConfigGet(w http.ResponseWriter, r *http.Request) {
@@ -113,11 +117,12 @@ func (s *Server) handleConfigUpdate(w http.ResponseWriter, r *http.Request) {
 
 	if v, ok := req["active_lang"]; ok {
 		if lang, ok := v.(string); ok {
-			if _, exists := s.Config.Languages[lang]; exists {
-				s.Config.App.ActiveLang = lang
-			} else {
-				writeError(w, 400, "unknown language: "+lang)
-				return
+			s.Config.App.ActiveLang = lang
+			// Initialize from _languages template on first run
+			if _, exists := s.Config.Languages[lang]; !exists {
+				if lc := s.tryLoadLanguageTemplate(lang); lc != nil {
+					s.Config.Languages[lang] = lc
+				}
 			}
 		}
 	}
@@ -182,6 +187,29 @@ func updateAssignmentConfig(cfg *config.AssignmentConfig, m map[string]interface
 			cfg.AIRecommend = b
 		}
 	}
+}
+
+func (s *Server) tryLoadLanguageTemplate(code string) *config.LanguageConfig {
+	// Look for template in configs/_languages/
+	templatePath := filepath.Join(s.ConfigDir, "_languages", code+".yaml")
+	data, err := os.ReadFile(templatePath)
+	if err != nil {
+		return nil
+	}
+	// Copy to active languages/
+	activeDir := filepath.Join(s.ConfigDir, "languages")
+	os.MkdirAll(activeDir, 0755)
+	activePath := filepath.Join(activeDir, code+".yaml")
+	if err := os.WriteFile(activePath, data, 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "init language: %v\n", err)
+		return nil
+	}
+	// Parse and return
+	var lc config.LanguageConfig
+	if err := yaml.Unmarshal(data, &lc); err != nil {
+		return nil
+	}
+	return &lc
 }
 
 func (s *Server) handleConfigPassword(w http.ResponseWriter, r *http.Request) {

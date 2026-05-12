@@ -22,8 +22,9 @@ type Server struct {
 	http   *http.Server
 	Port   int
 	Token  string
-	Mock   bool
-	Config *config.Config
+	Mock      bool
+	Config    *config.Config
+	ConfigDir string // path to configs/ directory
 	DB     *db.Database
 
 	// Optional — nil means not configured, handlers fall back gracefully

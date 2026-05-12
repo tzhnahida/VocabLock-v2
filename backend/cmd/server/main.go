@@ -22,7 +22,8 @@ func main() {
 	mockMode := flag.Bool("mock", false, "Run with mock handlers (no AI, no SQLite, no external processes)")
 	flag.Parse()
 
-	cfg, err := config.Load("configs")
+	configDir := "configs"
+	cfg, err := config.Load(configDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "config error: %v\n", err)
 		os.Exit(1)
@@ -54,6 +55,7 @@ func main() {
 	}
 
 	srv := api.NewServer(cfg.App.MockMode, cfg, database)
+	srv.ConfigDir = configDir
 
 	// Wire AI client (if configured)
 	if cfg.App.AI.APIKey != "" && !cfg.App.MockMode {
