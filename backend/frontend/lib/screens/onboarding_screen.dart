@@ -42,7 +42,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   bool _chatLoading = false;
   bool _profileDone = false;
   int _roundCount = 0;
-  static const _minRounds = 3;
+  static const _minRounds = 0;
   final _chatCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
 

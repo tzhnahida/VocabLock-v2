@@ -10,7 +10,7 @@ class ApiClient {
           baseUrl: baseUrl,
           headers: {'Authorization': 'Bearer $token'},
           connectTimeout: const Duration(seconds: 5),
-          receiveTimeout: const Duration(seconds: 30),
+          receiveTimeout: const Duration(seconds: 120),
         ));
 
   Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) =>
