@@ -182,15 +182,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
 
     if (!mounted) return;
+    _profileText = reply;
+    _applyProfile(reply);
     setState(() {
       _chatMsgs.add((role: 'assistant', content: reply));
       _chatLoading = false;
+      _profileDone = true;
     });
-    if (reply.contains('✅ 学习档案已建立')) {
-      _profileText = reply;
-      _applyProfile(reply);
-      setState(() => _profileDone = true);
-    }
     _scrollToBottom();
   }
 

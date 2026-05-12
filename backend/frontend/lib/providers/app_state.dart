@@ -215,14 +215,17 @@ class AppState extends ChangeNotifier {
         if (_expandTotal > 0) {
           _expandStatus = '生成 $_expandTotal 个词汇（$_expandVerified 已入库，$_expandPending 待审核）';
         } else {
-          _expandStatus = '未生成新词汇';
+          _expandStatus = result['message']?.toString() ?? '未生成新词汇';
         }
         notifyListeners();
         await _loadApiDashboard();
       } catch (e) {
-        _expandStatus = '词汇生成失败';
+        _expandStatus = '词汇生成失败: $e';
         notifyListeners();
       }
+    } else {
+      _expandStatus = 'API 未连接，无法生成词汇';
+      notifyListeners();
     }
     _expanding = false;
     notifyListeners();
