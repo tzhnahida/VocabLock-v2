@@ -51,10 +51,30 @@ func (d *Database) migrate() error {
 			value TEXT NOT NULL DEFAULT ''
 		);
 
+		CREATE TABLE IF NOT EXISTS assignments (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			language TEXT NOT NULL DEFAULT '',
+			type TEXT NOT NULL,
+			prompt TEXT NOT NULL DEFAULT '',
+			context TEXT NOT NULL DEFAULT '',
+			answer TEXT NOT NULL DEFAULT '',
+			score REAL NOT NULL DEFAULT 0.0,
+			feedback TEXT NOT NULL DEFAULT '',
+			status TEXT NOT NULL DEFAULT 'pending',
+			created_at TEXT NOT NULL DEFAULT (datetime('now')),
+			updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+		);
+
+		CREATE TABLE IF NOT EXISTS assignment_cadence (
+			language TEXT PRIMARY KEY,
+			last_given_at TEXT NOT NULL DEFAULT (datetime('now'))
+		);
+
 		CREATE INDEX IF NOT EXISTS idx_words_next_review ON words(next_review_at);
 		CREATE INDEX IF NOT EXISTS idx_words_language ON words(language);
 		CREATE INDEX IF NOT EXISTS idx_review_log_word_id ON review_log(word_id);
 		CREATE INDEX IF NOT EXISTS idx_review_log_created ON review_log(created_at);
+		CREATE INDEX IF NOT EXISTS idx_assignments_status ON assignments(status);
 	`)
 	if err != nil {
 		return err

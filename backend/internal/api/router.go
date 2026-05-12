@@ -16,6 +16,11 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET "+prefix+"/quiz/today-stats", s.handleQuizTodayStats)
 	mux.HandleFunc("POST "+prefix+"/quiz/complete", s.handleQuizComplete)
 
+	// Assignments (after-class)
+	mux.HandleFunc("GET "+prefix+"/quiz/assignment", s.handleAssignmentNext)
+	mux.HandleFunc("POST "+prefix+"/quiz/assignment/submit", s.handleAssignmentSubmit)
+	mux.HandleFunc("GET "+prefix+"/quiz/assignment/cadence", s.handleAssignmentCadence)
+
 	// Words
 	mux.HandleFunc("GET "+prefix+"/words", s.handleWordsList)
 	mux.HandleFunc("GET "+prefix+"/words/{id}", s.handleWordsGet)
