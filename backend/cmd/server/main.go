@@ -61,7 +61,7 @@ func main() {
 			BaseURL: cfg.App.AI.BaseURL,
 			APIKey:  cfg.App.AI.APIKey,
 			Model:   cfg.App.AI.Model,
-			Timeout: 30 * time.Second,
+			Timeout: 120 * time.Second,
 		})
 		fmt.Println("  AI: configured")
 	}

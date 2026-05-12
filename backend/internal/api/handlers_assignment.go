@@ -221,7 +221,7 @@ func (s *Server) generateAssignment(ctx context.Context, lang string, aType engi
 		return nil, err
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
 	response, err := s.AI.Chat(timeoutCtx, messages)
@@ -277,7 +277,7 @@ func (s *Server) gradeAssignment(ctx context.Context, lang, answer string) (*eng
 		return nil, err
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
 	response, err := s.AI.Chat(timeoutCtx, messages)
@@ -320,7 +320,7 @@ func (s *Server) aiCadenceRecommend(ctx context.Context, lang string) (map[strin
 		return nil, err
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
 	response, err := s.AI.Chat(timeoutCtx, messages)

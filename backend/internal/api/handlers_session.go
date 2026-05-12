@@ -166,7 +166,7 @@ func (s *Server) runSummarize(ctx context.Context, lang, stats, yesterdayPlan st
 		return nil, err
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
 	response, err := s.AI.Chat(timeoutCtx, messages)
@@ -208,7 +208,7 @@ func (s *Server) runPlan(ctx context.Context, lang, stats string, summary map[st
 		return nil, err
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
 	response, err := s.AI.Chat(timeoutCtx, messages)

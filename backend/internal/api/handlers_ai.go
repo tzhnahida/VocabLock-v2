@@ -63,7 +63,7 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	allMsgs = append(allMsgs, req.History...)
 	allMsgs = append(allMsgs, messages[1:]...)
 
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
 
 	fmt.Printf("  AI user: %.80s...\n", req.Message)

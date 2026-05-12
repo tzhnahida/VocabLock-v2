@@ -48,7 +48,7 @@ func (s *Server) aiGenerateQuestion(ctx context.Context, word *engine.WordInfo, 
 		return nil, fmt.Errorf("build prompt: %w", err)
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
 	response, err := s.AI.Chat(timeoutCtx, messages)

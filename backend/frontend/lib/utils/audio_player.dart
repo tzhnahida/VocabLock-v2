@@ -1,23 +1,36 @@
-import 'package:audioplayers/audioplayers.dart' as ap;
+import 'dart:io';
 
 class AudioPlayer {
-  final ap.AudioPlayer _player = ap.AudioPlayer();
+  Process? _current;
 
   Future<void> playUrl(String url) async {
-    await _player.stop();
-    await _player.play(ap.UrlSource(url));
+    await stop();
+    if (Platform.isWindows) {
+      _current = await Process.start('cmd', ['/c', 'start', '', url]);
+    } else if (Platform.isMacOS) {
+      _current = await Process.start('afplay', [url]);
+    } else {
+      _current = await Process.start('xdg-open', [url]);
+    }
   }
 
   Future<void> playFile(String path) async {
-    await _player.stop();
-    await _player.play(ap.DeviceFileSource(path));
+    await stop();
+    if (Platform.isWindows) {
+      _current = await Process.start('cmd', ['/c', 'start', '', path]);
+    } else if (Platform.isMacOS) {
+      _current = await Process.start('afplay', [path]);
+    } else {
+      _current = await Process.start('aplay', [path]);
+    }
   }
 
   Future<void> stop() async {
-    await _player.stop();
+    _current?.kill();
+    _current = null;
   }
 
   void dispose() {
-    _player.dispose();
+    _current?.kill();
   }
 }
