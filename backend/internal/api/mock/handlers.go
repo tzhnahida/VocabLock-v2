@@ -84,7 +84,7 @@ func HandleAIProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 func HandleAIProfileUpdate(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, `{"updated":true}`)
+	writeJSON(w, `{"saved":true,"language":"zh","direction":"general"}`)
 }
 
 // ——— TTS mock handlers ———

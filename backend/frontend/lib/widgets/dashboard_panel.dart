@@ -26,6 +26,10 @@ class DashboardPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _Header(state: state, onStartQuiz: onStartQuiz),
+          if (state.expanding || state.expandStatus.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _ExpandBanner(state: state, onRetry: () => state.expandWords(count: 10)),
+          ],
           const SizedBox(height: 24),
           if (progress != null)
             ProgressCard(
@@ -120,6 +124,61 @@ class _Header extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _ExpandBanner extends StatelessWidget {
+  final AppState state;
+  final VoidCallback onRetry;
+  const _ExpandBanner({required this.state, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final expanding = state.expanding;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: expanding
+            ? AppTheme.primary.withValues(alpha: 0.06)
+            : Colors.green.shade50,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: expanding
+              ? AppTheme.primary.withValues(alpha: 0.15)
+              : Colors.green.shade100,
+        ),
+      ),
+      child: Row(
+        children: [
+          if (expanding)
+            const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+          else
+            Icon(Icons.check_circle, size: 20, color: Colors.green.shade600),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  state.expandStatus,
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: expanding ? AppTheme.primary : Colors.green.shade800),
+                ),
+                if (state.expandTotal > 0 && !expanding) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    '${state.expandVerified} 个词汇已就绪，可以开始答题',
+                    style: TextStyle(fontSize: 12, color: AppTheme.textHint),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (!expanding && state.expandTotal == 0)
+            TextButton(onPressed: onRetry, child: Text('重试', style: TextStyle(fontSize: 12, color: AppTheme.primary))),
+        ],
+      ),
     );
   }
 }

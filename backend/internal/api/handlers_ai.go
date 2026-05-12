@@ -101,5 +101,35 @@ func (s *Server) handleAIProfileUpdate(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
 		mock.HandleAIProfileUpdate(w, r); return
 	}
-	writeNotImplemented(w)
+
+	var req struct {
+		Language  string `json:"language"`
+		Level     string `json:"level"`
+		Direction string `json:"direction"`
+		Profile   string `json:"profile"` // full AI-generated profile text
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+
+	lang := req.Language
+	if lang == "" {
+		lang = s.Config.App.ActiveLang
+	}
+
+	direction := req.Direction
+	if direction == "" {
+		direction = "general"
+	}
+
+	if s.DB != nil {
+		s.DB.InsertTrainingPlan(lang, direction, 1.0, req.Profile)
+	}
+
+	writeJSON(w, map[string]interface{}{
+		"saved":     true,
+		"language":  lang,
+		"direction": direction,
+	})
 }

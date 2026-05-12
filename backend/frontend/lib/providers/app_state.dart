@@ -55,6 +55,7 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  String? get baseUrl => _apiClient?.baseUrl;
   bool get useMock => _apiClient == null;
 
   bool _initialized = false;
@@ -62,9 +63,21 @@ class AppState extends ChangeNotifier {
 
   bool _isFirstRun = false;
   bool get isFirstRun => _isFirstRun;
+  bool _hasProfile = false;
 
   bool _dailyCompleted = false;
   bool get dailyCompleted => _dailyCompleted;
+
+  bool _expanding = false;
+  bool get expanding => _expanding;
+  String _expandStatus = '';
+  String get expandStatus => _expandStatus;
+  int _expandTotal = 0;
+  int get expandTotal => _expandTotal;
+  int _expandVerified = 0;
+  int get expandVerified => _expandVerified;
+  int _expandPending = 0;
+  int get expandPending => _expandPending;
 
   String _uiLang = 'en';
   String get uiLang => _uiLang;
@@ -101,8 +114,13 @@ class AppState extends ChangeNotifier {
   Map<String, int> get heatmap => _heatmap;
 
   Future<void> init() async {
-    await _loadLanguages();
-    _isFirstRun = _languages.isEmpty;
+    if (useMock) {
+      _loadMockData();
+    } else {
+      await _loadApiData();
+    }
+    // First run if no languages AND no saved profile/plan from previous session
+    _isFirstRun = _languages.isEmpty && !_hasProfile;
     _initialized = true;
     notifyListeners();
   }
@@ -123,6 +141,8 @@ class AppState extends ChangeNotifier {
     String? apiKey,
     String? model,
     String? baseUrl,
+    String? profileText,
+    String? direction,
   }) async {
     _uiLang = uiLang;
     _themeMode = themeMode;
@@ -143,13 +163,68 @@ class AppState extends ChangeNotifier {
     _activeLanguageIndex = 0;
     AppTheme.setActiveIndex(0);
     _isFirstRun = false;
-    _mockInitialized = true;
-    _loadMockDashboard();
+
+    // Update backend config and load real data
     if (!useMock && _configApi != null) {
       try {
         await _configApi!.updateConfig(activeLang: learnLang, dailyTarget: dailyTarget);
       } catch (_) {}
+      // Save AI profile if generated during interview
+      if (profileText != null && profileText.isNotEmpty && _aiApi != null) {
+        try {
+          await _aiApi!.updateProfile({
+            'language': learnLang,
+            'level': 'beginner',
+            'direction': direction ?? 'general',
+            'profile': profileText,
+          });
+        } catch (_) {}
+      }
+      if (direction != null && direction.isNotEmpty && _quizApi != null) {
+        try {
+          await _quizApi!.updateDirection(direction);
+        } catch (_) {}
+      }
+      await _loadApiDashboard();
+    } else {
+      _mockInitialized = true;
+      _loadMockDashboard();
     }
+    notifyListeners();
+
+    // Auto-expand words after onboarding (real mode only, with AI)
+    if (!useMock) {
+      await expandWords(count: 10);
+    }
+  }
+
+  Future<void> expandWords({int count = 10}) async {
+    if (_expanding) return;
+    _expanding = true;
+    _expandStatus = 'AI 正在生成词汇...';
+    notifyListeners();
+    final wordsApi = _wordsApi;
+    if (wordsApi != null) {
+      try {
+        final result = await wordsApi.expand(count: count);
+        final verified = (result['verified'] as List<dynamic>?) ?? [];
+        final pending = (result['pending_review'] as List<dynamic>?) ?? [];
+        _expandVerified = verified.length;
+        _expandPending = pending.length;
+        _expandTotal = _expandVerified + _expandPending;
+        if (_expandTotal > 0) {
+          _expandStatus = '生成 $_expandTotal 个词汇（$_expandVerified 已入库，$_expandPending 待审核）';
+        } else {
+          _expandStatus = '未生成新词汇';
+        }
+        notifyListeners();
+        await _loadApiDashboard();
+      } catch (e) {
+        _expandStatus = '词汇生成失败';
+        notifyListeners();
+      }
+    }
+    _expanding = false;
     notifyListeners();
   }
 
@@ -161,14 +236,6 @@ class AppState extends ChangeNotifier {
       } catch (_) {}
     }
     notifyListeners();
-  }
-
-  Future<void> _loadLanguages() async {
-    if (useMock) {
-      _loadMockData();
-    } else {
-      await _loadApiData();
-    }
   }
 
   static bool _mockInitialized = false;
@@ -232,6 +299,14 @@ class AppState extends ChangeNotifier {
         try {
           final profile = await _aiApi!.getProfile();
           _aiConfigured = profile['configured'] == true;
+        } catch (_) {}
+      }
+
+      // Check if training plan exists (indicates onboarding was done)
+      if (_quizApi != null && _languages.isNotEmpty) {
+        try {
+          final plan = await _quizApi!.getPlan(language: _languages[0].code);
+          _hasProfile = plan.id != null;
         } catch (_) {}
       }
 

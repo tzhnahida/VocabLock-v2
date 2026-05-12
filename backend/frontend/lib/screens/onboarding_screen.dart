@@ -10,6 +10,8 @@ class OnboardingScreen extends StatefulWidget {
     String? apiKey,
     String? model,
     String? baseUrl,
+    String? profileText,
+    String? direction,
   }) onComplete;
   final Future<String> Function(String message, List<({String role, String content})> history)? onAiChat;
   final bool aiConfigured;
@@ -48,6 +50,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   String _learnLang = 'zh';
   int _dailyTarget = 20;
   String _password = '';
+  String _profileText = '';
+  String _profileDirection = '';
 
   static const _uiLanguages = [
     ('en', 'English'), ('zh', '中文'), ('ja', '日本語'), ('ko', '한국어'),
@@ -88,6 +92,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         apiKey: _apiKey.isNotEmpty ? _apiKey : null,
         model: _model.isNotEmpty ? _model : null,
         baseUrl: _baseUrl.isNotEmpty ? _baseUrl : null,
+        profileText: _profileText.isNotEmpty ? _profileText : null,
+        direction: _profileDirection.isNotEmpty ? _profileDirection : null,
       );
     }
   }
@@ -116,8 +122,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _chatMsgs.clear();
     _roundCount = 0;
     _profileDone = false;
-    final ctx = '（用户界面是${_uiLang == "zh" ? "中文" : _uiLang == "ja" ? "日本語" : _uiLang == "ko" ? "한국어" : "English"}。先聊天了解情况，不要直接生成方案。）';
-    _sendInterviewMsg('$ctx 你好，我想学外语，请先简单了解我的情况。', showUser: false);
+    final ifLang = _uiLang == "zh" ? "中文" : _uiLang == "ja" ? "日本語" : _uiLang == "ko" ? "한국어" : "English";
+    final ctx = '（你是AI语言学习顾问。用户界面是$ifLang。'
+        '请依次了解：1)想学什么语言 2)当前水平(零基础/初级/中级/高级) '
+        '3)每天能学多久(分钟) 4)学习目标(日常交流/考试/工作/兴趣) '
+        '5)偏好学习方式(视觉/听觉/动手)。每次只问1-2个问题，自然对话，不要直接生成方案。）';
+    _sendInterviewMsg('$ctx 你好！我来帮你制定学习计划。请先告诉我你想学什么语言？', showUser: false);
   }
 
   Future<void> _sendInterviewMsg(String text, {bool showUser = true}) async {
@@ -137,9 +147,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     } else {
       await Future.delayed(const Duration(milliseconds: 600));
       reply = switch (_roundCount) {
-        1 => '你好！我是你的AI学习顾问。请告诉我：\n1. 你想学什么语言？\n2. 你的目标是什么？',
-        2 => '了解了！你目前的水平如何？每天能花多少时间学习？',
-        _ => '好的，我在了解你的情况。还有什么要补充的吗？比如：是否有考试目标、偏好哪些学习方式？',
+        1 => '你好！很高兴成为你的学习顾问。请告诉我：\n1. 你想学什么语言？\n2. 你目前的水平如何？（零基础/初级/中级/高级）',
+        2 => '明白了！请再告诉我：\n1. 你每天能拿出多少时间学习？（分钟）\n2. 你的学习目标是什么？（日常交流/考试/工作/兴趣）',
+        3 => '好的！最后一个问题：你偏好哪种学习方式？\n1. 视觉型（看单词卡片）\n2. 听觉型（多听发音）\n3. 动手型（多写多练）\n\n还是说都可以？',
+        _ => '了解了！还有没有其他要补充的？比如：有没有考试截止日期、特别想突破的弱项？',
       };
     }
 
@@ -153,8 +164,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Future<void> _requestProfile() async {
     setState(() => _chatLoading = true);
-    final prompt = '请根据以上对话，生成一份详细的学习培养方案，包括：\n'
-        '- 学习语言与等级\n- 当前水平评估\n- 每日建议题数\n- 目标正确率\n- 学习时间安排\n- 重点学习方向\n- 难度递进计划\n\n结尾标注：✅ 学习档案已建立';
+    final prompt = '请根据以上对话，生成一份详细的学习培养方案，必须包含以下所有字段：\n'
+        '- 学习语言与等级\n- 当前水平评估\n- 每日可投入时间（基于用户回答的具体分钟数）\n'
+        '- 每日建议题数（根据可用时间推算，约每题2分钟）\n- 目标正确率（建议80%）\n'
+        '- 学习时间安排（具体到时间段）\n- 重点学习方向\n- 难度递进计划\n\n结尾标注：✅ 学习档案已建立';
 
     String reply;
     if (widget.onAiChat != null) {
@@ -174,6 +187,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       _chatLoading = false;
     });
     if (reply.contains('✅ 学习档案已建立')) {
+      _profileText = reply;
       _applyProfile(reply);
       setState(() => _profileDone = true);
     }
@@ -181,7 +195,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   void _applyProfile(String reply) {
-    // Detect language from AI response (check longer patterns first)
+    // Detect language from AI response
     final langPatterns = [
       ('日本語', 'ja'), ('日语', 'ja'), ('日文', 'ja'),
       ('中文', 'zh'), ('汉语', 'zh'),
@@ -191,6 +205,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     for (final (pattern, code) in langPatterns) {
       if (reply.contains(pattern)) { _learnLang = code; break; }
     }
+    // Detect direction keywords
+    final directions = ['conversation', 'reading', 'writing', 'listening', 'grammar', 'exam', 'business', 'travel'];
+    for (final d in directions) {
+      if (reply.toLowerCase().contains(d)) { _profileDirection = d; break; }
+    }
+    if (_profileDirection.isEmpty) _profileDirection = 'general';
+
     // Detect daily target
     final targets = [
       RegExp(r'每日.*?(\d+)\s*题'), RegExp(r'建议.*?(\d+)\s*题'),
@@ -477,6 +498,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           apiKey: _apiKey.isNotEmpty ? _apiKey : null,
           model: _model.isNotEmpty ? _model : null,
           baseUrl: _baseUrl.isNotEmpty ? _baseUrl : null,
+          profileText: _profileText.isNotEmpty ? _profileText : null,
+          direction: _profileDirection.isNotEmpty ? _profileDirection : null,
         );
       }),
     ]);
