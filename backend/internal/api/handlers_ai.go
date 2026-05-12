@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -15,7 +16,8 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Message string `json:"message"`
+		Message  string         `json:"message"`
+		History  []ai.Message   `json:"history"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -37,8 +39,8 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	explLang := "en"
-	teacherRole := "Language Teacher"
+	explLang := "zh-CN"
+	teacherRole := "语言教师"
 	if lc, ok := s.Config.Languages[s.Config.App.ActiveLang]; ok {
 		explLang = lc.PromptContext.ExplanationLang
 		teacherRole = lc.PromptContext.TeacherRole
@@ -54,11 +56,20 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Insert conversation history between system prompt and current message
+	sysMsg := messages[0]
+	var allMsgs []ai.Message
+	allMsgs = append(allMsgs, sysMsg)
+	allMsgs = append(allMsgs, req.History...)
+	allMsgs = append(allMsgs, messages[1:]...)
+
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
-	reply, err := s.AI.Chat(ctx, messages)
+	fmt.Printf("  AI user: %.80s...\n", req.Message)
+	reply, err := s.AI.Chat(ctx, allMsgs)
 	if err != nil {
+		fmt.Printf("  AI error: %v\n", err)
 		writeJSON(w, map[string]interface{}{
 			"reply": "AI暂时无法响应，请稍后重试。",
 			"model": "error",
@@ -66,6 +77,7 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	fmt.Printf("  AI reply: %.120s...\n", reply)
 
 	writeJSON(w, map[string]interface{}{
 		"reply": reply,

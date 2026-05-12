@@ -1,6 +1,7 @@
 import 'dart:math';
 import '../models/word.dart';
 import '../models/question.dart';
+import '../models/quiz_result.dart';
 import '../models/stats.dart';
 import '../models/language.dart';
 
@@ -9,7 +10,7 @@ class MockData {
 
   static final _rng = Random(42);
 
-  static const List<String> _langCodes = ['en', 'ja', 'zh', 'ko'];
+  static const List<String> _langCodes = ['zh', 'en', 'ja', 'ko'];
 
   static List<LanguageInfo> get languages => List.generate(
         _langCodes.length,

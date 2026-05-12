@@ -3,8 +3,9 @@ tts:
   fallback_order: [edge-tts, sapi]
   providers:
     edge-tts:
-      binary: 'tts\edge-tts\edge-tts.exe'
+      binary: 'python'
       args:
+        - 'tts/edge_tts.py'
         - '--voice'
         - '{voice}'
         - '--text'

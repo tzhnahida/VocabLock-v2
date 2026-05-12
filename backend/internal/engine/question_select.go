@@ -8,10 +8,10 @@ import (
 // tierTypes maps SM-2 learning stages to appropriate question types.
 // Higher tier = more demanding question types.
 var tierTypes = map[int][]QuestionType{
-	0: {TypeChoice},                                                          // new: recognition only
-	1: {TypeChoice, TypeFill},                                                // early: cued recall
-	2: {TypeFill, TypeReading},                                               // mid: unaided recall
-	3: {TypeReading, TypeSpelling, TypeListening, TypeReadingComp, TypeGrammar}, // mature: production
+	0: {TypeChoice},                                                              // new: recognition only
+	1: {TypeChoice, TypeFill},                                                    // early: cued recall
+	2: {TypeFill, TypePronounce},                                                 // mid: unaided recall
+	3: {TypePronounce, TypeSpelling, TypeListening, TypeReadingComp, TypeGrammar}, // mature: production
 }
 
 // SelectQuestionType picks the best question type for a word based on its SM-2 state.

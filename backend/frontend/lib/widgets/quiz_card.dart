@@ -23,7 +23,7 @@ class QuizCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 6)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 20, offset: const Offset(0, 6)),
         ],
       ),
       child: Column(
@@ -34,7 +34,7 @@ class QuizCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _typeColor.withOpacity(0.1),
+                  color: _typeColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(question.type.displayName, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _typeColor)),

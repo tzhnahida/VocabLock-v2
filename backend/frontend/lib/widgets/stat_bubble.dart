@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 
 class StatBubble extends StatelessWidget {
   final String label;
@@ -28,7 +27,7 @@ class StatBubble extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: gradientColors.first.withOpacity(0.3),
+            color: gradientColors.first.withValues(alpha: 0.3),
             blurRadius: 18,
             spreadRadius: -2,
             offset: const Offset(0, 8),
@@ -46,7 +45,7 @@ class StatBubble extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             label,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.white.withOpacity(0.85)),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.white.withValues(alpha: 0.85)),
           ),
         ],
       ),

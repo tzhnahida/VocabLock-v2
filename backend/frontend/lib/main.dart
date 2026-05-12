@@ -15,5 +15,5 @@ void main(List<String> args) {
   }
 
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const VocabLockApp());
+  runApp(VocabLockApp(apiPort: apiPort, authToken: authToken));
 }

@@ -11,10 +11,33 @@ func (s *Server) handleConfigGet(w http.ResponseWriter, r *http.Request) {
 		mock.HandleConfigGet(w, r); return
 	}
 
+	langs := make([]string, 0, len(s.Config.Languages))
+	for code := range s.Config.Languages {
+		langs = append(langs, code)
+	}
+
 	writeJSON(w, map[string]interface{}{
-		"active_lang":  s.Config.App.ActiveLang,
-		"mock_mode":    s.Config.App.MockMode,
-		"daily_target": s.Config.App.DailyTarget,
+		"active_lang":          s.Config.App.ActiveLang,
+		"mock_mode":            s.Config.App.MockMode,
+		"daily_target":         s.Config.App.DailyTarget,
+		"min_accuracy":         s.Config.App.MinAccuracy,
+		"listening_ratio":      s.Config.App.ListeningRatio,
+		"reading_ratio":        s.Config.App.ReadingRatio,
+		"grammar_ratio":        s.Config.App.GrammarRatio,
+		"extra_ratio":          s.Config.App.ExtraRatio,
+		"passive_enabled":      s.Config.App.PassiveEnabled,
+		"passive_min_interval": s.Config.App.PassiveMinInterval,
+		"passive_max_interval": s.Config.App.PassiveMaxInterval,
+		"escape_password_limit": s.Config.App.EscapePasswordLimit,
+		"escape_click_limit":   s.Config.App.EscapeClickLimit,
+		"auto_start":           s.Config.App.AutoStart,
+		"auto_expand_words":    s.Config.App.AutoExpandWords,
+		"expand_batch_size":    s.Config.App.ExpandBatchSize,
+		"expand_threshold":     s.Config.App.ExpandThreshold,
+		"theme":                s.Config.App.Theme,
+		"model":                s.Config.App.AI.Model,
+		"base_url":             s.Config.App.AI.BaseURL,
+		"languages":            langs,
 	})
 }
 

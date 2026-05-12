@@ -391,8 +391,8 @@ func TestQuizNextAndSubmit(t *testing.T) {
 		answer = "你好" // meaning
 	case "fill", "spelling":
 		answer = "hello" // word
-	case "reading":
-		answer = "həˈloʊ" // reading
+	case "pronounce":
+		answer = "həˈloʊ" // pronunciation
 	default:
 		answer = "你好"
 	}

@@ -14,9 +14,9 @@ dict:
 question_types:
   - choice
   - fill
-  - reading
+  - pronounce
   - listening
-  - reading_comp
+  - pronounce_comp
   - grammar
 
 prompt_context:

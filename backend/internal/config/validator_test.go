@@ -19,7 +19,7 @@ func TestValidateValidConfig(t *testing.T) {
 func TestValidateMissingLanguage(t *testing.T) {
 	c := &Config{
 		App:       AppConfig{ActiveLang: "ja"},
-		Languages: map[string]*LanguageConfig{},
+		Languages: map[string]*LanguageConfig{"en": {}},
 	}
 	errs := c.Validate()
 	if len(errs) != 1 {
@@ -27,6 +27,17 @@ func TestValidateMissingLanguage(t *testing.T) {
 	}
 	if errs[0].Error() != `active_lang "ja" not defined in languages/` {
 		t.Errorf("wrong error: %v", errs[0])
+	}
+}
+
+func TestValidateEmptyLanguagesFirstRun(t *testing.T) {
+	c := &Config{
+		App:       AppConfig{ActiveLang: "zh"},
+		Languages: map[string]*LanguageConfig{},
+	}
+	errs := c.Validate()
+	if len(errs) != 0 {
+		t.Fatalf("expected 0 errors for first run (empty languages), got %d: %v", len(errs), errs)
 	}
 }
 

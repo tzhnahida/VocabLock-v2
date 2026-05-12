@@ -3,15 +3,16 @@ package config
 import "fmt"
 
 var validQuestionTypes = map[string]bool{
-	"choice": true, "fill": true, "spelling": true, "reading": true,
+	"choice": true, "fill": true, "spelling": true, "pronounce": true,
 	"listening": true, "reading_comp": true, "grammar": true,
+	// Reserved: "speaking", "essay", "sentence", "translation", "fill_passage"
 }
 
 func (c *Config) Validate() []error {
 	var errs []error
 
-	// 1. Active language must exist
-	if c.App.ActiveLang != "" {
+	// 1. Active language must exist (skip if no languages configured — first run)
+	if c.App.ActiveLang != "" && len(c.Languages) > 0 {
 		if _, ok := c.Languages[c.App.ActiveLang]; !ok {
 			errs = append(errs, fmt.Errorf("active_lang %q not defined in languages/", c.App.ActiveLang))
 		}

@@ -25,8 +25,8 @@ class GlassBackground extends StatelessWidget {
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        AppTheme.primary.withOpacity(0.3),
-                        AppTheme.accent.withOpacity(0.15),
+                        AppTheme.primary.withValues(alpha: 0.3),
+                        AppTheme.accent.withValues(alpha: 0.15),
                         Colors.transparent,
                       ],
                       stops: const [0.0, 0.5, 1.0],
@@ -51,7 +51,7 @@ class GlassBackground extends StatelessWidget {
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        AppTheme.accent.withOpacity(0.2),
+                        AppTheme.accent.withValues(alpha: 0.2),
                         Colors.transparent,
                       ],
                       stops: const [0.0, 1.0],

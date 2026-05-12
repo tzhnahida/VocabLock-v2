@@ -4,7 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -30,10 +32,15 @@ func main() {
 		cfg.App.MockMode = true
 	}
 
-	lang, ok := cfg.Languages[cfg.App.ActiveLang]
-	if !ok {
-		fmt.Fprintf(os.Stderr, "active language %q not configured\n", cfg.App.ActiveLang)
-		os.Exit(1)
+	// Allow empty languages on first run
+	var lang *config.LanguageConfig
+	if cfg.App.ActiveLang != "" {
+		var ok bool
+		lang, ok = cfg.Languages[cfg.App.ActiveLang]
+		if !ok && len(cfg.Languages) > 0 {
+			fmt.Fprintf(os.Stderr, "active language %q not configured\n", cfg.App.ActiveLang)
+			os.Exit(1)
+		}
 	}
 
 	var database *db.Database
@@ -60,7 +67,7 @@ func main() {
 	}
 
 	// Wire TTS provider (if configured for active language)
-	if lang.TTS.Provider != "" && !cfg.App.MockMode {
+	if lang != nil && lang.TTS.Provider != "" && !cfg.App.MockMode {
 		provCfg, ok := cfg.TTS.TTS.Providers[lang.TTS.Provider]
 		if ok {
 			provider, err := tts.NewProvider(lang.TTS.Provider, provCfg, "data/audio")
@@ -74,7 +81,7 @@ func main() {
 	}
 
 	// Wire Dict provider (if configured for active language)
-	if lang.Dict.Provider != "" && !cfg.App.MockMode {
+	if lang != nil && lang.Dict.Provider != "" && !cfg.App.MockMode {
 		provCfg, ok := cfg.Dict.Dict.Providers[lang.Dict.Provider]
 		if ok {
 			srv.DictProvider = dict.NewProvider(lang.Dict.Provider, provCfg)
@@ -87,7 +94,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("VocabLock v2 — %s (%s)\n", lang.Lang.DisplayName, lang.Lang.NativeName)
+	spawnFlutter(srv.Port, srv.Token)
+
+	if lang != nil {
+		fmt.Printf("VocabLock v2 — %s (%s)\n", lang.Lang.DisplayName, lang.Lang.NativeName)
+	} else {
+		fmt.Println("VocabLock v2 — first run")
+	}
 	fmt.Printf("  HTTP: http://127.0.0.1:%d\n", srv.Port)
 	fmt.Printf("  Token: %s\n", srv.Token)
 	fmt.Printf("  Mock: %v\n", cfg.App.MockMode)
@@ -98,4 +111,28 @@ func main() {
 
 	fmt.Println("\nShutting down...")
 	srv.Shutdown()
+}
+
+func spawnFlutter(port int, token string) {
+	exe, err := os.Executable()
+	if err != nil {
+		return
+	}
+	dir := filepath.Dir(exe)
+	flutterExe := filepath.Join(dir, "frontend", "build", "windows", "x64", "runner", "Release", "vocablock_ui.exe")
+	if _, err := os.Stat(flutterExe); os.IsNotExist(err) {
+		return
+	}
+
+	cmd := exec.Command(flutterExe,
+		"--api-port", fmt.Sprintf("%d", port),
+		"--auth-token", token,
+	)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "flutter spawn warning: %v\n", err)
+		return
+	}
+	fmt.Printf("  Flutter: pid=%d\n", cmd.Process.Pid)
 }

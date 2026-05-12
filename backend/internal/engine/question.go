@@ -12,10 +12,12 @@ const (
 	TypeChoice      QuestionType = "choice"
 	TypeFill        QuestionType = "fill"
 	TypeSpelling    QuestionType = "spelling"
-	TypeReading     QuestionType = "reading"
-	TypeListening   QuestionType = "listening"
-	TypeReadingComp QuestionType = "reading_comp"
+	TypePronounce   QuestionType = "pronounce"     // recall the pronunciation (type kana/pinyin)
+	TypeListening   QuestionType = "listening"     // hear audio, answer
+	TypeReadingComp QuestionType = "reading_comp"  // read passage, answer questions
 	TypeGrammar     QuestionType = "grammar"
+	// Reserved for future multimodal:
+	// TypeSpeaking    QuestionType = "speaking"     // actually speak aloud (needs STT)
 )
 
 // Question represents a single quiz question.
@@ -86,15 +88,16 @@ func GenerateSpelling(word *WordInfo) *Question {
 	}
 }
 
-// GenerateReading creates a reading pronunciation question.
-func GenerateReading(word *WordInfo) *Question {
+// GeneratePronounce creates a pronunciation recall question.
+// User sees the word and must type its kana/pinyin — tests reading knowledge, not spoken output.
+func GeneratePronounce(word *WordInfo) *Question {
 	return &Question{
-		ID:      genID("reading", word.ID),
-		Type:    TypeReading,
+		ID:      genID("pronounce", word.ID),
+		Type:    TypePronounce,
 		WordID:  word.ID,
 		Word:    word.Word,
 		Reading: word.Reading,
-		Prompt:  "Read this word: " + word.Word,
+		Prompt:  "Enter the pronunciation of: " + word.Word,
 		Answer:  word.Reading,
 	}
 }

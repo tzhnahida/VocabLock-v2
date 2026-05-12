@@ -149,11 +149,11 @@ func TestGenerateSpellingBasic(t *testing.T) {
 	}
 }
 
-func TestGenerateReadingBasic(t *testing.T) {
+func TestGeneratePronounceBasic(t *testing.T) {
 	w := makeWord(1, "hello", "həˈloʊ", "你好")
-	q := GenerateReading(w)
-	if q.Type != TypeReading {
-		t.Errorf("type = %s, want reading", q.Type)
+	q := GeneratePronounce(w)
+	if q.Type != TypePronounce {
+		t.Errorf("type = %s, want pronounce", q.Type)
 	}
 	if q.Answer != "həˈloʊ" {
 		t.Errorf("answer = %s, want həˈloʊ", q.Answer)

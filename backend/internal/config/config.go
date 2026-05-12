@@ -16,8 +16,23 @@ type AppConfig struct {
 	Server      struct {
 		Host string `yaml:"host"`
 	} `yaml:"server"`
-	DailyTarget int      `yaml:"daily_target"`
-	AI          AIConfig `yaml:"ai"`
+	DailyTarget         int      `yaml:"daily_target"`
+	MinAccuracy         float64  `yaml:"min_accuracy"`
+	ListeningRatio      float64  `yaml:"listening_ratio"`
+	ReadingRatio        float64  `yaml:"reading_ratio"`
+	GrammarRatio        float64  `yaml:"grammar_ratio"`
+	ExtraRatio          float64  `yaml:"extra_ratio"`
+	PassiveEnabled      bool     `yaml:"passive_enabled"`
+	PassiveMinInterval  int      `yaml:"passive_min_interval"`
+	PassiveMaxInterval  int      `yaml:"passive_max_interval"`
+	EscapePasswordLimit int      `yaml:"escape_password_limit"`
+	EscapeClickLimit    int      `yaml:"escape_click_limit"`
+	AutoStart           bool     `yaml:"auto_start"`
+	AutoExpandWords     bool     `yaml:"auto_expand_words"`
+	ExpandBatchSize     int      `yaml:"expand_batch_size"`
+	ExpandThreshold     float64  `yaml:"expand_threshold"`
+	Theme               string   `yaml:"theme"`
+	AI                  AIConfig `yaml:"ai"`
 }
 
 // ——— AI config ———
@@ -101,8 +116,22 @@ type Config struct {
 func Load(configDir string) (*Config, error) {
 	cfg := &Config{
 		App: AppConfig{
-			ActiveLang:  "en",
-			DailyTarget: 20,
+			ActiveLang:          "en",
+			DailyTarget:         20,
+			MinAccuracy:         0.8,
+			ListeningRatio:      0.15,
+			ReadingRatio:        0.15,
+			GrammarRatio:        0.15,
+			ExtraRatio:          0.15,
+			PassiveEnabled:      true,
+			PassiveMinInterval:  25,
+			PassiveMaxInterval:  60,
+			EscapePasswordLimit: 1,
+			EscapeClickLimit:    2,
+			AutoExpandWords:     true,
+			ExpandBatchSize:     10,
+			ExpandThreshold:     0.6,
+			Theme:               "vs-dark",
 		},
 		Languages: make(map[string]*LanguageConfig),
 	}

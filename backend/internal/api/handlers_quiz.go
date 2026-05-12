@@ -19,7 +19,7 @@ var nonAITypes = []engine.QuestionType{
 	engine.TypeChoice,
 	engine.TypeFill,
 	engine.TypeSpelling,
-	engine.TypeReading,
+	engine.TypePronounce,
 }
 
 // langQuestionTypes extracts the QuestionType list from the active language config.
@@ -105,8 +105,8 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 		q = engine.GenerateFill(info)
 	case engine.TypeSpelling:
 		q = engine.GenerateSpelling(info)
-	case engine.TypeReading:
-		q = engine.GenerateReading(info)
+	case engine.TypePronounce:
+		q = engine.GeneratePronounce(info)
 	case engine.TypeListening, engine.TypeReadingComp, engine.TypeGrammar:
 		q, err = s.aiGenerateQuestion(r.Context(), info, qType)
 		if err != nil {
@@ -290,7 +290,7 @@ func expectedAnswer(qType string, w *db.Word) string {
 	switch engine.QuestionType(qType) {
 	case engine.TypeFill, engine.TypeSpelling:
 		return w.Word
-	case engine.TypeReading:
+	case engine.TypePronounce:
 		return w.Reading
 	case engine.TypeListening:
 		return w.Meaning

@@ -58,6 +58,25 @@ func NewClient(cfg Config) *Client {
 }
 
 func (c *Client) Chat(ctx context.Context, messages []Message) (string, error) {
+	var lastErr error
+	for attempt := 1; attempt <= 3; attempt++ {
+		reply, err := c.chatOnce(ctx, messages)
+		if err == nil {
+			return reply, nil
+		}
+		lastErr = err
+		if attempt < 3 {
+			select {
+			case <-ctx.Done():
+				return "", ctx.Err()
+			case <-time.After(time.Duration(attempt) * time.Second):
+			}
+		}
+	}
+	return "", fmt.Errorf("chat failed after 3 attempts: %w", lastErr)
+}
+
+func (c *Client) chatOnce(ctx context.Context, messages []Message) (string, error) {
 	reqBody := chatRequest{
 		Model:    c.model,
 		Messages: messages,

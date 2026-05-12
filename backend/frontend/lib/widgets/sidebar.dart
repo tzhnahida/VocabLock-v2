@@ -7,12 +7,24 @@ class Sidebar extends StatelessWidget {
   final List<LanguageInfo> languages;
   final int activeIndex;
   final ValueChanged<int> onLanguageSelected;
+  final VoidCallback? onQuiz;
+  final VoidCallback? onWords;
+  final VoidCallback? onAudio;
+  final VoidCallback? onStats;
+  final VoidCallback? onConfig;
+  final VoidCallback? onAIChat;
 
   const Sidebar({
     super.key,
     required this.languages,
     required this.activeIndex,
     required this.onLanguageSelected,
+    this.onQuiz,
+    this.onWords,
+    this.onAudio,
+    this.onStats,
+    this.onConfig,
+    this.onAIChat,
   });
 
   @override
@@ -23,7 +35,7 @@ class Sidebar extends StatelessWidget {
         color: AppTheme.sidebarBg,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 20,
             offset: const Offset(2, 0),
           ),
@@ -60,7 +72,14 @@ class Sidebar extends StatelessWidget {
             child: Text('Tools', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade500, letterSpacing: 1.2)),
           ),
           const SizedBox(height: 8),
-          _IconGrid(),
+          _IconGrid(
+            onQuiz: onQuiz,
+            onWords: onWords,
+            onAudio: onAudio,
+            onStats: onStats,
+            onConfig: onConfig,
+            onAIChat: onAIChat,
+          ),
           const SizedBox(height: 28),
         ],
       ),
@@ -151,9 +170,9 @@ class _LangCard extends StatelessWidget {
           duration: const Duration(milliseconds: 250),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: isActive ? palette.primary.withOpacity(0.08) : Colors.transparent,
+            color: isActive ? palette.primary.withValues(alpha: 0.08) : Colors.transparent,
             borderRadius: BorderRadius.circular(AppTheme.cardRadius * 0.6),
-            border: isActive ? Border.all(color: palette.primary.withOpacity(0.2), width: 1.5) : null,
+            border: isActive ? Border.all(color: palette.primary.withValues(alpha: 0.2), width: 1.5) : null,
           ),
           child: Row(
             children: [
@@ -192,23 +211,43 @@ class _LangCard extends StatelessWidget {
 }
 
 class _IconGrid extends StatelessWidget {
-  final List<({IconData icon, String label})> _items = const [
-    (icon: Icons.auto_stories, label: 'Quiz'),
-    (icon: Icons.library_books, label: 'Words'),
-    (icon: Icons.headphones, label: 'Audio'),
-    (icon: Icons.insights, label: 'Stats'),
-    (icon: Icons.settings, label: 'Config'),
-    (icon: Icons.smart_toy, label: 'AI Chat'),
-  ];
+  final VoidCallback? onQuiz;
+  final VoidCallback? onWords;
+  final VoidCallback? onAudio;
+  final VoidCallback? onStats;
+  final VoidCallback? onConfig;
+  final VoidCallback? onAIChat;
+
+  const _IconGrid({
+    this.onQuiz,
+    this.onWords,
+    this.onAudio,
+    this.onStats,
+    this.onConfig,
+    this.onAIChat,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final items = [
+      (icon: Icons.auto_stories, label: 'Quiz', onTap: onQuiz),
+      (icon: Icons.library_books, label: 'Words', onTap: onWords),
+      (icon: Icons.headphones, label: 'Audio', onTap: onAudio),
+      (icon: Icons.insights, label: 'Stats', onTap: onStats),
+      (icon: Icons.settings, label: 'Config', onTap: onConfig),
+      (icon: Icons.smart_toy, label: 'AI Chat', onTap: onAIChat),
+    ];
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Wrap(
         spacing: 8,
         runSpacing: 8,
-        children: _items.map((item) => _IconItem(icon: item.icon, label: item.label)).toList(),
+        children: items.map((item) => _IconItem(
+          icon: item.icon,
+          label: item.label,
+          onTap: item.onTap,
+        )).toList(),
       ),
     );
   }
@@ -217,13 +256,14 @@ class _IconGrid extends StatelessWidget {
 class _IconItem extends StatelessWidget {
   final IconData icon;
   final String label;
+  final VoidCallback? onTap;
 
-  const _IconItem({required this.icon, required this.label});
+  const _IconItem({required this.icon, required this.label, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {},
+      onTap: onTap,
       child: Container(
         width: 62,
         height: 62,

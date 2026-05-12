@@ -10,11 +10,24 @@ class Palette {
 class AppTheme {
   AppTheme._();
 
+  static ThemeMode _themeMode = ThemeMode.light;
+  static ThemeMode get themeMode => _themeMode;
+  static bool get isDark => _themeMode == ThemeMode.dark;
+
+  static void setThemeMode(ThemeMode mode) {
+    _themeMode = mode;
+  }
+
   // --- Base ---
-  static const Color bgColor = Color(0xFFF5F6FA);
-  static const Color sidebarBg = Colors.white;
-  static const Color cardBg = Colors.white;
+  static Color get bgColor => isDark ? const Color(0xFF1A1B2E) : const Color(0xFFF5F6FA);
+  static Color get sidebarBg => isDark ? const Color(0xFF12131C) : Colors.white;
+  static Color get cardBg => isDark ? const Color(0xFF1E1F33) : Colors.white;
   static const double cardRadius = 24.0;
+
+  static Color get textPrimary => isDark ? const Color(0xFFE8E8EC) : Colors.black87;
+  static Color get textSecondary => isDark ? const Color(0xFF9A9AB0) : Colors.grey.shade600;
+  static Color get textHint => isDark ? const Color(0xFF6B6B80) : Colors.grey.shade500;
+  static Color get surfaceBg => isDark ? const Color(0xFF232438) : Colors.grey.shade50;
 
   // --- Palette pool ---
   static const List<Palette> palettes = [
@@ -45,17 +58,17 @@ class AppTheme {
 
   static Color _darken(Color c, double amount) {
     return Color.fromARGB(
-      c.alpha,
-      (c.red * (1 - amount)).clamp(0, 255).toInt(),
-      (c.green * (1 - amount)).clamp(0, 255).toInt(),
-      (c.blue * (1 - amount)).clamp(0, 255).toInt(),
+      (c.a * 255.0).round().clamp(0, 255),
+      (c.r * 255.0 * (1 - amount)).round().clamp(0, 255),
+      (c.g * 255.0 * (1 - amount)).round().clamp(0, 255),
+      (c.b * 255.0 * (1 - amount)).round().clamp(0, 255),
     );
   }
 
   // --- Card shadow ---
   static List<BoxShadow> get cardShadow => [
         BoxShadow(
-          color: Colors.black.withOpacity(0.04),
+          color: Colors.black.withValues(alpha: 0.04),
           blurRadius: 15,
           spreadRadius: 2,
           offset: const Offset(0, 4),
@@ -63,19 +76,26 @@ class AppTheme {
       ];
 
   // --- ThemeData ---
-  static ThemeData get themeData => ThemeData(
-        scaffoldBackgroundColor: bgColor,
-        fontFamily: 'NotoSans',
-        colorScheme: ColorScheme.fromSeed(seedColor: primary),
-        cardTheme: CardThemeData(
-          color: cardBg,
-          elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(cardRadius)),
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          centerTitle: false,
-        ),
-      );
+  static ThemeData get themeData {
+    final brightness = isDark ? Brightness.dark : Brightness.light;
+    return ThemeData(
+      brightness: brightness,
+      scaffoldBackgroundColor: bgColor,
+      fontFamily: null,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: primary,
+        brightness: brightness,
+      ),
+      cardTheme: CardThemeData(
+        color: cardBg,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(cardRadius)),
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: false,
+      ),
+    );
+  }
 }

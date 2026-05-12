@@ -45,7 +45,7 @@ class LanguageSwitcher extends StatelessWidget {
                     ),
                     border: isActive ? Border.all(color: Colors.white, width: 2.5) : null,
                     boxShadow: isActive
-                        ? [BoxShadow(color: palette.primary.withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 4))]
+                        ? [BoxShadow(color: palette.primary.withValues(alpha: 0.4), blurRadius: 10, offset: const Offset(0, 4))]
                         : null,
                   ),
                   alignment: Alignment.center,

@@ -6,20 +6,27 @@ class StatsApi {
 
   StatsApi(this._client);
 
-  Future<Map<String, int>> getHeatmap({int days = 90}) async {
-    final r = await _client.get('/api/v1/stats/heatmap', queryParameters: {'days': days});
+  Future<Map<String, int>> getHeatmap({int days = 90, String? language}) async {
+    final r = await _client.get('/api/v1/stats/heatmap', queryParameters: {
+      'days': days,
+      if (language != null) 'language': language,
+    });
     final data = r.data as Map<String, dynamic>;
     return data.map((k, v) => MapEntry(k, (v as num).toInt()));
   }
 
-  Future<int> getStreak() async {
-    final r = await _client.get('/api/v1/stats/streak');
+  Future<int> getStreak({String? language}) async {
+    final r = await _client.get('/api/v1/stats/streak', queryParameters: {
+      if (language != null) 'language': language,
+    });
     final data = r.data as Map<String, dynamic>;
     return (data['streak'] as num?)?.toInt() ?? 0;
   }
 
-  Future<DailyReport> getDailyReport() async {
-    final r = await _client.get('/api/v1/stats/daily-report');
+  Future<DailyReport> getDailyReport({String? language}) async {
+    final r = await _client.get('/api/v1/stats/daily-report', queryParameters: {
+      if (language != null) 'language': language,
+    });
     return DailyReport.fromJson(r.data as Map<String, dynamic>);
   }
 }

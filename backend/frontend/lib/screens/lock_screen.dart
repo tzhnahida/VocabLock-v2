@@ -18,7 +18,7 @@ class LockScreen extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'Press the button below to start',
-              style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.7)),
+              style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.7)),
             ),
             const SizedBox(height: 32),
             ElevatedButton(

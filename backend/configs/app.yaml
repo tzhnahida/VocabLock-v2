@@ -1,4 +1,4 @@
-active_lang: en
+active_lang: zh
 mock_mode: false
 server:
   host: "127.0.0.1"
@@ -7,4 +7,4 @@ ai:
   base_url: "https://api.deepseek.com"
   # api_key: set via VOCABLOCK_AI_KEY env var (never commit the real key)
   api_key: ""
-  model: "deepseek-chat"
+  model: "deepseek-v4-pro"

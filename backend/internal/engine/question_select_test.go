@@ -8,7 +8,7 @@ import (
 func TestSelectQuestionType_NewWord(t *testing.T) {
 	// New word, never reviewed
 	qt := SelectQuestionType(nil, 2.5, 0, 0, []QuestionType{
-		TypeChoice, TypeFill, TypeReading, TypeSpelling, TypeListening, TypeReadingComp, TypeGrammar,
+		TypeChoice, TypeFill, TypePronounce, TypeSpelling, TypeListening, TypeReadingComp, TypeGrammar,
 	}, true)
 	if qt != TypeChoice {
 		t.Errorf("new word should get choice, got %s", qt)
@@ -18,7 +18,7 @@ func TestSelectQuestionType_NewWord(t *testing.T) {
 func TestSelectQuestionType_EarlyStage(t *testing.T) {
 	now := time.Now()
 	next := now.AddDate(0, 0, 1) // 1 day interval
-	types := []QuestionType{TypeChoice, TypeFill, TypeReading}
+	types := []QuestionType{TypeChoice, TypeFill, TypePronounce}
 
 	// reps=0, interval=1 → tier 1: choice or fill
 	seen := make(map[QuestionType]int)
@@ -27,8 +27,8 @@ func TestSelectQuestionType_EarlyStage(t *testing.T) {
 		seen[qt]++
 	}
 
-	if seen[TypeReading] > 0 {
-		t.Errorf("early stage should not get reading, got %d times", seen[TypeReading])
+	if seen[TypePronounce] > 0 {
+		t.Errorf("early stage should not get reading, got %d times", seen[TypePronounce])
 	}
 	if seen[TypeChoice]+seen[TypeFill] == 0 {
 		t.Error("early stage should get choice or fill")
@@ -38,7 +38,7 @@ func TestSelectQuestionType_EarlyStage(t *testing.T) {
 func TestSelectQuestionType_MidStage(t *testing.T) {
 	now := time.Now()
 	next := now.AddDate(0, 0, 5) // 5 day interval
-	types := []QuestionType{TypeChoice, TypeFill, TypeReading, TypeSpelling}
+	types := []QuestionType{TypeChoice, TypeFill, TypePronounce, TypeSpelling}
 
 	// reps=2, interval=5 → tier 2: fill or reading
 	seen := make(map[QuestionType]int)
@@ -55,7 +55,7 @@ func TestSelectQuestionType_MidStage(t *testing.T) {
 func TestSelectQuestionType_MatureStage(t *testing.T) {
 	now := time.Now()
 	next := now.AddDate(0, 0, 30) // 30 day interval
-	types := []QuestionType{TypeChoice, TypeFill, TypeReading, TypeSpelling, TypeListening}
+	types := []QuestionType{TypeChoice, TypeFill, TypePronounce, TypeSpelling, TypeListening}
 
 	// reps=5, interval=30 → tier 3
 	seen := make(map[QuestionType]int)
@@ -72,7 +72,7 @@ func TestSelectQuestionType_MatureStage(t *testing.T) {
 func TestSelectQuestionType_StrugglingWord(t *testing.T) {
 	now := time.Now()
 	next := now.AddDate(0, 0, 5)   // mid stage by interval
-	types := []QuestionType{TypeChoice, TypeFill, TypeReading}
+	types := []QuestionType{TypeChoice, TypeFill, TypePronounce}
 
 	// EF=1.4 (< 1.5) should drop tier 2 → tier 1
 	seen := make(map[QuestionType]int)
@@ -81,15 +81,15 @@ func TestSelectQuestionType_StrugglingWord(t *testing.T) {
 		seen[qt]++
 	}
 
-	if seen[TypeReading] > 0 {
-		t.Errorf("struggling word should not get reading, got %d times", seen[TypeReading])
+	if seen[TypePronounce] > 0 {
+		t.Errorf("struggling word should not get reading, got %d times", seen[TypePronounce])
 	}
 }
 
 func TestSelectQuestionType_NoAITypesWhenUnavailable(t *testing.T) {
 	now := time.Now()
 	next := now.AddDate(0, 0, 30)
-	types := []QuestionType{TypeChoice, TypeFill, TypeReading, TypeSpelling, TypeListening, TypeReadingComp, TypeGrammar}
+	types := []QuestionType{TypeChoice, TypeFill, TypePronounce, TypeSpelling, TypeListening, TypeReadingComp, TypeGrammar}
 
 	// reps=5, interval=30 → tier 3, but AI unavailable
 	for i := 0; i < 50; i++ {
@@ -117,7 +117,7 @@ func TestSelectQuestionType_RespectsAvailableTypes(t *testing.T) {
 	next := now.AddDate(0, 0, 1) // tier 1
 
 	// Only reading available (not a tier-1 type normally)
-	types := []QuestionType{TypeReading}
+	types := []QuestionType{TypePronounce}
 
 	// Should fall back to choice (ultimate fallback)
 	for i := 0; i < 20; i++ {

@@ -27,7 +27,7 @@ class ProgressCard extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primary.withOpacity(0.35),
+            color: AppTheme.primary.withValues(alpha: 0.35),
             blurRadius: 25,
             spreadRadius: 0,
             offset: const Offset(0, 8),
@@ -43,7 +43,7 @@ class ProgressCard extends StatelessWidget {
             child: Container(
               width: 140,
               height: 140,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(0.08)),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.08)),
             ),
           ),
           Positioned(
@@ -52,7 +52,7 @@ class ProgressCard extends StatelessWidget {
             child: Container(
               width: 100,
               height: 100,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(0.06)),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.06)),
             ),
           ),
           // Content
@@ -68,7 +68,7 @@ class ProgressCard extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Today\'s Progress', style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.8))),
+                        Text('Today\'s Progress', style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.8))),
                         const SizedBox(height: 6),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
@@ -76,7 +76,7 @@ class ProgressCard extends StatelessWidget {
                             Text('$reviewed', style: const TextStyle(fontSize: 42, fontWeight: FontWeight.w700, color: Colors.white, height: 1.0)),
                             Padding(
                               padding: const EdgeInsets.only(bottom: 8, left: 6),
-                              child: Text('/ $target words', style: TextStyle(fontSize: 15, color: Colors.white.withOpacity(0.6))),
+                              child: Text('/ $target words', style: TextStyle(fontSize: 15, color: Colors.white.withValues(alpha: 0.6))),
                             ),
                           ],
                         ),
@@ -95,7 +95,7 @@ class ProgressCard extends StatelessWidget {
                             child: CircularProgressIndicator(
                               value: progress,
                               strokeWidth: 5,
-                              backgroundColor: Colors.white.withOpacity(0.2),
+                              backgroundColor: Colors.white.withValues(alpha: 0.2),
                               valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
                           ),
@@ -117,7 +117,7 @@ class ProgressCard extends StatelessWidget {
                           child: Container(
                             height: (h * 32).clamp(4.0, 32.0),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.5),
+                              color: Colors.white.withValues(alpha: 0.5),
                               borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
                             ),
                           ),
