@@ -89,33 +89,50 @@ func Regex(userAnswer, expected string, strictness Strictness) *Result {
 }
 
 // Judge runs the 3-tier chain: exact → regex → (ai callback if provided).
-// If ai callback is nil or returns an error, falls back to regex result.
-func Judge(userAnswer, expected string, strictness Strictness, aiJudge func(user, expected string) (*Result, error)) *Result {
-	// Tier 1: exact
-	if r := Exact(userAnswer, expected); r != nil {
-		return r
+// expected is a list of acceptable answers (e.g. [word, reading] for fill questions).
+// The primary answer (index 0) is used for the AI tier; exact and regex try all candidates.
+func Judge(userAnswer string, expected []string, strictness Strictness, aiJudge func(user, expected string) (*Result, error)) *Result {
+	if len(expected) == 0 {
+		return &Result{Correct: false, Score: 0.0, Feedback: "No expected answer", Source: SourceRegex}
 	}
 
-	// Tier 2: regex
-	regexR := Regex(userAnswer, expected, strictness)
+	// Tier 1: exact — try each expected answer
+	for _, exp := range expected {
+		if r := Exact(userAnswer, exp); r != nil {
+			return r
+		}
+	}
+
+	// Tier 2: regex — try each expected, keep the best
+	var best *Result
+	for _, exp := range expected {
+		r := Regex(userAnswer, exp, strictness)
+		if best == nil || r.Score > best.Score {
+			best = r
+		}
+	}
+	if best == nil {
+		best = &Result{Correct: false, Score: 0.0, Feedback: "Incorrect", Source: SourceRegex}
+	}
 
 	// If regex is high-confidence, return immediately
-	if regexR.Score > 0.9 {
-		return regexR
+	if best.Score > 0.9 {
+		return best
 	}
 
-	// Tier 3: AI (if available)
+	// Tier 3: AI (if available) — use primary expected answer
+	primaryExpected := expected[0]
 	if aiJudge != nil {
-		aiR, err := aiJudge(userAnswer, expected)
+		aiR, err := aiJudge(userAnswer, primaryExpected)
 		if err == nil && aiR != nil {
 			aiR.Source = SourceAI
 			return aiR
 		}
 		// AI failed — fall back to regex
-		regexR.Source = SourceRegexFallback
+		best.Source = SourceRegexFallback
 	}
 
-	return regexR
+	return best
 }
 
 func normalize(s string) string {

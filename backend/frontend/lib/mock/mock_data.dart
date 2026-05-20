@@ -106,11 +106,10 @@ class MockData {
     final types = _questionTypes[lang] ?? ['choice'];
     final qt = QuestionType.fromString(types[_rng.nextInt(types.length)]);
     return Question(
-      id: '${qt.apiValue[0]}${w.id}',
+      id: 'w${qt.apiValue[0]}${w.id}',
       type: qt,
-      wordId: w.id,
-      word: w.word,
-      reading: w.reading,
+      subjectType: 'word',
+      subjectId: w.id,
       prompt: _promptForType(qt, w),
       options: qt == QuestionType.choice || qt.isAI ? ['Option A', 'Option B', 'Option C', w.meaning] : null,
     );

@@ -1,17 +1,31 @@
-active_lang: zh
+active_lang: ja
 mock_mode: false
 server:
-  host: "127.0.0.1"
+    host: 127.0.0.1
 daily_target: 20
-session_time_budget: 20
-max_slow_type_ratio: 0.25
+min_accuracy: 0.8
+listening_ratio: 0.15
+reading_ratio: 0.15
+grammar_ratio: 0.15
+extra_ratio: 0.15
+passive_enabled: true
+passive_min_interval: 25
+passive_max_interval: 60
+escape_password_limit: 1
+escape_click_limit: 2
+auto_start: false
+auto_expand_words: true
+expand_batch_size: 10
+expand_threshold: 0.6
+theme: vs-dark
 assignment:
-  cadence_days: 3
-  cadence_count: 2
-  max_per_session: 1
-  ai_recommend: true
+    cadence_days: 0
+    cadence_count: 0
+    max_per_session: 0
+    ai_recommend: false
+session_time_budget: 0
+max_slow_type_ratio: 0
 ai:
-  base_url: "https://api.deepseek.com"
-  # api_key: set via VOCABLOCK_AI_KEY env var (never commit the real key)
-  api_key: ""
-  model: "deepseek-v4-pro"
+    base_url: https://api.deepseek.com
+    api_key: sk-f9653fbc55af4d12b9a9337db8c2af1b
+    model: deepseek-chat

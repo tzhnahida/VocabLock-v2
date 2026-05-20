@@ -95,6 +95,12 @@ func (s *Server) handleQuizPlan(w http.ResponseWriter, r *http.Request) {
 
 // handleQuizDirection sets the learning direction.
 func (s *Server) handleQuizDirection(w http.ResponseWriter, r *http.Request) {
+	if s.Mock {
+		writeJSON(w, map[string]interface{}{"direction": "general", "set": true}); return
+	}
+	if s.DB == nil {
+		writeError(w, 500, "database not available"); return
+	}
 	var req struct {
 		Direction string `json:"direction"`
 	}
@@ -104,8 +110,10 @@ func (s *Server) handleQuizDirection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	lang := s.Config.App.ActiveLang
-	// Store as active plan with direction
-	s.DB.InsertTrainingPlan(lang, req.Direction, 1.0, "{}")
+	if _, err := s.DB.InsertTrainingPlan(lang, req.Direction, 1.0, "{}"); err != nil {
+		writeError(w, 500, "save direction: "+err.Error())
+		return
+	}
 	writeJSON(w, map[string]interface{}{
 		"direction": req.Direction,
 		"set":       true,
@@ -174,8 +182,9 @@ func (s *Server) runSummarize(ctx context.Context, lang, stats, yesterdayPlan st
 		return nil, err
 	}
 
+	cleaned := extractJSON(response)
 	var result map[string]interface{}
-	if err := json.Unmarshal([]byte(response), &result); err != nil {
+	if err := json.Unmarshal([]byte(cleaned), &result); err != nil {
 		return nil, fmt.Errorf("parse AI response: %w", err)
 	}
 	return result, nil
@@ -216,8 +225,9 @@ func (s *Server) runPlan(ctx context.Context, lang, stats string, summary map[st
 		return nil, err
 	}
 
+	cleaned := extractJSON(response)
 	var result map[string]interface{}
-	if err := json.Unmarshal([]byte(response), &result); err != nil {
+	if err := json.Unmarshal([]byte(cleaned), &result); err != nil {
 		return nil, fmt.Errorf("parse AI response: %w", err)
 	}
 

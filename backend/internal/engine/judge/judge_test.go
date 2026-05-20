@@ -38,14 +38,14 @@ func TestRegexNoMatch(t *testing.T) {
 }
 
 func TestJudgeExactChain(t *testing.T) {
-	r := Judge("hello", "hello", Normal, nil)
+	r := Judge("hello", []string{"hello"}, Normal, nil)
 	if r.Source != SourceExact {
 		t.Errorf("judge should use exact: got %s", r.Source)
 	}
 }
 
 func TestJudgeRegexChain(t *testing.T) {
-	r := Judge("hello world", "hello", Normal, nil)
+	r := Judge("hello world", []string{"hello"}, Normal, nil)
 	if r.Source != SourceRegex {
 		t.Errorf("judge should use regex: got %s", r.Source)
 	}
@@ -57,7 +57,7 @@ func TestJudgeAIFallback(t *testing.T) {
 		aiCalled = true
 		return &Result{Correct: true, Score: 0.95, Feedback: "AI says correct"}, nil
 	}
-	r := Judge("bonjour", "hello", Normal, ai)
+	r := Judge("bonjour", []string{"hello"}, Normal, ai)
 	if !aiCalled || r.Source != SourceAI {
 		t.Errorf("judge should call AI for low-confidence regex: source=%s aiCalled=%v", r.Source, aiCalled)
 	}
@@ -67,9 +67,43 @@ func TestJudgeAIFallbackOnError(t *testing.T) {
 	ai := func(u, e string) (*Result, error) {
 		return nil, nil
 	}
-	r := Judge("abc", "xyz", Normal, ai)
+	r := Judge("abc", []string{"xyz"}, Normal, ai)
 	if r.Source != SourceRegexFallback {
 		t.Errorf("judge should use regex_fallback when AI errors: got %s", r.Source)
+	}
+}
+
+func TestJudgeMultiAnswer(t *testing.T) {
+	// Fill question: user types reading (kana) instead of word (kanji)
+	r := Judge("たべる", []string{"食べる", "たべる"}, Normal, nil)
+	if !r.Correct {
+		t.Errorf("reading should be accepted as correct: %+v", r)
+	}
+	if r.Source != SourceExact {
+		t.Errorf("reading exact match should use exact source: got %s", r.Source)
+	}
+}
+
+func TestJudgeMultiAnswerSecondWins(t *testing.T) {
+	// User types word, but word is the second candidate
+	r := Judge("食べる", []string{"たべる", "食べる"}, Strict, nil)
+	if !r.Correct {
+		t.Errorf("word should be accepted as correct: %+v", r)
+	}
+}
+
+func TestJudgeMultiAnswerSubstring(t *testing.T) {
+	// User answer is a substring of the second candidate
+	r := Judge("たべ", []string{"食べる", "たべる"}, Normal, nil)
+	if !r.Correct {
+		t.Errorf("substring of reading should be accepted: %+v", r)
+	}
+}
+
+func TestJudgeEmptyExpected(t *testing.T) {
+	r := Judge("hello", []string{}, Normal, nil)
+	if r.Correct {
+		t.Error("empty expected should not be correct")
 	}
 }
 
@@ -125,7 +159,7 @@ func TestJudgeRegexScore09CallsAI(t *testing.T) {
 		aiCalled = true
 		return &Result{Correct: true, Score: 0.95}, nil
 	}
-	r := Judge("hello world", "hello", Normal, ai)
+	r := Judge("hello world", []string{"hello"}, Normal, ai)
 	if !aiCalled {
 		t.Error("score 0.9 should still call AI (threshold is > 0.9)")
 	}
@@ -143,7 +177,7 @@ func TestJudgeHighConfidenceRegexSkipsAI(t *testing.T) {
 		aiCalled = true
 		return &Result{Correct: true, Score: 1.0}, nil
 	}
-	r := Judge("hello", "hello", Normal, ai)
+	r := Judge("hello", []string{"hello"}, Normal, ai)
 	if r.Source != SourceExact {
 		t.Errorf("exact match should skip everything: got %s", r.Source)
 	}

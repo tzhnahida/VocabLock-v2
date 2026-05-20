@@ -60,7 +60,7 @@ func (d *Database) ListPendingAssignments(language string) ([]*Assignment, error
 func (d *Database) CompleteAssignment(id, answer string, score float64, feedback string) error {
 	_, err := d.DB.Exec(`
 		UPDATE assignments
-		SET answer = ?, score = ?, feedback = ?, status = 'completed', updated_at = datetime('now')
+		SET answer = ?, score = ?, feedback = ?, status = 'completed', updated_at = datetime('now','localtime')
 		WHERE id = ?
 	`, answer, score, feedback, id)
 	if err != nil {
@@ -71,8 +71,8 @@ func (d *Database) CompleteAssignment(id, answer string, score float64, feedback
 
 func (d *Database) MarkAssignmentGiven(language string) {
 	d.DB.Exec(`
-		INSERT INTO assignment_cadence (language, last_given_at) VALUES (?, datetime('now'))
-		ON CONFLICT(language) DO UPDATE SET last_given_at = datetime('now')
+		INSERT INTO assignment_cadence (language, last_given_at) VALUES (?, datetime('now','localtime'))
+		ON CONFLICT(language) DO UPDATE SET last_given_at = datetime('now','localtime')
 	`, language)
 }
 

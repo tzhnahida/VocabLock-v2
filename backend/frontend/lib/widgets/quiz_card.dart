@@ -40,7 +40,6 @@ class QuizCard extends StatelessWidget {
                 child: Text(question.type.displayName, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _typeColor)),
               ),
               const Spacer(),
-              Text(question.word, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
             ],
           ),
           const SizedBox(height: 20),

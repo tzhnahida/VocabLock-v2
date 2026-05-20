@@ -27,16 +27,25 @@ class QuizApi {
     return Question.fromJson(data);
   }
 
+  Future<Map<String, dynamic>> sessionStart({String? language}) async {
+    final r = await _client.post('/api/v1/quiz/session/start', data: {
+      if (language != null) 'language': language,
+    });
+    return r.data as Map<String, dynamic>;
+  }
+
   Future<SubmitResult> submit({
     required String questionId,
-    required int wordId,
+    required String subjectType,
+    required int subjectId,
     required String questionType,
     required String answer,
     String? language,
   }) async {
     final r = await _client.post('/api/v1/quiz/submit', data: {
       'question_id': questionId,
-      'word_id': wordId,
+      'subject_type': subjectType,
+      'subject_id': subjectId,
       'question_type': questionType,
       'answer': answer,
       if (language != null) 'language': language,

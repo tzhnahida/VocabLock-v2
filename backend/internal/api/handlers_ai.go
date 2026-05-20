@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/vocablock/v2/internal/ai"
@@ -124,7 +125,9 @@ func (s *Server) handleAIProfileUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if s.DB != nil {
-		s.DB.InsertTrainingPlan(lang, direction, 1.0, req.Profile)
+		if _, err := s.DB.InsertTrainingPlan(lang, direction, 1.0, req.Profile); err != nil {
+			fmt.Fprintf(os.Stderr, "save profile plan: %v\n", err)
+		}
 	}
 
 	writeJSON(w, map[string]interface{}{

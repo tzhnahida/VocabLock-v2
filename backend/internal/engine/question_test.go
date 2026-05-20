@@ -16,12 +16,15 @@ func TestGenerateChoiceBasic(t *testing.T) {
 		makeWord(3, "鳥", "とり", "bird"),
 		makeWord(4, "魚", "さかな", "fish"),
 	}
-	q := GenerateChoice(w, distractors)
+	q := GenerateChoice(w, distractors, "en")
 	if q.Type != TypeChoice {
 		t.Errorf("type = %s, want choice", q.Type)
 	}
-	if q.Word != "猫" {
-		t.Errorf("word = %s, want 猫", q.Word)
+	if q.SubjectType != "word" {
+		t.Errorf("subject_type = %s, want word", q.SubjectType)
+	}
+	if q.SubjectID != 1 {
+		t.Errorf("subject_id = %d, want 1", q.SubjectID)
 	}
 	if q.Answer != "cat" {
 		t.Errorf("answer = %s, want cat", q.Answer)
@@ -51,7 +54,7 @@ func TestGenerateChoiceFewDistractors(t *testing.T) {
 	distractors := []*WordInfo{
 		makeWord(2, "world", "wɜːld", "世界"),
 	}
-	q := GenerateChoice(w, distractors)
+	q := GenerateChoice(w, distractors, "en")
 	if len(q.Options) != 2 {
 		t.Errorf("options count = %d, want 2", len(q.Options))
 	}
@@ -59,7 +62,7 @@ func TestGenerateChoiceFewDistractors(t *testing.T) {
 
 func TestGenerateChoiceNoDistractors(t *testing.T) {
 	w := makeWord(1, "test", "tɛst", "测试")
-	q := GenerateChoice(w, nil)
+	q := GenerateChoice(w, nil, "en")
 	if len(q.Options) != 1 {
 		t.Errorf("options count = %d, want 1", len(q.Options))
 	}
@@ -72,7 +75,7 @@ func TestGenerateChoiceDuplicateMeaning(t *testing.T) {
 		makeWord(2, "jog", "dʒɒɡ", "跑"), // same meaning
 		makeWord(3, "walk", "wɔːk", "走"),
 	}
-	q := GenerateChoice(w, distractors)
+	q := GenerateChoice(w, distractors, "en")
 	if len(q.Options) != 2 {
 		t.Errorf("options count = %d, want 2 (duplicate filtered)", len(q.Options))
 	}
@@ -97,9 +100,9 @@ func TestGenerateChoiceShuffle(t *testing.T) {
 
 	// Run many times — shuffle should produce different orderings at least once
 	sameOrderCount := 0
-	first := GenerateChoice(w, distractors)
+	first := GenerateChoice(w, distractors, "en")
 	for i := 0; i < 50; i++ {
-		q := GenerateChoice(w, distractors)
+		q := GenerateChoice(w, distractors, "en")
 		match := true
 		for j := range first.Options {
 			if first.Options[j] != q.Options[j] {
@@ -120,7 +123,7 @@ func TestGenerateChoiceShuffle(t *testing.T) {
 
 func TestGenerateFillBasic(t *testing.T) {
 	w := makeWord(1, "apple", "æpəl", "苹果")
-	q := GenerateFill(w)
+	q := GenerateFill(w, "en")
 	if q.Type != TypeFill {
 		t.Errorf("type = %s, want fill", q.Type)
 	}
@@ -137,7 +140,7 @@ func TestGenerateFillBasic(t *testing.T) {
 
 func TestGenerateSpellingBasic(t *testing.T) {
 	w := makeWord(1, "test", "tɛst", "测试")
-	q := GenerateSpelling(w)
+	q := GenerateSpelling(w, "en")
 	if q.Type != TypeSpelling {
 		t.Errorf("type = %s, want spelling", q.Type)
 	}
@@ -151,7 +154,7 @@ func TestGenerateSpellingBasic(t *testing.T) {
 
 func TestGeneratePronounceBasic(t *testing.T) {
 	w := makeWord(1, "hello", "həˈloʊ", "你好")
-	q := GeneratePronounce(w)
+	q := GeneratePronounce(w, "en")
 	if q.Type != TypePronounce {
 		t.Errorf("type = %s, want pronounce", q.Type)
 	}
@@ -210,11 +213,11 @@ func TestMaskWordRevealCount(t *testing.T) {
 }
 
 func TestGenID(t *testing.T) {
-	if id := genID("choice", 42); id != "c42" {
-		t.Errorf("genID('choice', 42) = %q, want 'c42'", id)
+	if id := genID("word", "choice", 42); id != "wc42" {
+		t.Errorf("genID('word', 'choice', 42) = %q, want 'wc42'", id)
 	}
-	if id := genID("fill", 7); id != "f7" {
-		t.Errorf("genID('fill', 7) = %q, want 'f7'", id)
+	if id := genID("grammar", "fill", 7); id != "gf7" {
+		t.Errorf("genID('grammar', 'fill', 7) = %q, want 'gf7'", id)
 	}
 }
 

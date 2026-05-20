@@ -376,13 +376,14 @@ func TestQuizNextAndSubmit(t *testing.T) {
 	var question map[string]interface{}
 	json.NewDecoder(rec.Body).Decode(&question)
 
-	if question["word"] != "hello" {
-		t.Errorf("word = %v, want hello", question["word"])
+	if question["subject_type"] != "word" {
+		t.Errorf("subject_type = %v, want word", question["subject_type"])
 	}
 
 	// Submit answer — must match the question type's expected answer
 	qID := question["id"].(string)
-	wID := int64(question["word_id"].(float64))
+	sType := question["subject_type"].(string)
+	sID := int64(question["subject_id"].(float64))
 	qType := question["type"].(string)
 
 	var answer string
@@ -397,7 +398,7 @@ func TestQuizNextAndSubmit(t *testing.T) {
 		answer = "你好"
 	}
 
-	submitBody := `{"question_id":"` + qID + `","word_id":` + strconv.FormatInt(wID, 10) + `,"question_type":"` + qType + `","answer":"` + answer + `"}`
+	submitBody := `{"question_id":"` + qID + `","subject_type":"` + sType + `","subject_id":` + strconv.FormatInt(sID, 10) + `,"question_type":"` + qType + `","answer":"` + answer + `"}`
 	rec, _ = newTestRequest(s, "POST", "/api/v1/quiz/submit", submitBody)
 
 	if rec.Code != 200 {

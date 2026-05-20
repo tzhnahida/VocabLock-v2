@@ -153,8 +153,13 @@ func (b *sessionBudget) recordType(typeName string) {
 func (s *Server) cacheQuestion(q *engine.Question) {
 	s.questionCacheMu.Lock()
 	defer s.questionCacheMu.Unlock()
-	if len(s.questionCache) > 1000 {
-		s.questionCache = make(map[string]*engine.Question)
+	// Evict one random entry when over limit, instead of discarding all.
+	// Discarding all would lose expected answers for pending AI questions.
+	if len(s.questionCache) > 2000 {
+		for k := range s.questionCache {
+			delete(s.questionCache, k)
+			break
+		}
 	}
 	s.questionCache[q.ID] = q
 }

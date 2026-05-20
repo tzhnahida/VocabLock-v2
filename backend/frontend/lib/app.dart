@@ -58,6 +58,7 @@ class VocabLockApp extends StatelessWidget {
         String? baseUrl,
         String? profileText,
         String? direction,
+        String? password,
       }) =>
           state.completeOnboarding(
             uiLang: uiLang,
@@ -69,6 +70,7 @@ class VocabLockApp extends StatelessWidget {
             baseUrl: baseUrl,
             profileText: profileText,
             direction: direction,
+            password: password,
           ));
     }
     return const HomeScreen();

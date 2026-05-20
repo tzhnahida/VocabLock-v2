@@ -1,17 +1,35 @@
-version: "1.0"
+version: "2.0"
 temperature: 0.6
 system: |
-  You are {{.TeacherRole}}. Generate new vocabulary words to expand a student's word bank.
-  Only generate words at the appropriate level with high confidence.
-  For each word, provide the written form, reading, meaning, and part of speech.
+  You are {{.TeacherRole}}. Generate NEW vocabulary words to expand a student's word bank.
+  The student is at level: {{.Level}}.
 
-  IMPORTANT: All output (especially "meaning") MUST be written in {{.ExplanationLang}}.
+  IMPORTANT CONTEXT:
+  - Total vocabulary so far: {{.WordCount}} words
+  - Already known words (DO NOT generate these): {{.ExistingWords}}
 
-  Respond in JSON format:
-  {"words": [{"word": "...", "reading": "...", "meaning": "...", "pos": "...", "confidence": "high|medium|low"}]}
+  {{if .DuplicateWords}}
+  PREVIOUS ATTEMPT FAILED — these words already exist in the database and must be replaced:
+  {{.DuplicateWords}}
+  Generate DIFFERENT words this time.
+  {{end}}
+
+  GUIDELINES:
+  - Generate words appropriate for the student's level and total vocabulary size.
+  - If {{.WordCount}} is close to the expected vocabulary range for this level,
+    and you cannot think of reasonable new words, respond with status "complete".
+  - IMPORTANT: All "meaning" fields MUST be written in {{.ExplanationLang}}.
+
+  RESPONSE FORMAT:
+
+  If vocabulary is saturated and no more reasonable new words exist:
+  {"status": "complete", "reason": "explain why the vocabulary is complete for this level"}
+
+  Otherwise:
+  {"status": "ok", "words": [{"word": "...", "reading": "...", "meaning": "...", "pos": "...", "confidence": "high|medium|low"}]}
 
 user: |
-  The student is at level: {{.Level}}.
-  Recently mastered words: {{.ExtraContext}}
+  Direction: {{.ExtraContext}}
 
-  Generate new words that naturally extend from these.
+  Generate {{.WordCount}} words that extend from this direction.
+  Do NOT repeat any of the known words listed above.

@@ -46,16 +46,26 @@ func (d *Database) GetActivePlan(language string) (*TrainingPlan, error) {
 	return p, nil
 }
 
+func (d *Database) CompletePlan(language string) error {
+	_, err := d.DB.Exec(`UPDATE training_plans SET direction = 'complete', is_active = 0 WHERE language = ? AND is_active = 1`, language)
+	if err != nil {
+		return fmt.Errorf("complete plan: %w", err)
+	}
+	return nil
+}
+
 func (d *Database) GetSessionLogs(language string, limit int) ([]*ReviewLog, error) {
 	rows, err := d.DB.Query(`
-		SELECT r.id, r.word_id, r.question_type, r.user_answer, r.expected_answer,
+		SELECT r.id, r.word_id, COALESCE(r.subject_type,'word'), COALESCE(r.subject_id,0),
+			r.question_type, r.user_answer, r.expected_answer,
 			r.correct, r.score, r.source, r.created_at
 		FROM review_log r
-		JOIN words w ON r.word_id = w.id
-		WHERE w.language = ? AND date(r.created_at) = date('now')
+		LEFT JOIN words w ON r.subject_type = 'word' AND r.subject_id = w.id
+		LEFT JOIN grammar_points g ON r.subject_type = 'grammar' AND r.subject_id = g.id
+		WHERE (w.language = ? OR g.language = ?) AND date(r.created_at) = date('now','localtime')
 		ORDER BY r.created_at ASC
 		LIMIT ?
-	`, language, limit)
+	`, language, language, limit)
 	if err != nil {
 		return nil, fmt.Errorf("get session logs: %w", err)
 	}
@@ -66,7 +76,7 @@ func (d *Database) GetSessionLogs(language string, limit int) ([]*ReviewLog, err
 		l := &ReviewLog{}
 		var correct int
 		var createdAt string
-		if err := rows.Scan(&l.ID, &l.WordID, &l.QuestionType, &l.UserAnswer, &l.ExpectedAnswer,
+		if err := rows.Scan(&l.ID, &l.WordID, &l.SubjectType, &l.SubjectID, &l.QuestionType, &l.UserAnswer, &l.ExpectedAnswer,
 			&correct, &l.Score, &l.Source, &createdAt); err != nil {
 			return nil, fmt.Errorf("scan log: %w", err)
 		}

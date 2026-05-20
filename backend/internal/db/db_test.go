@@ -219,7 +219,8 @@ func TestInsertReviewLog(t *testing.T) {
 
 	id, _ := d.InsertWord(&Word{Word: "hello", Language: "en"})
 	log := &ReviewLog{
-		WordID: id, QuestionType: "choice",
+		WordID: id, SubjectType: "word", SubjectID: id,
+		QuestionType: "choice",
 		UserAnswer: "hello", ExpectedAnswer: "你好",
 		Correct: true, Score: 1.0, Source: "exact",
 	}
@@ -232,7 +233,7 @@ func TestInsertReviewLog(t *testing.T) {
 		t.Errorf("logID = %d, want 1", logID)
 	}
 
-	logs, err := d.GetReviewLogs(id, 10)
+	logs, err := d.GetReviewLogs("word", id, 10)
 	if err != nil {
 		t.Fatalf("GetReviewLogs: %v", err)
 	}
@@ -247,7 +248,7 @@ func TestInsertReviewLog(t *testing.T) {
 func TestGetReviewLogsEmpty(t *testing.T) {
 	d := openTestDB(t)
 
-	logs, err := d.GetReviewLogs(999, 10)
+	logs, err := d.GetReviewLogs("word", 999, 10)
 	if err != nil {
 		t.Fatalf("GetReviewLogs: %v", err)
 	}
@@ -260,8 +261,8 @@ func TestGetTodayStats(t *testing.T) {
 	d := openTestDB(t)
 
 	id, _ := d.InsertWord(&Word{Word: "hello", Language: "en"})
-	d.InsertReviewLog(&ReviewLog{WordID: id, QuestionType: "choice", Correct: true, Score: 1.0})
-	d.InsertReviewLog(&ReviewLog{WordID: id, QuestionType: "fill", Correct: false, Score: 0.3})
+	d.InsertReviewLog(&ReviewLog{WordID: id, SubjectType: "word", SubjectID: id, QuestionType: "choice", Correct: true, Score: 1.0})
+	d.InsertReviewLog(&ReviewLog{WordID: id, SubjectType: "word", SubjectID: id, QuestionType: "fill", Correct: false, Score: 0.3})
 
 	reviewed, correct, err := d.GetTodayStats("en")
 	if err != nil {
@@ -279,7 +280,7 @@ func TestGetQuizProgress(t *testing.T) {
 	d := openTestDB(t)
 
 	id, _ := d.InsertWord(&Word{Word: "hello", Language: "en"})
-	d.InsertReviewLog(&ReviewLog{WordID: id, QuestionType: "choice", Correct: true, Score: 1.0})
+	d.InsertReviewLog(&ReviewLog{WordID: id, SubjectType: "word", SubjectID: id, QuestionType: "choice", Correct: true, Score: 1.0})
 
 	reviewed, remaining, err := d.GetQuizProgress("en", 20)
 	if err != nil {
@@ -298,7 +299,7 @@ func TestGetQuizProgressNoNegativeRemaining(t *testing.T) {
 
 	id, _ := d.InsertWord(&Word{Word: "hello", Language: "en"})
 	for i := 0; i < 5; i++ {
-		d.InsertReviewLog(&ReviewLog{WordID: id, QuestionType: "choice", Correct: true, Score: 1.0})
+		d.InsertReviewLog(&ReviewLog{WordID: id, SubjectType: "word", SubjectID: id, QuestionType: "choice", Correct: true, Score: 1.0})
 	}
 
 	_, remaining, err := d.GetQuizProgress("en", 3)

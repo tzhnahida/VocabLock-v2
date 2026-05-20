@@ -1,6 +1,0 @@
-  AI: configured
-  Flutter: pid=13964
-VocabLock v2 — first run
-  HTTP: http://127.0.0.1:52281
-  Token: d7f21c944b2241f474b984e5de98fc20
-  Mock: false

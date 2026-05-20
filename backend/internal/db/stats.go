@@ -56,7 +56,7 @@ func (d *Database) GetStreak() (int, error) {
 func (d *Database) GetHeatmap(days int) (map[string]int, error) {
 	rows, err := d.DB.Query(`
 		SELECT date, words_reviewed FROM daily_stats
-		WHERE date >= date('now', ?)
+		WHERE date >= date('now','localtime', ?)
 		ORDER BY date ASC
 	`, fmt.Sprintf("-%d days", days))
 	if err != nil {

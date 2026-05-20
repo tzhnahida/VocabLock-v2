@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/word.dart';
+import '../models/question.dart';
 import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
 
@@ -11,14 +12,17 @@ class WordsPanel extends StatefulWidget {
   State<WordsPanel> createState() => _WordsPanelState();
 }
 
-class _WordsPanelState extends State<WordsPanel> {
+class _WordsPanelState extends State<WordsPanel> with SingleTickerProviderStateMixin {
+  late TabController _tabCtrl;
   List<Word> _words = [];
+  List<GrammarPoint> _grammarPoints = [];
   bool _loading = true;
   final _searchCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    _tabCtrl = TabController(length: 2, vsync: this);
     _load();
   }
 
@@ -30,6 +34,10 @@ class _WordsPanelState extends State<WordsPanel> {
         final result = await wordsApi.list(language: widget.state.activeLangCode, limit: 50);
         _words = result.words;
       } catch (_) {}
+      try {
+        final result = await wordsApi.listGrammarPoints(language: widget.state.activeLangCode, limit: 50);
+        _grammarPoints = result.points;
+      } catch (_) {}
     }
     if (_words.isEmpty) {
       _words = widget.state.recentMistakes;
@@ -39,18 +47,13 @@ class _WordsPanelState extends State<WordsPanel> {
 
   @override
   void dispose() {
+    _tabCtrl.dispose();
     _searchCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final query = _searchCtrl.text.toLowerCase();
-    final filtered = query.isEmpty ? _words : _words.where((w) =>
-        w.word.toLowerCase().contains(query) ||
-        w.meaning.toLowerCase().contains(query) ||
-        w.reading.toLowerCase().contains(query)).toList();
-
     return Padding(
       padding: const EdgeInsets.all(28),
       child: Column(
@@ -58,17 +61,29 @@ class _WordsPanelState extends State<WordsPanel> {
         children: [
           Row(
             children: [
-              Text('Words', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+              Text('Library', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
               const Spacer(),
               _buildStatsBar(),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+          TabBar(
+            controller: _tabCtrl,
+            labelColor: AppTheme.primary,
+            unselectedLabelColor: AppTheme.textHint,
+            indicatorColor: AppTheme.primary,
+            labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            tabs: [
+              Tab(text: 'Words (${_words.length})'),
+              Tab(text: 'Grammar (${_grammarPoints.length})'),
+            ],
+          ),
+          const SizedBox(height: 12),
           TextField(
             controller: _searchCtrl,
             onChanged: (_) => setState(() {}),
             decoration: InputDecoration(
-              hintText: 'Search words...',
+              hintText: 'Search...',
               prefixIcon: const Icon(Icons.search, size: 20),
               filled: true,
               fillColor: AppTheme.cardBg,
@@ -79,18 +94,73 @@ class _WordsPanelState extends State<WordsPanel> {
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
           ),
-          const SizedBox(height: 16),
-          if (_loading)
-            const Expanded(child: Center(child: CircularProgressIndicator()))
-          else
-            Expanded(
-              child: ListView.builder(
-                itemCount: filtered.length,
-                itemBuilder: (_, i) => _WordRow(word: filtered[i]),
-              ),
-            ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : TabBarView(
+                    controller: _tabCtrl,
+                    children: [
+                      _buildWordsTab(),
+                      _buildGrammarTab(),
+                    ],
+                  ),
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _buildWordsTab() {
+    final query = _searchCtrl.text.toLowerCase();
+    final filtered = query.isEmpty
+        ? _words
+        : _words.where((w) =>
+            w.word.toLowerCase().contains(query) ||
+            w.meaning.toLowerCase().contains(query) ||
+            w.reading.toLowerCase().contains(query)).toList();
+
+    if (filtered.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.menu_book, size: 48, color: AppTheme.textHint.withValues(alpha: 0.5)),
+            const SizedBox(height: 12),
+            Text('No words yet', style: TextStyle(color: AppTheme.textHint)),
+          ],
+        ),
+      );
+    }
+    return ListView.builder(
+      itemCount: filtered.length,
+      itemBuilder: (_, i) => _WordRow(word: filtered[i]),
+    );
+  }
+
+  Widget _buildGrammarTab() {
+    final query = _searchCtrl.text.toLowerCase();
+    final filtered = query.isEmpty
+        ? _grammarPoints
+        : _grammarPoints.where((g) =>
+            g.title.toLowerCase().contains(query) ||
+            g.explanation.toLowerCase().contains(query)).toList();
+
+    if (filtered.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.menu_book, size: 48, color: AppTheme.textHint.withValues(alpha: 0.5)),
+            const SizedBox(height: 12),
+            Text('No grammar points yet', style: TextStyle(color: AppTheme.textHint)),
+          ],
+        ),
+      );
+    }
+    return ListView.builder(
+      itemCount: filtered.length,
+      itemBuilder: (_, i) => _GrammarRow(grammar: filtered[i]),
     );
   }
 
@@ -99,7 +169,9 @@ class _WordsPanelState extends State<WordsPanel> {
     final mastered = _words.where((w) => w.repetitions >= 3).length;
     return Row(
       children: [
-        _MiniStat(label: 'Total', value: '$total'),
+        _MiniStat(label: 'Words', value: '$total'),
+        const SizedBox(width: 16),
+        _MiniStat(label: 'Grammar', value: '${_grammarPoints.length}'),
         const SizedBox(width: 16),
         _MiniStat(label: 'Mastered', value: '$mastered'),
       ],
@@ -167,6 +239,50 @@ class _WordRow extends StatelessWidget {
               Text('${word.totalCorrect}/${word.totalAttempts}', style: TextStyle(fontSize: 11, color: AppTheme.textHint)),
             ],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GrammarRow extends StatelessWidget {
+  final GrammarPoint grammar;
+  const _GrammarRow({required this.grammar});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.cardBg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.menu_book, size: 16, color: Colors.red.shade400),
+              const SizedBox(width: 8),
+              Expanded(child: Text(grammar.title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary))),
+              Text(grammar.language.toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.textHint)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(grammar.explanation, style: TextStyle(fontSize: 13, color: AppTheme.textSecondary), maxLines: 2, overflow: TextOverflow.ellipsis),
+          if (grammar.example.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppTheme.isDark ? Colors.white10 : Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(grammar.example, style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: AppTheme.textPrimary)),
+            ),
+          ],
         ],
       ),
     );

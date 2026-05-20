@@ -57,23 +57,24 @@ enum QuestionType {
   }
 
   bool get isAI => this == listening || this == readingComp || this == grammar;
+
+  /// Whether the answer IS the word itself — hide the word in the prompt for these types.
+  bool get wordIsAnswer => this == fill || this == spelling;
 }
 
 class Question {
   final String id;
   final QuestionType type;
-  final int wordId;
-  final String word;
-  final String reading;
+  final String subjectType;
+  final int subjectId;
   final String prompt;
   final List<String>? options;
 
   const Question({
     required this.id,
     required this.type,
-    required this.wordId,
-    required this.word,
-    required this.reading,
+    required this.subjectType,
+    required this.subjectId,
     required this.prompt,
     this.options,
   });
@@ -81,12 +82,35 @@ class Question {
   factory Question.fromJson(Map<String, dynamic> json) => Question(
         id: json['id'] ?? '',
         type: QuestionType.fromString(json['type'] ?? 'choice'),
-        wordId: (json['word_id'] as num?)?.toInt() ?? 0,
-        word: json['word'] ?? '',
-        reading: json['reading'] ?? '',
+        subjectType: json['subject_type'] ?? 'word',
+        subjectId: (json['subject_id'] as num?)?.toInt() ?? 0,
         prompt: json['prompt'] ?? '',
         options: (json['options'] as List<dynamic>?)?.cast<String>(),
       );
 
   bool get isCompleted => id.isEmpty;
+}
+
+class GrammarPoint {
+  final int id;
+  final String title;
+  final String explanation;
+  final String example;
+  final String language;
+
+  const GrammarPoint({
+    required this.id,
+    required this.title,
+    required this.explanation,
+    required this.example,
+    this.language = '',
+  });
+
+  factory GrammarPoint.fromJson(Map<String, dynamic> json) => GrammarPoint(
+        id: (json['id'] as num?)?.toInt() ?? 0,
+        title: json['title'] ?? '',
+        explanation: json['explanation'] ?? '',
+        example: json['example'] ?? '',
+        language: json['language'] ?? '',
+      );
 }

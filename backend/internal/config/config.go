@@ -74,10 +74,11 @@ type DictConfig struct {
 }
 
 type DictProvider struct {
-	Lang    string `yaml:"lang"`
-	Binary  string `yaml:"binary"`
-	Args    []string `yaml:"args"`
-	Format  string `yaml:"format"`
+	Lang       string   `yaml:"lang"`
+	Binary     string   `yaml:"binary"`
+	Args       []string `yaml:"args"`
+	Format     string   `yaml:"format"`
+	ExamLevels bool     `yaml:"exam_levels"` // dict returns level field (JLPT/HSK/etc.)
 	HealthCheck struct {
 		Skip   bool     `yaml:"skip"`
 		Custom []string `yaml:"custom"`
@@ -146,6 +147,10 @@ func Load(configDir string) (*Config, error) {
 			ExpandBatchSize:     10,
 			ExpandThreshold:     0.6,
 			Theme:               "vs-dark",
+			AI: AIConfig{
+				BaseURL: "https://api.deepseek.com",
+				Model:   "deepseek-chat",
+			},
 		},
 		Languages: make(map[string]*LanguageConfig),
 	}
@@ -197,6 +202,16 @@ func Load(configDir string) (*Config, error) {
 		}
 	}
 
+	// Recover missing active language from _languages template (skip on first run)
+	if cfg.App.ActiveLang != "" && len(cfg.Languages) > 0 {
+		if _, ok := cfg.Languages[cfg.App.ActiveLang]; !ok {
+			if lc := TryLoadTemplate(configDir, cfg.App.ActiveLang); lc != nil {
+				cfg.Languages[cfg.App.ActiveLang] = lc
+				fmt.Fprintf(os.Stderr, "recovered active language %q from template\n", cfg.App.ActiveLang)
+			}
+		}
+	}
+
 	// Validation
 	if errs := cfg.Validate(); len(errs) > 0 {
 		for _, e := range errs {
@@ -206,6 +221,38 @@ func Load(configDir string) (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func TryLoadTemplate(configDir, code string) *LanguageConfig {
+	templatePath := filepath.Join(configDir, "_languages", code+".yaml")
+	data, err := os.ReadFile(templatePath)
+	if err != nil {
+		return nil
+	}
+	// Copy to active languages/
+	activeDir := filepath.Join(configDir, "languages")
+	os.MkdirAll(activeDir, 0755)
+	if err := os.WriteFile(filepath.Join(activeDir, code+".yaml"), data, 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "recover language %q: %v\n", code, err)
+		return nil
+	}
+	var lc LanguageConfig
+	if err := yaml.Unmarshal(data, &lc); err != nil {
+		return nil
+	}
+	return &lc
+}
+
+func (c *Config) SaveAppConfig(configDir string) error {
+	data, err := yaml.Marshal(&c.App)
+	if err != nil {
+		return fmt.Errorf("marshal app config: %w", err)
+	}
+	path := filepath.Join(configDir, "app.yaml")
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		return fmt.Errorf("write app.yaml: %w", err)
+	}
+	return nil
 }
 
 func loadYAML(path string, v interface{}) error {

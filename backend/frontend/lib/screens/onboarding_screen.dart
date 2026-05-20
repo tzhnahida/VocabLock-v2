@@ -12,6 +12,7 @@ class OnboardingScreen extends StatefulWidget {
     String? baseUrl,
     String? profileText,
     String? direction,
+    String? password,
   }) onComplete;
   final Future<String> Function(String message, List<({String role, String content})> history)? onAiChat;
   final bool aiConfigured;
@@ -126,13 +127,33 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Future<void> _testConnection() async {
     if (_apiKey.isEmpty) return;
     setState(() { _testing = true; _testResult = ''; });
-    // In mock mode, just simulate success after a delay
-    await Future.delayed(const Duration(seconds: 1));
-    if (mounted) {
-      setState(() {
-        _testing = false;
-        _testResult = _apiKey.startsWith('sk-') ? '✅ 连接成功' : '❌ 连接失败';
-      });
+    try {
+      // Actually test the AI connection with a simple ping message
+      final chat = widget.onAiChat;
+      if (chat != null) {
+        final reply = await chat('ping', []);
+        if (mounted) {
+          setState(() {
+            _testing = false;
+            _testResult = reply.isNotEmpty ? '✅ 连接成功' : '❌ 无响应';
+          });
+        }
+      } else {
+        // No chat callback — check API key format as fallback
+        if (mounted) {
+          setState(() {
+            _testing = false;
+            _testResult = _apiKey.startsWith('sk-') ? '✅ 连接已配置' : '⚠️ 格式可能不正确';
+          });
+        }
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _testing = false;
+          _testResult = '❌ 连接失败 — 请检查 API Key 或网络';
+        });
+      }
     }
   }
 
@@ -182,10 +203,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _scrollToBottom();
   }
 
-  Future<void> _requestProfile() async {
-    await _doRequestProfile();
-  }
-
   Future<void> _doRequestProfile() async {
     setState(() => _chatLoading = true);
     final prompt = '请根据以上对话，生成一份详细的学习培养方案，必须包含以下所有字段：\n'
@@ -214,10 +231,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       });
       return;
     }
-    _profileText = reply!;
-    _applyProfile(reply!);
+    final text = reply; // promote to non-null
+    _profileText = text;
+    _applyProfile(text);
     setState(() {
-      _chatMsgs.add((role: 'assistant', content: reply!));
+      _chatMsgs.add((role: 'assistant', content: text));
       _chatLoading = false;
       _profileDone = true;
     });
@@ -532,6 +550,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           baseUrl: _baseUrl.isNotEmpty ? _baseUrl : null,
           profileText: _profileText.isNotEmpty ? _profileText : null,
           direction: _profileDirection.isNotEmpty ? _profileDirection : null,
+          password: _password.isNotEmpty ? _password : null,
         );
       }),
     ]);

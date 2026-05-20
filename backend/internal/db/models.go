@@ -55,7 +55,9 @@ type Word struct {
 
 type ReviewLog struct {
 	ID             int64     `json:"id"`
-	WordID         int64     `json:"word_id"`
+	WordID         int64     `json:"word_id"`      // deprecated, kept for old data
+	SubjectType    string    `json:"subject_type"` // "word" | "grammar"
+	SubjectID      int64     `json:"subject_id"`   // words.id or grammar_points.id
 	QuestionType   string    `json:"question_type"`
 	UserAnswer     string    `json:"user_answer"`
 	ExpectedAnswer string    `json:"expected_answer"`
@@ -63,6 +65,25 @@ type ReviewLog struct {
 	Score          float64   `json:"score"`
 	Source         string    `json:"source"`
 	CreatedAt      time.Time `json:"created_at"`
+}
+
+type GrammarPoint struct {
+	ID             int64      `json:"id"`
+	Title          string     `json:"title"`
+	Explanation    string     `json:"explanation"`
+	Example        string     `json:"example"`
+	Language       string     `json:"language"`
+	Source         string     `json:"source"`
+	Status         string     `json:"status"`
+	EasinessFactor float64    `json:"easiness_factor"`
+	Interval       int        `json:"interval"`
+	Repetitions    int        `json:"repetitions"`
+	NextReviewAt   *time.Time `json:"next_review_at"`
+	LastReviewAt   *time.Time `json:"last_review_at"`
+	TotalAttempts  int        `json:"total_attempts"`
+	TotalCorrect   int        `json:"total_correct"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
 type DailyStats struct {

@@ -76,14 +76,30 @@ func (d *Database) InsertWord(w *Word) (int64, error) {
 		w.Status = "active"
 	}
 	r, err := d.DB.Exec(`
-		INSERT INTO words (word, reading, meaning, pos, language, source, confidence, direction, status, tags,
+		INSERT OR IGNORE INTO words (word, reading, meaning, pos, language, source, confidence, direction, status, tags,
 		                   easiness_factor, interval, repetitions)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2.5, 0, 0)
 	`, w.Word, w.Reading, w.Meaning, w.POS, w.Language, w.Source, w.Confidence, w.Direction, w.Status, w.Tags)
 	if err != nil {
 		return 0, fmt.Errorf("insert word: %w", err)
 	}
-	return r.LastInsertId()
+	id, err := r.LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("last insert id: %w", err)
+	}
+	if id == 0 {
+		return 0, nil // duplicate, ignored
+	}
+	return id, nil
+}
+
+func (d *Database) WordExists(language, word string) (bool, error) {
+	var count int
+	err := d.DB.QueryRow(`SELECT COUNT(*) FROM words WHERE language = ? AND word = ?`, language, word).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("word exists: %w", err)
+	}
+	return count > 0, nil
 }
 
 func (d *Database) GetWord(id int64) (*Word, error) {
@@ -151,7 +167,7 @@ func (d *Database) UpdateWord(w *Word) error {
 		       easiness_factor=?, interval=?, repetitions=?,
 		       next_review_at=?, last_review_at=?,
 		       total_attempts=?, total_correct=?,
-		       updated_at=datetime('now')
+		       updated_at=datetime('now','localtime')
 		WHERE id=?
 	`, w.Word, w.Reading, w.Meaning, w.POS,
 		w.EasinessFactor, w.Interval, w.Repetitions,
@@ -176,7 +192,7 @@ func (d *Database) ResetWord(id int64) error {
 		UPDATE words SET easiness_factor=2.5, interval=0, repetitions=0,
 		       next_review_at=NULL, last_review_at=NULL,
 		       total_attempts=0, total_correct=0,
-		       updated_at=datetime('now')
+		       updated_at=datetime('now','localtime')
 		WHERE id=?
 	`, id)
 	if err != nil {
@@ -190,6 +206,7 @@ func (d *Database) GetReviewWords(language string, limit int) ([]*Word, error) {
 		SELECT `+wordColumns+`
 		FROM words
 		WHERE language = ? AND status = 'active'
+		  AND (next_review_at IS NULL OR next_review_at <= datetime('now','localtime'))
 		ORDER BY next_review_at ASC NULLS FIRST
 		LIMIT ?
 	`, language, limit)
@@ -296,7 +313,7 @@ func (d *Database) ListPendingReview(language string) ([]*Word, error) {
 }
 
 func (d *Database) SetWordStatus(id int64, status string) error {
-	_, err := d.DB.Exec(`UPDATE words SET status = ?, updated_at = datetime('now') WHERE id = ?`, status, id)
+	_, err := d.DB.Exec(`UPDATE words SET status = ?, updated_at = datetime('now','localtime') WHERE id = ?`, status, id)
 	if err != nil {
 		return fmt.Errorf("set word status: %w", err)
 	}
@@ -304,7 +321,7 @@ func (d *Database) SetWordStatus(id int64, status string) error {
 }
 
 func (d *Database) SetWordTags(id int64, tags string) error {
-	_, err := d.DB.Exec(`UPDATE words SET tags = ?, updated_at = datetime('now') WHERE id = ?`, tags, id)
+	_, err := d.DB.Exec(`UPDATE words SET tags = ?, updated_at = datetime('now','localtime') WHERE id = ?`, tags, id)
 	if err != nil {
 		return fmt.Errorf("set word tags: %w", err)
 	}

@@ -1,4 +1,5 @@
 import '../models/word.dart';
+import '../models/question.dart';
 import 'api_client.dart';
 
 class WordsApi {
@@ -103,5 +104,38 @@ class WordsApi {
 
   Future<void> updateTags(int id, List<String> tags) async {
     await _client.put('/api/v1/words/$id/tags', data: {'tags': tags});
+  }
+
+  // —— Grammar Points ——
+
+  Future<({List<GrammarPoint> points, int total})> listGrammarPoints({
+    String? language,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final r = await _client.get('/api/v1/grammar-points', queryParameters: {
+      if (language != null) 'language': language,
+      'limit': limit,
+      'offset': offset,
+    });
+    final data = r.data as Map<String, dynamic>;
+    final points = (data['grammar_points'] as List<dynamic>)
+        .map((j) => GrammarPoint.fromJson(j as Map<String, dynamic>))
+        .toList();
+    final total = (data['total'] as num?)?.toInt() ?? points.length;
+    return (points: points, total: total);
+  }
+
+  Future<GrammarPoint> createGrammarPoint(Map<String, dynamic> body) async {
+    final r = await _client.post('/api/v1/grammar-points', data: body);
+    return GrammarPoint.fromJson(r.data as Map<String, dynamic>);
+  }
+
+  Future<void> updateGrammarPoint(int id, Map<String, dynamic> body) async {
+    await _client.put('/api/v1/grammar-points/$id', data: body);
+  }
+
+  Future<void> deleteGrammarPoint(int id) async {
+    await _client.delete('/api/v1/grammar-points/$id');
   }
 }

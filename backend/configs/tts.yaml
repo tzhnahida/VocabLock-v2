@@ -5,7 +5,7 @@ tts:
     edge-tts:
       binary: 'python'
       args:
-        - 'tts/edge_tts.py'
+        - 'tts/ms_edge_tts.py'
         - '--voice'
         - '{voice}'
         - '--text'

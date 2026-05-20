@@ -4,6 +4,10 @@ import "net/http"
 
 // ——— Quiz mock handlers ———
 
+func HandleQuizSessionStart(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, `{"new_words":3,"new_grammar":1,"review_words":15,"review_grammar":2}`)
+}
+
 func HandleQuizProgress(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, `{"reviewed_today":8,"remaining":12,"daily_target":20}`)
 }
@@ -73,7 +77,25 @@ func HandleWordsExpand(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, `{"verified":[],"pending_review":[]}`)
 }
 
-// ——— AI mock handlers ———
+func HandleWordsPendingAccept(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, `{"id":1,"status":"active"}`)
+}
+
+func HandleWordsPendingReject(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, `{"id":1,"status":"rejected"}`)
+}
+
+// Grammar mock
+
+func HandleGrammarPointsList(w http.ResponseWriter, r *http.Request) {
+	lang := r.URL.Query().Get("language")
+	if lang == "" {
+		lang = "ja"
+	}
+	writeJSON(w, grammarPointsList(lang))
+}
+
+// AI mock
 
 func HandleAIChat(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, `{"reply":"Hello! I'm your language learning assistant. How can I help you today?","model":"mock"}`)
@@ -314,14 +336,14 @@ func wordsList(lang string) string {
 func quizQuestion(lang string) string {
 	switch lang {
 	case "en":
-		return `{"id":"c1","type":"choice","word_id":1,"word":"hello","reading":"heˈloʊ","prompt":"What does 'hello' mean?","options":["a greeting","goodbye","thank you","sorry"]}`
+		return `{"id":"wc1","type":"choice","subject_type":"word","subject_id":1,"prompt":"What does 'hello' mean?","options":["a greeting","goodbye","thank you","sorry"]}`
 	case "ja":
-		return `{"id":"c101","type":"choice","word_id":101,"word":"食べる","reading":"たべる","prompt":"「食べる」的意思是什么？","options":["吃","喝","睡","走"]}`
+		return `{"id":"wc101","type":"choice","subject_type":"word","subject_id":101,"prompt":"「食べる」的意思是什么？","options":["吃","喝","睡","走"]}`
 	case "zh":
-		return `{"id":"c201","type":"choice","word_id":201,"word":"学习","reading":"xuéxí","prompt":"'学习' 的正确拼音是？","options":["xuéxí","xiūxi","gōngzuò","wánshuǎ"]}`
+		return `{"id":"wc201","type":"choice","subject_type":"word","subject_id":201,"prompt":"'学习' 的正确拼音是？","options":["xuéxí","xiūxi","gōngzuò","wánshuǎ"]}`
 	case "ko":
-		return `{"id":"c301","type":"choice","word_id":301,"word":"공부하다","reading":"gongbuhada","prompt":"'공부하다' 的意思是什么？","options":["学习","睡觉","吃饭","跑步"]}`
+		return `{"id":"wc301","type":"choice","subject_type":"word","subject_id":301,"prompt":"'공부하다' 的意思是什么？","options":["学习","睡觉","吃饭","跑步"]}`
 	default:
-		return `{"id":"c1","type":"choice","word_id":1,"word":"hello","reading":"heˈloʊ","prompt":"What does 'hello' mean?","options":["a greeting","goodbye","thank you","sorry"]}`
+		return `{"id":"wc1","type":"choice","subject_type":"word","subject_id":1,"prompt":"What does 'hello' mean?","options":["a greeting","goodbye","thank you","sorry"]}`
 	}
 }

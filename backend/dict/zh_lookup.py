@@ -67,10 +67,10 @@ def main() -> None:
     result = lookup(args.word, entries)
 
     if result:
-        json.dump(result, sys.stdout, ensure_ascii=False)
+        sys.stdout.buffer.write(json.dumps(result, ensure_ascii=False).encode("utf-8"))
         sys.exit(0)
     else:
-        json.dump({"found": False}, sys.stdout, ensure_ascii=False)
+        sys.stdout.buffer.write(json.dumps({"found": False}, ensure_ascii=False).encode("utf-8"))
         sys.exit(1)
 
 

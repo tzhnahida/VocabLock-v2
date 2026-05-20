@@ -160,6 +160,11 @@ class _AssignmentSheetState extends State<AssignmentSheet> {
               ),
               const Spacer(),
               Text(progress, style: TextStyle(fontSize: 13, color: AppTheme.textHint)),
+              const SizedBox(width: 12),
+              GestureDetector(
+                onTap: widget.onDone,
+                child: Icon(Icons.close, size: 20, color: AppTheme.textHint),
+              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -193,19 +198,29 @@ class _AssignmentSheetState extends State<AssignmentSheet> {
               ),
             ),
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _submitting ? null : _submit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _submitting ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: _submitting
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : Text('提交', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+                  ),
                 ),
-                child: _submitting
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : Text('提交', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: TextButton(
+                onPressed: widget.onDone,
+                child: Text('退出', style: TextStyle(fontSize: 13, color: AppTheme.textHint)),
               ),
             ),
           ] else ...[
@@ -225,6 +240,13 @@ class _AssignmentSheetState extends State<AssignmentSheet> {
                   _currentIndex + 1 < _batch!.assignments.length ? '下一题' : '完成',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
                 ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: TextButton(
+                onPressed: widget.onDone,
+                child: Text('退出', style: TextStyle(fontSize: 13, color: AppTheme.textHint)),
               ),
             ),
           ],

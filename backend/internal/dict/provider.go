@@ -17,6 +17,7 @@ type LookupResult struct {
 	Reading string `json:"reading"`
 	Meaning string `json:"meaning"`
 	POS     string `json:"pos"`
+	Level   string `json:"level,omitempty"` // optional: N5, N4, HSK1, etc.
 }
 
 type Provider struct {
@@ -32,6 +33,7 @@ func (p *Provider) Lookup(ctx context.Context, word string) (*LookupResult, erro
 	args := buildDictArgs(p.cfg.Args, word)
 
 	cmd := exec.CommandContext(ctx, p.cfg.Binary, args...)
+	cmd.Env = append(os.Environ(), "PYTHONIOENCODING=utf-8", "PYTHONUTF8=1")
 
 	stdout, err := cmd.Output()
 	if err != nil {
@@ -61,6 +63,7 @@ func (p *Provider) HealthCheck(ctx context.Context) error {
 	}
 
 	cmd := exec.CommandContext(ctx, p.cfg.Binary, args...)
+	cmd.Env = append(os.Environ(), "PYTHONIOENCODING=utf-8", "PYTHONUTF8=1")
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("dict %s health check: %w", p.name, err)

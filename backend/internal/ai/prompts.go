@@ -36,9 +36,14 @@ type PromptVars struct {
 	AssignmentType string
 	Topic          string
 	WordList       string // comma-separated words to use
-	GrammarPoint   string
-	WordCount      int
-	UserSubmission string
+	GrammarPoint       string
+	GrammarTitle       string
+	GrammarExplanation string
+	GrammarExample     string
+	ExistingWords   string // comma-separated known words
+	WordCount        int
+	DuplicateWords   string // duplicates from previous AI round
+	UserSubmission   string
 	// Summary/plan fields
 	SessionStats   string // JSON blob of today's stats
 	YesterdayPlan  string

@@ -10,7 +10,7 @@ class Palette {
 class AppTheme {
   AppTheme._();
 
-  static ThemeMode _themeMode = ThemeMode.light;
+  static ThemeMode _themeMode = ThemeMode.dark;
   static ThemeMode get themeMode => _themeMode;
   static bool get isDark => _themeMode == ThemeMode.dark;
 

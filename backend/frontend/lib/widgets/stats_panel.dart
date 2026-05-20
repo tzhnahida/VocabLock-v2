@@ -27,8 +27,8 @@ class _StatsPanelState extends State<StatsPanel> {
     final statsApi = widget.state.statsApi;
     if (statsApi != null) {
       try {
-        _streak = await statsApi.getStreak();
-        _heatmap = await statsApi.getHeatmap();
+        _streak = await statsApi.getStreak(language: widget.state.activeLangCode);
+        _heatmap = await statsApi.getHeatmap(language: widget.state.activeLangCode);
       } catch (_) {}
     }
     if (_heatmap.isEmpty) {

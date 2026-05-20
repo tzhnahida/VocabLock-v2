@@ -5,7 +5,7 @@ import '../theme/app_theme.dart';
 import '../widgets/tool_sidebar.dart';
 import '../widgets/glass_background.dart';
 import '../widgets/dashboard_panel.dart';
-import '../widgets/quiz_sheet.dart';
+import 'quiz_session_page.dart';
 import '../widgets/words_panel.dart';
 import '../widgets/stats_panel.dart';
 import '../widgets/audio_panel.dart';
@@ -27,28 +27,28 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _showQuiz(AppState state) {
     final quizApi = state.quizApi;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => QuizSheet(
-        onNextQuestion: () => state.getNextQuestion(),
-        onSubmit: ({required questionId, required wordId, required questionType, required answer}) =>
-            state.submitAnswer(questionId: questionId, wordId: wordId, questionType: questionType, answer: answer),
-        onGetStudyWords: () => state.getStudyWords(),
-        onSummarize: quizApi != null
-            ? () => quizApi.summarize(language: state.activeLangCode)
-            : null,
-        onDone: () {
-          Navigator.pop(context);
-          state.refresh();
-        },
-        onComplete: () {
-          Navigator.pop(context);
-          state.completeDaily();
-        },
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => QuizSessionPage(
+          onSessionStart: () => quizApi?.sessionStart(language: state.activeLangCode) ?? Future.value(null),
+          onNextQuestion: () => state.getNextQuestion(),
+          onSubmit: ({required questionId, required subjectType, required subjectId, required questionType, required answer}) =>
+              state.submitAnswer(questionId: questionId, subjectType: subjectType, subjectId: subjectId, questionType: questionType, answer: answer),
+          onGetStudyWords: () => state.getStudyWords(),
+          onGetStudyGrammar: () => state.getStudyGrammarPoints(),
+          onSummarize: quizApi != null
+              ? () => quizApi.summarize(language: state.activeLangCode)
+              : null,
+          onComplete: () {
+            state.completeDaily();
+          },
+        ),
+        fullscreenDialog: true,
       ),
-    );
+    ).then((_) {
+      state.refresh();
+    });
   }
 
   void _onToolSelected(int index, AppState state) {
@@ -68,6 +68,8 @@ class _HomeScreenState extends State<HomeScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      isDismissible: true,
+      enableDrag: true,
       backgroundColor: Colors.transparent,
       builder: (_) => AssignmentSheet(
         onGetAssignments: () => quizApi?.getAssignment(language: state.activeLangCode) ?? Future.value(const AssignmentBatch(assignments: [])),
@@ -114,7 +116,30 @@ class _HomeScreenState extends State<HomeScreen> {
 
         return Scaffold(
           backgroundColor: AppTheme.bgColor,
-          body: LayoutBuilder(
+          body: Column(
+            children: [
+              if (!state.serverReachable)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  color: Colors.red.shade800,
+                  child: Row(
+                    children: [
+                      const Icon(Icons.cloud_off, color: Colors.white, size: 18),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text('服务器连接断开 — 显示的是本地模拟数据',
+                            style: TextStyle(color: Colors.white, fontSize: 13)),
+                      ),
+                      TextButton(
+                        onPressed: () => state.refresh(),
+                        child: const Text('重试', style: TextStyle(color: Colors.white, fontSize: 12)),
+                      ),
+                    ],
+                  ),
+                ),
+              Expanded(
+                child: LayoutBuilder(
             builder: (context, constraints) {
               final sidebarWidth = 72.0;
               final contentWidth = constraints.maxWidth - sidebarWidth;
@@ -142,6 +167,9 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             },
           ),
+            ),
+          ],
+        ),
         );
       },
     );

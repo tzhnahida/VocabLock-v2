@@ -56,6 +56,7 @@ class AppState extends ChangeNotifier {
   }
 
   String? get baseUrl => _apiClient?.baseUrl;
+  String? get token => _apiClient?.token;
   bool get useMock => _apiClient == null;
 
   bool _initialized = false;
@@ -64,6 +65,9 @@ class AppState extends ChangeNotifier {
   bool _isFirstRun = false;
   bool get isFirstRun => _isFirstRun;
   bool _hasPlan = false;
+
+  bool _serverReachable = true;
+  bool get serverReachable => _serverReachable;
 
   bool _dailyCompleted = false;
   bool get dailyCompleted => _dailyCompleted;
@@ -82,7 +86,7 @@ class AppState extends ChangeNotifier {
   String _uiLang = 'en';
   String get uiLang => _uiLang;
 
-  ThemeMode _themeMode = ThemeMode.light;
+  ThemeMode _themeMode = ThemeMode.dark;
   ThemeMode get themeMode => _themeMode;
 
   List<LanguageInfo> _languages = [];
@@ -126,8 +130,6 @@ class AppState extends ChangeNotifier {
   }
 
   String? _apiKey;
-  String? _model;
-  String? _baseUrl;
   String? get apiKey => _apiKey;
 
   bool _aiConfigured = false;
@@ -143,12 +145,11 @@ class AppState extends ChangeNotifier {
     String? baseUrl,
     String? profileText,
     String? direction,
+    String? password,
   }) async {
     _uiLang = uiLang;
     _themeMode = themeMode;
     _apiKey = apiKey;
-    _model = model;
-    _baseUrl = baseUrl;
     AppTheme.setThemeMode(themeMode);
 
     // Build language list starting with selected learning language
@@ -167,12 +168,18 @@ class AppState extends ChangeNotifier {
     // Update backend config and load real data
     if (!useMock && _configApi != null) {
       try {
-        await _configApi!.updateConfig(activeLang: learnLang, dailyTarget: dailyTarget);
+        await _configApi.updateConfig(activeLang: learnLang, dailyTarget: dailyTarget, theme: themeMode == ThemeMode.dark ? 'vs-dark' : 'light');
       } catch (_) {}
+      // Save emergency password
+      if (password != null && password.isNotEmpty) {
+        try {
+          await _configApi.setPassword(password);
+        } catch (_) {}
+      }
       // Save AI profile if generated during interview
       if (profileText != null && profileText.isNotEmpty && _aiApi != null) {
         try {
-          await _aiApi!.updateProfile({
+          await _aiApi.updateProfile({
             'language': learnLang,
             'level': 'beginner',
             'direction': direction ?? 'general',
@@ -182,7 +189,7 @@ class AppState extends ChangeNotifier {
       }
       if (direction != null && direction.isNotEmpty && _quizApi != null) {
         try {
-          await _quizApi!.updateDirection(direction);
+          await _quizApi.updateDirection(direction);
         } catch (_) {}
       }
       await _loadApiDashboard();
@@ -235,7 +242,7 @@ class AppState extends ChangeNotifier {
     _dailyCompleted = true;
     if (!useMock && _quizApi != null) {
       try {
-        await _quizApi!.complete();
+        await _quizApi.complete();
       } catch (_) {}
     }
     notifyListeners();
@@ -280,6 +287,7 @@ class AppState extends ChangeNotifier {
     if (configApi == null) return;
     try {
       final codes = await configApi.getLanguages();
+      _serverReachable = true;
       _languages = codes.asMap().entries.map((e) {
         final displayNames = {'en': 'English', 'ja': 'Japanese', 'zh': 'Chinese', 'ko': 'Korean'};
         final nativeNames = {'en': 'English', 'ja': '日本語', 'zh': '中文', 'ko': '한국어'};
@@ -297,10 +305,20 @@ class AppState extends ChangeNotifier {
         AppTheme.setActiveIndex(0);
       }
 
+      // Apply theme from server config
+      try {
+        final cfg = await configApi.getConfig();
+        final theme = cfg['theme'] as String?;
+        if (theme == 'vs-dark') {
+          _themeMode = ThemeMode.dark;
+          AppTheme.setThemeMode(ThemeMode.dark);
+        }
+      } catch (_) {}
+
       // Check if AI is already configured (e.g. via env var)
       if (_aiApi != null) {
         try {
-          final profile = await _aiApi!.getProfile();
+          final profile = await _aiApi.getProfile();
           _aiConfigured = profile['configured'] == true;
         } catch (_) {}
       }
@@ -310,7 +328,7 @@ class AppState extends ChangeNotifier {
       if (_quizApi != null) {
         final checkLang = _languages.isNotEmpty ? _languages[0].code : 'zh';
         try {
-          final plan = await _quizApi!.getPlan(language: checkLang);
+          final plan = await _quizApi.getPlan(language: checkLang);
           _hasPlan = plan.id != null;
         } catch (_) {}
       }
@@ -340,7 +358,10 @@ class AppState extends ChangeNotifier {
       _heatmap = await statsApi.getHeatmap(language: lang);
       _recentMistakes = (await wordsApi.list(language: lang, limit: 20)).words;
       _bubbleStats = {};
+      _dailyCompleted = _progress != null && _progress!.remaining <= 0;
+      _serverReachable = true;
     } catch (_) {
+      _serverReachable = false;
       _loadMockDashboard();
       return;
     }
@@ -384,7 +405,8 @@ class AppState extends ChangeNotifier {
 
   Future<SubmitResult?> submitAnswer({
     required String questionId,
-    required int wordId,
+    required String subjectType,
+    required int subjectId,
     required String questionType,
     required String answer,
   }) async {
@@ -397,7 +419,8 @@ class AppState extends ChangeNotifier {
     try {
       return await quizApi.submit(
         questionId: questionId,
-        wordId: wordId,
+        subjectType: subjectType,
+        subjectId: subjectId,
         questionType: questionType,
         answer: answer,
         language: lang,
@@ -418,6 +441,20 @@ class AppState extends ChangeNotifier {
       return result.words;
     } catch (_) {
       return MockData.words(activeLangCode);
+    }
+  }
+
+  Future<List<GrammarPoint>> getStudyGrammarPoints() async {
+    if (useMock) {
+      return [];
+    }
+    final wordsApi = _wordsApi;
+    if (wordsApi == null) return [];
+    try {
+      final result = await wordsApi.listGrammarPoints(language: activeLangCode, limit: 20);
+      return result.points;
+    } catch (_) {
+      return [];
     }
   }
 

@@ -21,7 +21,9 @@ class _AudioPanelState extends State<AudioPanel> {
     if (path == null || path.isEmpty) return '';
     if (path.startsWith('http')) return path;
     final base = widget.state.baseUrl ?? 'http://127.0.0.1:8080';
-    return '$base$path';
+    final token = widget.state.token ?? '';
+    final sep = path.contains('?') ? '&' : '?';
+    return '$base$path${sep}token=$token';
   }
 
   Future<void> _speak() async {
