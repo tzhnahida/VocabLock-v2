@@ -118,11 +118,30 @@ func (s *Server) EnsureBootstrap(lang string) {
 	}
 
 	if total == 0 {
-		n, err := loadSeedWords(s, lang)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "bootstrap: load seed words: %v\n", err)
-		} else if n > 0 {
-			fmt.Fprintf(os.Stderr, "bootstrap: loaded %d seed words for %s\n", n, lang)
+		if s.AI != nil {
+			// AI available — generate initial words from plan direction
+			expandCount, extraCtx := s.planExpandParams(lang)
+			if expandCount <= 0 {
+				expandCount = 10
+			}
+			fmt.Fprintf(os.Stderr, "bootstrap: generating initial words via AI for %s\n", lang)
+			go func() {
+				verified, pending, err := s.expandWords(context.Background(), lang, expandCount, extraCtx)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "bootstrap: AI expansion failed: %v, falling back to seeds\n", err)
+					loadSeedWords(s, lang)
+				} else {
+					fmt.Fprintf(os.Stderr, "bootstrap: AI generated %d verified + %d pending words\n", verified, pending)
+				}
+			}()
+		} else {
+			// No AI — load seed words as fallback
+			n, err := loadSeedWords(s, lang)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "bootstrap: load seed words: %v\n", err)
+			} else if n > 0 {
+				fmt.Fprintf(os.Stderr, "bootstrap: loaded %d seed words for %s\n", n, lang)
+			}
 		}
 	}
 
