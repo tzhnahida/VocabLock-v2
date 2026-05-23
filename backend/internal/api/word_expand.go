@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"strings"
 	"time"
 
@@ -491,10 +492,23 @@ func (s *Server) expandGrammar(ctx context.Context, lang string, count int) (ins
 // buildVocabSummary returns a categorized summary of the student's vocabulary.
 // Groups words by POS with counts and representative samples (not full list).
 func (s *Server) buildVocabSummary(lang string) string {
-	words, total, _ := s.DB.ListWords(lang, 200, 0)
+	// Fetch with randomized offset so we don't always sample the same words
+	_, total, _ := s.DB.ListWords(lang, 1, 0)
 	if total == 0 {
 		return "(no vocabulary yet)"
 	}
+
+	offset := rand.Intn(total)
+	if offset > total-50 {
+		offset = total - 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	words, _, _ := s.DB.ListWords(lang, 200, offset)
+
+	// Shuffle before categorizing so different samples each call
+	rand.Shuffle(len(words), func(i, j int) { words[i], words[j] = words[j], words[i] })
 
 	// Group by POS category
 	nouns := make([]string, 0)
