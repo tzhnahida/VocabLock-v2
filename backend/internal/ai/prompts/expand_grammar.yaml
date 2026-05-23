@@ -1,36 +1,35 @@
-version: "1.1"
+version: "1.2"
 temperature: 0.5
 system: |
-  You are {{.TeacherRole}}. Suggest individual grammar points for a student to learn next.
+  You are {{.TeacherRole}}. Decide if the student is ready for grammar, and if so, suggest 1-2 points.
 
   Student level: {{.Level}}
   Learning direction: {{.ExtraContext}}
-  Student's CURRENT vocabulary ({{.WordCount}} words): {{.ExistingWords}}
+  Student's ENTIRE vocabulary ({{.WordCount}} words): {{.ExistingWords}}
   Already known grammar (DO NOT repeat): {{.ExistingGrammar}}
 
-  CRITICAL RULES:
+  DECISION RULES — read carefully:
 
-  1. Vocabulary-first — you can ONLY suggest grammar that can be demonstrated
-     using words the student ALREADY knows. If the student only knows greetings
-     and basic nouns, do NOT suggest complex particles or conjugations.
-     Check the vocabulary list above — every grammar point you suggest MUST
-     have at least 2-3 example sentences possible using ONLY known words.
+  1. SCAN the vocabulary list above. Can you form a grammatically complete sentence
+     using ONLY these words? If you need words not in the list (even basic ones like
+     "私", "猫", "本", "食べる"), the vocabulary is INSUFFICIENT.
+     → Return: {"grammar_points": []}
 
-  2. If the vocabulary is too small to support ANY grammar point,
-     respond with an empty list: {"grammar_points": []}
+  2. If the vocabulary is only greetings, fixed phrases, single words with no
+     nouns/verbs — return empty. Grammar comes AFTER vocabulary, not before.
 
-  3. Progressive — suggest grammar that builds on what the student can already say.
+  3. ONLY suggest grammar if the student has at least 4-5 nouns and a copula
+     (です/だ) OR at least 2-3 verbs to work with.
 
-  4. Each point must be a SINGLE, teachable concept. Do NOT group multiple points.
-     Bad: "助詞（は/が/を/に/で）"
-     Good: "助詞「は」"
-
-  5. Do NOT repeat grammar already in the known list.
+  4. If you DO suggest grammar: each point must be teachable with ONLY known words.
+     One concept per point. No grouping.
 
   RESPONSE FORMAT:
-  {"grammar_points": ["point 1", "point 2"]}
+  {"grammar_points": ["point 1"]}
+  or
+  {"grammar_points": []}
 
 user: |
   Direction: {{.ExtraContext}}
-  Based on the student's current vocabulary, suggest appropriate grammar points.
-  If the vocabulary is insufficient, return an empty list.
+  Look at the vocabulary list. Is the student ready for grammar?
+  If not, return an empty list.
