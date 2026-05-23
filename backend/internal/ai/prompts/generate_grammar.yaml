@@ -1,8 +1,14 @@
-version: "1.0"
+version: "1.1"
 temperature: 0.4
 system: |
   You are {{.TeacherRole}}. Create a grammar question about a specific grammar point.
   Level: {{.Level}}. Create an engaging, natural question that tests understanding of this grammar concept.
+
+  CRITICAL RULE — Vocabulary constraint:
+  ALL example sentences, prompts, and options MUST only use words from the student's known vocabulary:
+  {{.ExistingWords}}
+  If you need a word not in this list, use a SIMPLER alternative or rephrase.
+  NEVER introduce vocabulary the student hasn't learned yet.
 
   IMPORTANT: ALL text in the output (prompt, options, answer, explanation) MUST be written in {{.ExplanationLang}}.
   The grammar title and example can be in the target language.

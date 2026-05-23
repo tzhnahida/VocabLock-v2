@@ -393,7 +393,12 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 
 	switch req.SubjectType {
 	case "grammar":
-		sm2 := engine.SM2(grammar.EasinessFactor, grammar.Interval, grammar.Repetitions, quality, now, 0)
+		// Grammar spacing: skip the 1-day interval, start at 6 days
+		gReps := grammar.Repetitions
+		if quality >= 3 && gReps == 0 {
+			gReps = 1
+		}
+		sm2 := engine.SM2(grammar.EasinessFactor, grammar.Interval, gReps, quality, now, 0)
 		if sm2 != nil {
 			grammar.EasinessFactor = sm2.EasinessFactor
 			grammar.Interval = sm2.Interval

@@ -32,13 +32,17 @@ func (s *Server) aiGenerateGrammarQuestion(ctx context.Context, gp *db.GrammarPo
 		teacherRole = lc.PromptContext.TeacherRole
 	}
 
+	// Collect known words so AI only uses familiar vocabulary
+	knownWords, _ := s.collectExistingWords(s.Config.App.ActiveLang)
+
 	messages, err := pt.BuildMessages(&ai.PromptVars{
-		TeacherRole:       teacherRole,
-		ExplanationLang:   explLang,
-		Level:             level,
-		GrammarTitle:      gp.Title,
+		TeacherRole:        teacherRole,
+		ExplanationLang:    explLang,
+		Level:              level,
+		GrammarTitle:       gp.Title,
 		GrammarExplanation: gp.Explanation,
-		GrammarExample:    gp.Example,
+		GrammarExample:     gp.Example,
+		ExistingWords:      knownWords,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("build prompt: %w", err)
