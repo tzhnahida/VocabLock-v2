@@ -90,20 +90,21 @@ func (s *Server) EnsureBootstrap(lang string) {
 				expandCount = 10
 			}
 			fmt.Fprintf(os.Stderr, "bootstrap: generating initial words via AI for %s\n", lang)
-			verified, pending, err := s.expandWords(context.Background(), lang, expandCount, extraCtx)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "bootstrap: AI expansion failed: %v\n", err)
-				loadSeedWords(s, lang)
-			} else {
-				fmt.Fprintf(os.Stderr, "bootstrap: AI generated %d verified + %d pending words\n", verified, pending)
-			}
-			// Also generate initial grammar points
-			gc, gErr := s.expandGrammar(context.Background(), lang, 3)
-			if gErr != nil {
-				fmt.Fprintf(os.Stderr, "bootstrap: grammar expansion failed: %v\n", gErr)
-			} else {
-				fmt.Fprintf(os.Stderr, "bootstrap: AI generated %d grammar points\n", gc)
-			}
+			go func() {
+				verified, pending, err := s.expandWords(context.Background(), lang, expandCount, extraCtx)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "bootstrap: AI expansion failed: %v\n", err)
+					loadSeedWords(s, lang)
+				} else {
+					fmt.Fprintf(os.Stderr, "bootstrap: AI generated %d verified + %d pending words\n", verified, pending)
+				}
+				gc, gErr := s.expandGrammar(context.Background(), lang, 3)
+				if gErr != nil {
+					fmt.Fprintf(os.Stderr, "bootstrap: grammar expansion failed: %v\n", gErr)
+				} else {
+					fmt.Fprintf(os.Stderr, "bootstrap: AI generated %d grammar points\n", gc)
+				}
+			}()
 		} else {
 			// No AI — load seed words as fallback
 			n, err := loadSeedWords(s, lang)

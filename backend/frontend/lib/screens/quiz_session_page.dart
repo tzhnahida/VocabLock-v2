@@ -270,6 +270,10 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
     }
 
     if (_preparing) {
+      // Auto-retry every 3 seconds until words are ready
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) _loadOverview();
+      });
       return SafeArea(
         child: Center(
           child: Column(
@@ -280,11 +284,6 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
               Text('AI 正在准备学习内容...', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
               const SizedBox(height: 8),
               Text('请稍候，首次生成可能需要 10-20 秒', style: TextStyle(fontSize: 14, color: AppTheme.textHint)),
-              const SizedBox(height: 32),
-              TextButton(
-                onPressed: _dismiss,
-                child: Text('返回', style: TextStyle(color: AppTheme.textHint)),
-              ),
             ],
           ),
         ),
