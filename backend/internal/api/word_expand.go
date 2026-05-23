@@ -392,12 +392,6 @@ func (s *Server) expandGrammar(ctx context.Context, lang string, count int) (ins
 	s.lockExpanding()
 	defer s.unlockExpanding()
 
-	// Don't expand grammar until student has enough vocabulary to form sentences
-	_, wordCount, _ := s.DB.ListWords(lang, 1, 0)
-	if wordCount < 15 {
-		return 0, nil
-	}
-
 	// Get existing grammar titles for dedup
 	existing, _, _ := s.DB.ListGrammarPoints(lang, 50, 0)
 	existingTitles := make([]string, 0, len(existing))
@@ -412,11 +406,11 @@ func (s *Server) expandGrammar(ctx context.Context, lang string, count int) (ins
 	_, extraCtx := s.planExpandParams(lang)
 
 	// Get existing words to inform grammar suggestions
-	words, wordTotal, _ := s.DB.ListWords(lang, 10, 0)
+	words, wordTotal, _ := s.DB.ListWords(lang, 30, 0)
 	wordList := make([]string, 0, len(words))
 	for _, w := range words {
-		if w.Word != "" {
-			wordList = append(wordList, w.Word)
+		if w.Word != "" && w.Meaning != "" {
+			wordList = append(wordList, w.Word+"("+w.Meaning+")")
 		}
 	}
 
