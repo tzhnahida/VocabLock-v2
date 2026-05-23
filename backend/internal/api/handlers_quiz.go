@@ -75,12 +75,13 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Auto-expand new words when the student has nothing to study
-	if nw == 0 && s.AI != nil {
+	// Auto-expand new words when the student has nothing to study (non-blocking)
+	if nw == 0 && s.AI != nil && s.Config.App.AutoExpandWords {
 		expandCount, extraCtx := s.planExpandParams(lang)
-		verified, pending, expandErr := s.expandWords(r.Context(), lang, expandCount, extraCtx)
-		if expandErr == nil && (verified > 0 || pending > 0) {
-			nw += verified + pending
+		if expandCount > 0 {
+			go func() {
+				s.expandWords(context.Background(), lang, expandCount, extraCtx)
+			}()
 		}
 	}
 
@@ -152,6 +153,7 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	// then by next_review_at ASC. Grammar and words are interleaved equally.
 	wi, gi := 0, 0
 	var q *engine.Question
+	var currentWord *db.Word // captured for response enrichment
 
 	for q == nil {
 		// Pick the higher-priority item
@@ -165,8 +167,14 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 		if pickWord {
 			word := words[wi]
 			wi++
+			currentWord = word
+			// Skip words served within the last few seconds (prevents double-serving)
+			if s.wasRecentlyServed(word.ID) {
+				continue
+			}
+			s.markWordServed(word.ID)
 			info := wordToInfo(word)
-			distractors := wordsToInfos(words[wi:]) // remaining words as distractors
+			distractors := s.buildDistractors(word, words[wi:], lang)
 
 			qType := engine.SelectQuestionTypeWithWeights(
 				word.NextReviewAt, word.EasinessFactor, word.Interval, word.Repetitions,
@@ -233,6 +241,12 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(q.Options) > 0 {
 		resp["options"] = q.Options
+	}
+	// Attach word data for preview card (choice/pronounce questions)
+	if q.SubjectType == "word" && currentWord != nil {
+		resp["subject_word"] = currentWord.Word
+		resp["subject_reading"] = currentWord.Reading
+		resp["subject_meaning"] = currentWord.Meaning
 	}
 	writeJSON(w, resp)
 }
@@ -582,6 +596,40 @@ func (s *Server) makeAIJudge(qType string, word *db.Word) func(user, expected st
 			Feedback: aiResult.Feedback,
 		}, nil
 	}
+}
+
+// buildDistractors returns 3 unique-meaning WordInfo distractors for a choice question.
+// Uses remaining words first, then queries DB for random words to fill shortages.
+func (s *Server) buildDistractors(word *db.Word, remaining []*db.Word, lang string) []*engine.WordInfo {
+	result := make([]*engine.WordInfo, 0, 3)
+	seen := map[string]bool{word.Meaning: true}
+
+	addIfNew := func(w *db.Word) bool {
+		if w == nil || w.Meaning == "" || w.ID == word.ID || seen[w.Meaning] {
+			return false
+		}
+		seen[w.Meaning] = true
+		result = append(result, wordToInfo(w))
+		return len(result) >= 3
+	}
+
+	for _, w := range remaining {
+		if addIfNew(w) {
+			return result
+		}
+	}
+
+	// Fallback: query random words from DB
+	if s.DB != nil && len(result) < 2 {
+		extra, _, _ := s.DB.ListWords(lang, 10, 0)
+		for _, w := range extra {
+			if addIfNew(w) {
+				break
+			}
+		}
+	}
+
+	return result
 }
 
 // planExpandParams returns the expand count and context string based on the active plan.

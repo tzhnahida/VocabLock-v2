@@ -69,6 +69,9 @@ class Question {
   final int subjectId;
   final String prompt;
   final List<String>? options;
+  final String? subjectWord;
+  final String? subjectReading;
+  final String? subjectMeaning;
 
   const Question({
     required this.id,
@@ -77,6 +80,9 @@ class Question {
     required this.subjectId,
     required this.prompt,
     this.options,
+    this.subjectWord,
+    this.subjectReading,
+    this.subjectMeaning,
   });
 
   factory Question.fromJson(Map<String, dynamic> json) => Question(
@@ -86,9 +92,17 @@ class Question {
         subjectId: (json['subject_id'] as num?)?.toInt() ?? 0,
         prompt: json['prompt'] ?? '',
         options: (json['options'] as List<dynamic>?)?.cast<String>(),
+        subjectWord: json['subject_word'] as String?,
+        subjectReading: json['subject_reading'] as String?,
+        subjectMeaning: json['subject_meaning'] as String?,
       );
 
   bool get isCompleted => id.isEmpty;
+
+  /// Whether this question type should show a word preview card before answering.
+  bool get showWordPreview =>
+      subjectType == 'word' && !type.wordIsAnswer &&
+      (subjectWord != null || subjectReading != null);
 }
 
 class GrammarPoint {

@@ -59,6 +59,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
   // Quiz phase
   Question? _question;
   bool _loadingQuestion = true;
+  bool _showWordPreview = false;
   String? _selectedAnswer;
   SubmitResult? _result;
   bool _submitting = false;
@@ -153,6 +154,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
     setState(() {
       _question = q;
       _loadingQuestion = false;
+      _showWordPreview = q != null && q.showWordPreview;
     });
   }
 
@@ -198,6 +200,36 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
       if (!mounted) return;
       setState(() => _summarizing = false);
     });
+  }
+
+  Widget _buildWordPreview(Question q) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.primary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        children: [
+          Text(q.subjectWord ?? '', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
+          if (q.subjectReading != null && q.subjectReading!.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(q.subjectReading!, style: TextStyle(fontSize: 18, color: AppTheme.accent)),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _PlayButton(onTap: () => widget.onPlayWordAudio(q.subjectId)),
+              const SizedBox(width: 12),
+              Text('先听读，再作答', style: TextStyle(fontSize: 13, color: AppTheme.textHint)),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -461,6 +493,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (_showWordPreview) _buildWordPreview(q),
                     Text(q.prompt,
                         style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
                     const SizedBox(height: 24),

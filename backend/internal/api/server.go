@@ -47,6 +47,10 @@ type Server struct {
 	questionCache   map[string]*cachedQuestion
 	questionCacheMu sync.Mutex
 
+	// Prevent double-serving: words served in the last 5 seconds are skipped
+	servedWordIDs   map[int64]time.Time
+	servedWordIDsMu sync.Mutex
+
 	// Session budget tracks time/type usage for the current day
 	sessionBudget sessionBudget
 }
@@ -61,6 +65,7 @@ func NewServer(mock bool, cfg *config.Config, database *db.Database) *Server {
 		Config:        cfg,
 		DB:            database,
 		questionCache: make(map[string]*cachedQuestion),
+		servedWordIDs: make(map[int64]time.Time),
 	}
 	s.startCacheCleanup()
 	return s
@@ -294,4 +299,32 @@ func (s *Server) startCacheCleanup() {
 			s.questionCacheMu.Unlock()
 		}
 	}()
+}
+
+// markWordServed records a word as recently served to prevent double-serving.
+func (s *Server) markWordServed(wordID int64) {
+	s.servedWordIDsMu.Lock()
+	s.servedWordIDs[wordID] = time.Now()
+	// Clean expired entries (older than 10 seconds)
+	for id, t := range s.servedWordIDs {
+		if time.Since(t) > 10*time.Second {
+			delete(s.servedWordIDs, id)
+		}
+	}
+	s.servedWordIDsMu.Unlock()
+}
+
+// wasRecentlyServed returns true if the word was served within the last 5 seconds.
+func (s *Server) wasRecentlyServed(wordID int64) bool {
+	s.servedWordIDsMu.Lock()
+	defer s.servedWordIDsMu.Unlock()
+	t, ok := s.servedWordIDs[wordID]
+	if !ok {
+		return false
+	}
+	if time.Since(t) > 5*time.Second {
+		delete(s.servedWordIDs, wordID)
+		return false
+	}
+	return true
 }

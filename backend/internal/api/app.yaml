@@ -1,4 +1,5 @@
 active_lang: en
+interface_lang: ""
 mock_mode: false
 server:
     host: 127.0.0.1
