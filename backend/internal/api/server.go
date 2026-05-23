@@ -51,6 +51,10 @@ type Server struct {
 	servedWordIDs   map[int64]time.Time
 	servedWordIDsMu sync.Mutex
 
+	// Prevent reading partial data during AI expansion
+	expanding   bool
+	expandingMu sync.RWMutex
+
 	// Session budget tracks time/type usage for the current day
 	sessionBudget sessionBudget
 }
@@ -345,4 +349,21 @@ func (s *Server) wasRecentlyServed(wordID int64) bool {
 		return false
 	}
 	return true
+}
+
+// lockExpanding blocks readers during AI word/grammar expansion.
+func (s *Server) lockExpanding() {
+	s.expandingMu.Lock()
+	s.expanding = true
+}
+
+func (s *Server) unlockExpanding() {
+	s.expanding = false
+	s.expandingMu.Unlock()
+}
+
+// waitExpanding blocks until any in-progress expansion is complete.
+func (s *Server) waitExpanding() {
+	s.expandingMu.RLock()
+	s.expandingMu.RUnlock()
 }

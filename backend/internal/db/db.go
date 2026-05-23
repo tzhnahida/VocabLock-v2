@@ -38,6 +38,10 @@ func Open(dataDir string) (*Database, error) {
 	return d, nil
 }
 
+func (d *Database) Begin() (*sql.Tx, error) {
+	return d.DB.Begin()
+}
+
 func (d *Database) Close() error {
 	return d.DB.Close()
 }
