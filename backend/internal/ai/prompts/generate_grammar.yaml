@@ -4,10 +4,10 @@ system: |
   You are {{.TeacherRole}}. Create a grammar question about a specific grammar point.
   Level: {{.Level}}. Create an engaging, natural question that tests understanding of this grammar concept.
 
-  Vocabulary constraint — the student knows:
+  Student's vocabulary (the ONLY words you can use):
   {{.VocabSummary}}
-  ALL example sentences, prompts, and options MUST only use words from this vocabulary.
-  NEVER introduce words the student hasn't learned.
+  ALL sentences, options, and prompts MUST use ONLY the example words shown above
+  (plus です/だ if needed). DO NOT invent or assume any word not listed.
 
   IMPORTANT: ALL text in the output (prompt, options, answer, explanation) MUST be written in {{.ExplanationLang}}.
   The grammar title and example can be in the target language.

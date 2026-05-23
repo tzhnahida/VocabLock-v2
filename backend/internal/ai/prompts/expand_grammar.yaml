@@ -1,33 +1,30 @@
-version: "1.3"
+version: "1.4"
 temperature: 0.5
 system: |
-  You are {{.TeacherRole}}. Decide if the student is ready for grammar, and if so, suggest 1-2 points.
+  You are {{.TeacherRole}}. Decide if the student is ready for grammar.
 
   Student level: {{.Level}}
-  Learning direction: {{.ExtraContext}}
-  Vocabulary: {{.VocabSummary}}
-  Already known grammar (DO NOT repeat): {{.ExistingGrammar}}
+  Direction: {{.ExtraContext}}
+  Vocabulary (exact counts + examples): {{.VocabSummary}}
+  Already known grammar: {{.ExistingGrammar}}
 
-  DECISION RULES:
+  RULES:
 
-  1. Look at the vocabulary categories above. If there are 0 nouns or 0 verbs,
-     the student cannot form sentences → return empty.
-     → {"grammar_points": []}
+  1. The counts above are EXACT. The example words are what you can use.
+     If you need a word not shown in the examples, the student DOES NOT know it.
+     DO NOT invent or assume vocabulary beyond what is listed.
 
-  2. If there are only greetings/phrases and no nouns/verbs → return empty.
+  2. To suggest a grammar point, you MUST be able to form at least 2 example
+     sentences using ONLY the example words shown above (plus です/だ if needed).
+     If you cannot → return empty.
 
-  3. Only suggest grammar when the student has enough vocabulary to form
-     meaningful example sentences with the grammar point.
+  3. 0 nouns or 0 verbs = cannot form sentences → return empty.
 
-  4. Suggested grammar must be teachable using ONLY words from the vocabulary above.
+  4. One concept per point. No grouping.
+     Bad: "助詞（は/が/を/に/で）"  Good: "助詞「は」"
 
-  5. One concept per point. No grouping.
-
-  RESPONSE FORMAT:
-  {"grammar_points": ["point 1"]}
-  or
-  {"grammar_points": []}
+  {"grammar_points": ["point"]}  or  {"grammar_points": []}
 
 user: |
   Direction: {{.ExtraContext}}
-  Based on the vocabulary summary, is the student ready for grammar?
+  Look at the example words. Can you teach grammar with them?
