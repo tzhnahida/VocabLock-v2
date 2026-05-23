@@ -238,19 +238,32 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 			gp := grammarPoints[gi]
 			gi++
 
-			if s.AI == nil {
-				// No AI — skip grammar points, try next item
-				continue
+			// Tiered grammar questions: choice first (reps<3), AI later
+			if gp.Repetitions < 3 {
+				ginfo := &engine.GrammarInfo{
+					ID: gp.ID, Title: gp.Title,
+					Explanation: gp.Explanation, Example: gp.Example,
+				}
+				// Build distractors from other grammar points' explanations
+				var gdist []string
+				for j, g2 := range grammarPoints {
+					if j != gi-1 && g2.Explanation != "" {
+						gdist = append(gdist, g2.Explanation)
+					}
+				}
+				q = engine.GenerateGrammarChoice(ginfo, gdist, explLang)
+				s.sessionBudget.recordType(string(engine.TypeChoice))
+			} else {
+				if s.AI == nil {
+					continue
+				}
+				q, err = s.aiGenerateGrammarQuestion(r.Context(), gp)
+				if err != nil {
+					continue
+				}
+				s.cacheQuestion(q)
+				s.sessionBudget.recordType(string(engine.TypeGrammar))
 			}
-
-			q, err = s.aiGenerateGrammarQuestion(r.Context(), gp)
-			if err != nil {
-				// AI failed for grammar — skip and try next item
-				continue
-			}
-			s.cacheQuestion(q)
-
-			s.sessionBudget.recordType(string(engine.TypeGrammar))
 		}
 	}
 

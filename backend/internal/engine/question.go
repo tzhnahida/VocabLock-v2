@@ -141,6 +141,47 @@ func GeneratePronounce(word *WordInfo, explLang string) *Question {
 	}
 }
 
+// GrammarInfo is minimal grammar data for question generation.
+type GrammarInfo struct {
+	ID          int64
+	Title       string
+	Explanation string
+	Example     string
+}
+
+// GenerateGrammarChoice creates a simple choice question for a grammar point.
+// distractors are other grammar points' explanations.
+func GenerateGrammarChoice(g *GrammarInfo, distractors []string, explLang string) *Question {
+	options := make([]string, 0, 4)
+	options = append(options, g.Explanation)
+
+	seen := map[string]bool{g.Explanation: true}
+	for _, d := range distractors {
+		if d == "" || seen[d] {
+			continue
+		}
+		seen[d] = true
+		options = append(options, d)
+		if len(options) >= 4 {
+			break
+		}
+	}
+
+	rand.Shuffle(len(options), func(i, j int) {
+		options[i], options[j] = options[j], options[i]
+	})
+
+	return &Question{
+		ID:          genID("grammar", "choice", g.ID),
+		Type:        TypeChoice,
+		SubjectType: "grammar",
+		SubjectID:   g.ID,
+		Prompt:      promptPrefix("grammar_choice", explLang) + g.Title,
+		Options:     options,
+		Answer:      g.Explanation,
+	}
+}
+
 // WordInfo is the minimal word data needed for question generation.
 type WordInfo struct {
 	ID      int64
