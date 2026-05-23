@@ -400,7 +400,7 @@ func (s *Server) expandGrammar(ctx context.Context, lang string, count int) (ins
 	teacherRole, level, explLang, targetLang := s.expandLangContext(lang)
 	_, extraCtx := s.planExpandParams(lang)
 
-	// Build vocabulary summary (not full list — too large as vocab grows)
+// Build vocabulary summary (not full list — too large as vocab grows)
 	vocabSummary := s.buildVocabSummary(lang)
 
 	pt, err := ai.LoadPrompt("expand_grammar")
@@ -450,6 +450,12 @@ func (s *Server) expandGrammar(ctx context.Context, lang string, count int) (ins
 			var results []string
 			for _, word := range checkReq.CheckWords {
 				exists, _ := s.DB.WordExists(lang, word)
+				if !exists {
+					// Try stripping common conjugation endings (Japanese)
+					if base := tryBaseForm(word); base != "" {
+						exists, _ = s.DB.WordExists(lang, base)
+					}
+				}
 				if exists {
 					results = append(results, word+"=yes")
 				} else {
@@ -525,6 +531,24 @@ func (s *Server) expandGrammar(ctx context.Context, lang string, count int) (ins
 	}
 
 	return inserted, nil
+}
+
+// tryBaseForm strips common Japanese conjugation endings to find the dictionary form.
+func tryBaseForm(word string) string {
+	suffixes := []string{
+		"なければならない", "てしまう", "ている",
+		"ました", "ません", "ます", "たい",
+		"て", "た", "ない",
+		"く", "ぐ", "に",
+	}
+	runes := []rune(word)
+	for _, s := range suffixes {
+		sr := []rune(s)
+		if len(runes) > len(sr) && string(runes[len(runes)-len(sr):]) == s {
+			return string(runes[:len(runes)-len(sr)])
+		}
+	}
+	return ""
 }
 
 // buildVocabSummary returns a categorized summary of the student's vocabulary.
