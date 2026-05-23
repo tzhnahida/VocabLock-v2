@@ -421,28 +421,22 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
           children: [
             Icon(Icons.check_circle, size: 64, color: AppTheme.primary),
             const SizedBox(height: 16),
-            Text('本轮完成！', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+            Text('今日学习完成！', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
             const SizedBox(height: 8),
             Text('已完成 $_answered 题 · 正确 $_correct 题',
                 style: TextStyle(fontSize: 14, color: AppTheme.textHint)),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () {
-                _answered = 0;
-                _correct = 0;
-                _loadOverview();
-              },
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('开始下一轮'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: 200,
+              child: ElevatedButton(
+                onPressed: _dismiss,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: Text('完成', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: _dismiss,
-              child: Text('完成', style: TextStyle(fontSize: 14, color: AppTheme.textHint)),
             ),
           ],
         ),
@@ -489,8 +483,22 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
             ),
             const SizedBox(height: 24),
             Expanded(
-              child: SingleChildScrollView(
-                child: Column(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 350),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeIn,
+                transitionBuilder: (child, animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(begin: const Offset(0.05, 0), end: Offset.zero).animate(animation),
+                      child: child,
+                    ),
+                  );
+                },
+                child: SingleChildScrollView(
+                  key: ValueKey(q.id),
+                  child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (_showWordPreview) _buildWordPreview(q),
@@ -559,6 +567,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                     ],
                   ],
                 ),
+              ),
               ),
             ),
             if (_result != null) ...[
