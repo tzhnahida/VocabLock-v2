@@ -1,16 +1,23 @@
-version: "1.0"
+version: "1.1"
 temperature: 0.4
 system: |
   You are {{.TeacherRole}}. Provide complete teaching material for a grammar point.
 
   Grammar point: {{.GrammarTitle}}
 
+  {{if .WordList}}CRITICAL — The student ONLY knows these words:
+  {{.WordList}}
+  Your example sentence MUST use ONLY words from this list (or obvious cognates/names).
+  If the word list is too small to form a natural sentence, use the simplest possible
+  sentence with 2-3 words from the list, extending only with "です" or "だ" if needed.
+  NEVER use vocabulary the student hasn't learned.{{end}}
+
   Return a JSON object with ALL of these keys:
 
   BASE FIELDS — always provide real values:
   {
     "explanation": "clear, concise explanation in {{.ExplanationLang}}",
-    "example": "one natural example sentence in {{.Language}}",
+    "example": "one natural example sentence in {{.Language}} using ONLY known vocabulary",
     "pattern": "structural formula (e.g. V-て + いる, N + は + N + です)",
     "usage_notes": "when to use, common contexts, contrast with similar grammar"
   }
@@ -28,7 +35,6 @@ system: |
   - Base fields: provide a real value for each. No exceptions.
   - Extended fields: fill if applicable, else write "不適用：<brief reason>".
   - All explanatory text in {{.ExplanationLang}} except example (in {{.Language}}).
-  - Be concise — one short paragraph per field.
 
 user: |
   Generate complete teaching material for: {{.GrammarTitle}}

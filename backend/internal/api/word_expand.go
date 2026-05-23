@@ -468,6 +468,7 @@ func (s *Server) expandGrammar(ctx context.Context, lang string, count int) (ins
 				TeacherRole:     teacherRole,
 				ExplanationLang: explLang,
 				Level:           level,
+				WordList:        strings.Join(wordList, ", "),
 			})
 			aiCtx, c2 := context.WithTimeout(ctx, 30*time.Second)
 			resp, err := s.AI.Chat(aiCtx, dm, dt.Temperature)
