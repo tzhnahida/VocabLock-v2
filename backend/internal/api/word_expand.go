@@ -30,9 +30,6 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 		count = 5
 	}
 
-	// Block readers until all words are inserted — prevents partial data
-	s.lockExpanding()
-	defer s.unlockExpanding()
 
 	// Collect existing words for dedup context
 	existingWords, totalCount := s.collectExistingWords(lang)
@@ -388,9 +385,6 @@ func (s *Server) expandGrammar(ctx context.Context, lang string, count int) (ins
 	if count <= 0 || count > 5 {
 		count = 2
 	}
-
-	s.lockExpanding()
-	defer s.unlockExpanding()
 
 	// Get existing grammar titles for dedup
 	existing, _, _ := s.DB.ListGrammarPoints(lang, 50, 0)

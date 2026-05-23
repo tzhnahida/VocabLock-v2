@@ -69,8 +69,7 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 	}
 
 	lang := s.Config.App.ActiveLang
-	s.waitExpanding() // block until AI finishes inserting words
-	nw, ng, rw, rg, err := s.DB.SessionCounts(lang)
+nw, ng, rw, rg, err := s.DB.SessionCounts(lang)
 	if err != nil {
 		writeError(w, 500, "session counts: "+err.Error())
 		return
@@ -137,7 +136,6 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	}
 
 	lang := s.Config.App.ActiveLang
-	s.waitExpanding() // block until AI finishes inserting words
 
 	// Resolve explanation language (e.g. "zh-CN", "ko", "en") for prompt i18n
 	explLang := "en"
