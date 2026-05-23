@@ -42,8 +42,6 @@ grammar_points:
   - 〜てしまう
   - 〜なければならない
 
-seed_words_file: seeds/ja.json
-
 word_fields_base:
   - key: word
     label: 词条（书写形式）
