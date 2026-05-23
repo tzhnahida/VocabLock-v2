@@ -133,16 +133,8 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	prioritizeGrammarByPlan(grammarPoints, s.sessionBudget.getGrammarFocus())
 
 	if len(words) == 0 && len(grammarPoints) == 0 {
-		// Try expanding new words before giving up
-		if s.AI != nil {
-			expandCount, extraCtx := s.planExpandParams(lang)
-			if expandCount > 0 {
-				s.expandWords(r.Context(), lang, expandCount, extraCtx)
-				// Re-fetch after expansion
-				words, _ = s.DB.GetReviewWords(lang, 10)
-				grammarPoints, _ = s.DB.GetReviewGrammarPoints(lang, 5)
-			}
-		}
+		// No items to review — return completed, don't expand here.
+		// Word expansion happens after summarize (end of session).
 	}
 
 	if len(words) == 0 && len(grammarPoints) == 0 {
