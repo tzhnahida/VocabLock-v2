@@ -48,6 +48,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
   int _reviewWords = 0;
   int _reviewGrammar = 0;
   bool _dailyCompleted = false;
+  bool _preparing = false;
 
   // Learning phase
   List<Word> _studyWords = [];
@@ -103,6 +104,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
           _reviewWords = (counts['review_words'] as num?)?.toInt() ?? 0;
           _reviewGrammar = (counts['review_grammar'] as num?)?.toInt() ?? 0;
           _dailyCompleted = counts['daily_completed'] == true;
+          _preparing = counts['preparing'] == true;
         });
       }
     } catch (_) {}
@@ -264,6 +266,53 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
   Widget _buildOverview() {
     if (_loadingOverview) {
       return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_preparing) {
+      return SafeArea(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(width: 48, height: 48, child: CircularProgressIndicator(strokeWidth: 3)),
+              const SizedBox(height: 24),
+              Text('AI 正在准备学习内容...', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+              const SizedBox(height: 8),
+              Text('请稍候，首次生成可能需要 10-20 秒', style: TextStyle(fontSize: 14, color: AppTheme.textHint)),
+              const SizedBox(height: 32),
+              TextButton(
+                onPressed: _dismiss,
+                child: Text('返回', style: TextStyle(color: AppTheme.textHint)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_dailyCompleted) {
+      return SafeArea(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.check_circle, size: 64, color: AppTheme.primary),
+              const SizedBox(height: 16),
+              Text('今日学习已完成', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: _dismiss,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: Text('返回', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     final totalNew = _newWords + _newGrammar;
