@@ -75,10 +75,21 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Check if daily target already met
+	// If a session was already completed today, learning is done
+	if s.sessionBudget.isSessionDone() {
+		writeJSON(w, map[string]interface{}{
+			"new_words":       0,
+			"new_grammar":     0,
+			"review_words":    0,
+			"review_grammar":  0,
+			"daily_completed": true,
+		})
+		return
+	}
+
+	// Check if daily target already met — today's learning is done
 	reviewed, _, _ := s.DB.GetTodayStats(lang)
-	dailyDone := reviewed >= s.Config.App.DailyTarget
-	if dailyDone && nw == 0 && rw == 0 && ng == 0 && rg == 0 {
+	if reviewed >= s.Config.App.DailyTarget {
 		writeJSON(w, map[string]interface{}{
 			"new_words":       0,
 			"new_grammar":     0,
@@ -464,6 +475,8 @@ func (s *Server) handleQuizComplete(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
 		mock.HandleQuizComplete(w, r); return
 	}
+
+	s.sessionBudget.markSessionDone()
 
 	lang := s.Config.App.ActiveLang
 	reviewed, _, _ := s.DB.GetTodayStats(lang)

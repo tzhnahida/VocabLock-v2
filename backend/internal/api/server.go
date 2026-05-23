@@ -112,6 +112,24 @@ type sessionBudget struct {
 	totalCount   int
 	typeWeights  map[string]int // cached from training plan's question_type_ratio
 	grammarFocus []string       // cached from training plan's grammar_focus
+	sessionDone  bool           // true once quiz/complete was called today
+}
+
+func (b *sessionBudget) markSessionDone() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.sessionDone = true
+	b.date = time.Now().Format("2006-01-02")
+}
+
+func (b *sessionBudget) isSessionDone() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	today := time.Now().Format("2006-01-02")
+	if b.date != today {
+		b.sessionDone = false
+	}
+	return b.sessionDone
 }
 
 func (b *sessionBudget) setTypeWeights(weights map[string]int) {
