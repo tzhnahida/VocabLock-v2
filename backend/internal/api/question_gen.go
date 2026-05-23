@@ -26,14 +26,10 @@ func (s *Server) aiGenerateGrammarQuestion(ctx context.Context, gp *db.GrammarPo
 
 	explLang := "en"
 	teacherRole := "Language Teacher"
-	level := "beginner"
+	level := s.getStudentLevel(s.Config.App.ActiveLang)
 	if lc, ok := s.Config.Languages[s.Config.App.ActiveLang]; ok {
 		explLang = lc.PromptContext.ExplanationLang
 		teacherRole = lc.PromptContext.TeacherRole
-		for lvl := range lc.PromptContext.LevelDescriptions {
-			level = lvl
-			break
-		}
 	}
 
 	messages, err := pt.BuildMessages(&ai.PromptVars{
@@ -51,7 +47,7 @@ func (s *Server) aiGenerateGrammarQuestion(ctx context.Context, gp *db.GrammarPo
 	timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	response, err := s.AI.Chat(timeoutCtx, messages)
+	response, err := s.AI.Chat(timeoutCtx, messages, pt.Temperature)
 	if err != nil {
 		return nil, fmt.Errorf("AI chat: %w", err)
 	}
@@ -97,14 +93,10 @@ func (s *Server) aiGenerateQuestion(ctx context.Context, word *engine.WordInfo, 
 
 	explLang := "en"
 	teacherRole := "Language Teacher"
-	level := "beginner"
+	level := s.getStudentLevel(s.Config.App.ActiveLang)
 	if lc, ok := s.Config.Languages[s.Config.App.ActiveLang]; ok {
 		explLang = lc.PromptContext.ExplanationLang
 		teacherRole = lc.PromptContext.TeacherRole
-		for lvl := range lc.PromptContext.LevelDescriptions {
-			level = lvl
-			break
-		}
 	}
 
 	messages, err := pt.BuildMessages(&ai.PromptVars{
@@ -124,7 +116,7 @@ func (s *Server) aiGenerateQuestion(ctx context.Context, word *engine.WordInfo, 
 	timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	response, err := s.AI.Chat(timeoutCtx, messages)
+	response, err := s.AI.Chat(timeoutCtx, messages, pt.Temperature)
 	if err != nil {
 		return nil, fmt.Errorf("AI chat: %w", err)
 	}

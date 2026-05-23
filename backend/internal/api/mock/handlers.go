@@ -12,10 +12,10 @@ func HandleQuizProgress(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, `{"reviewed_today":8,"remaining":12,"daily_target":20}`)
 }
 
-func HandleQuizNext(w http.ResponseWriter, r *http.Request) {
+func HandleQuizNext(w http.ResponseWriter, r *http.Request, defaultLang string) {
 	lang := r.URL.Query().Get("language")
 	if lang == "" {
-		lang = "ja"
+		lang = defaultLang
 	}
 	writeJSON(w, quizQuestion(lang))
 }
@@ -34,10 +34,10 @@ func HandleQuizComplete(w http.ResponseWriter, r *http.Request) {
 
 // ——— Words mock handlers ———
 
-func HandleWordsList(w http.ResponseWriter, r *http.Request) {
+func HandleWordsList(w http.ResponseWriter, r *http.Request, defaultLang string) {
 	lang := r.URL.Query().Get("language")
 	if lang == "" {
-		lang = "ja"
+		lang = defaultLang
 	}
 	writeJSON(w, wordsList(lang))
 }
@@ -87,10 +87,10 @@ func HandleWordsPendingReject(w http.ResponseWriter, r *http.Request) {
 
 // Grammar mock
 
-func HandleGrammarPointsList(w http.ResponseWriter, r *http.Request) {
+func HandleGrammarPointsList(w http.ResponseWriter, r *http.Request, defaultLang string) {
 	lang := r.URL.Query().Get("language")
 	if lang == "" {
-		lang = "ja"
+		lang = defaultLang
 	}
 	writeJSON(w, grammarPointsList(lang))
 }
@@ -135,14 +135,6 @@ func HandleStatsDailyReport(w http.ResponseWriter, r *http.Request) {
 
 // ——— System mock handlers ———
 
-func HandleSystemStatus(w http.ResponseWriter, r *http.Request) {
-	lang := r.URL.Query().Get("language")
-	if lang == "" {
-		lang = "zh"
-	}
-	writeJSON(w, `{"status":"running","locked":false,"active_lang":"`+lang+`"}`)
-}
-
 func HandleSystemLock(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, `{"locked":true}`)
 }
@@ -165,114 +157,6 @@ func HandleSystemQuit(w http.ResponseWriter, r *http.Request) {
 
 // ——— Config mock handlers ———
 
-var mockConfigured bool
-
-func HandleConfigGet(w http.ResponseWriter, r *http.Request) {
-	if !mockConfigured {
-		writeJSON(w, `{
-  "active_lang": "zh",
-  "mock_mode": true,
-  "daily_target": 20,
-  "min_accuracy": 0.8,
-  "listening_ratio": 0.15,
-  "reading_ratio": 0.15,
-  "grammar_ratio": 0.15,
-  "extra_ratio": 0.15,
-  "passive_enabled": true,
-  "passive_min_interval": 25,
-  "passive_max_interval": 60,
-  "escape_password_limit": 1,
-  "escape_click_limit": 2,
-  "auto_start": false,
-  "auto_expand_words": true,
-  "expand_batch_size": 10,
-  "expand_threshold": 0.6,
-  "theme": "vs-dark",
-  "model": "deepseek-v4-pro",
-  "base_url": "https://api.deepseek.com",
-  "custom_models": "",
-  "languages": [],
-  "assignment": {"cadence_days":3,"cadence_count":2,"max_per_session":1,"ai_recommend":true}
-}`)
-		return
-	}
-	writeJSON(w, `{
-  "active_lang": "zh",
-  "mock_mode": true,
-  "daily_target": 20,
-  "min_accuracy": 0.8,
-  "listening_ratio": 0.15,
-  "reading_ratio": 0.15,
-  "grammar_ratio": 0.15,
-  "extra_ratio": 0.15,
-  "passive_enabled": true,
-  "passive_min_interval": 25,
-  "passive_max_interval": 60,
-  "escape_password_limit": 1,
-  "escape_click_limit": 2,
-  "auto_start": false,
-  "auto_expand_words": true,
-  "expand_batch_size": 10,
-  "expand_threshold": 0.6,
-  "theme": "vs-dark",
-  "model": "deepseek-v4-pro",
-  "base_url": "https://api.deepseek.com",
-  "custom_models": "",
-  "languages": ["zh"],
-  "assignment": {"cadence_days":3,"cadence_count":2,"max_per_session":1,"ai_recommend":true}
-}`)
-}
-
-func HandleConfigGetKey(w http.ResponseWriter, r *http.Request) {
-	key := r.PathValue("key")
-	switch key {
-	case "languages":
-		writeJSON(w, `{"key":"languages","value":["zh"]}`)
-	case "active_lang":
-		writeJSON(w, `{"key":"active_lang","value":"zh"}`)
-	case "daily_target":
-		writeJSON(w, `{"key":"daily_target","value":20}`)
-	case "min_accuracy":
-		writeJSON(w, `{"key":"min_accuracy","value":0.8}`)
-	case "listening_ratio":
-		writeJSON(w, `{"key":"listening_ratio","value":0.15}`)
-	case "reading_ratio":
-		writeJSON(w, `{"key":"reading_ratio","value":0.15}`)
-	case "grammar_ratio":
-		writeJSON(w, `{"key":"grammar_ratio","value":0.15}`)
-	case "passive_enabled":
-		writeJSON(w, `{"key":"passive_enabled","value":true}`)
-	case "passive_min_interval":
-		writeJSON(w, `{"key":"passive_min_interval","value":25}`)
-	case "passive_max_interval":
-		writeJSON(w, `{"key":"passive_max_interval","value":60}`)
-	case "escape_password_limit":
-		writeJSON(w, `{"key":"escape_password_limit","value":1}`)
-	case "escape_click_limit":
-		writeJSON(w, `{"key":"escape_click_limit","value":2}`)
-	case "auto_start":
-		writeJSON(w, `{"key":"auto_start","value":false}`)
-	case "auto_expand_words":
-		writeJSON(w, `{"key":"auto_expand_words","value":true}`)
-	case "expand_batch_size":
-		writeJSON(w, `{"key":"expand_batch_size","value":10}`)
-	case "expand_threshold":
-		writeJSON(w, `{"key":"expand_threshold","value":0.6}`)
-	case "model":
-		writeJSON(w, `{"key":"model","value":"deepseek-v4-pro"}`)
-	case "base_url":
-		writeJSON(w, `{"key":"base_url","value":"https://api.deepseek.com"}`)
-	case "assignment":
-		writeJSON(w, `{"key":"assignment","value":{"cadence_days":3,"cadence_count":2,"max_per_session":1,"ai_recommend":true}}`)
-	default:
-		writeJSON(w, `{"error":"unknown config key"}`)
-	}
-}
-
-func HandleConfigUpdate(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, `{"updated":true,"assignment":{"cadence_days":3,"cadence_count":2,"max_per_session":1,"ai_recommend":true}}`)
-}
-
 func HandleConfigPassword(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, `{"set":true}`)
 }
@@ -286,47 +170,47 @@ func writeJSON(w http.ResponseWriter, json string) {
 
 func wordByID(id string) string {
 	m := map[string]string{
-		"1":  `{"id":1,"word":"hello","reading":"heˈloʊ","meaning":"a greeting","pos":"interjection","language":"en","easiness_factor":2.5,"interval":6,"repetitions":2,"total_attempts":5,"total_correct":4}`,
-		"2":  `{"id":2,"word":"world","reading":"wɜːld","meaning":"the earth","pos":"noun","language":"en","easiness_factor":2.3,"interval":3,"repetitions":1,"total_attempts":3,"total_correct":2}`,
-		"101": `{"id":101,"word":"食べる","reading":"たべる","meaning":"to eat","pos":"verb","language":"ja","easiness_factor":2.5,"interval":6,"repetitions":2,"total_attempts":5,"total_correct":4}`,
-		"201": `{"id":201,"word":"学习","reading":"xuéxí","meaning":"to study","pos":"verb","language":"zh","easiness_factor":2.5,"interval":6,"repetitions":2,"total_attempts":5,"total_correct":4}`,
-		"301": `{"id":301,"word":"공부하다","reading":"gongbuhada","meaning":"to study","pos":"verb","language":"ko","easiness_factor":2.5,"interval":6,"repetitions":2,"total_attempts":5,"total_correct":4}`,
+		"1":   `{"id":1,"word":"hello","reading":"heˈloʊ","meaning":"a greeting","pos":"interjection","language":"en","level":"A1","detail":{"syllable_count":"2","syntax":"interjection, used as greeting","collocation":"say hello","register":"neutral","etymology":"Old English \"hǽl\", related to \"hale\"","example_sentence":"Hello, how are you today?"},"easiness_factor":2.5,"interval":6,"repetitions":2,"total_attempts":5,"total_correct":4}`,
+		"2":   `{"id":2,"word":"world","reading":"wɜːld","meaning":"the earth","pos":"noun","language":"en","level":"A1","detail":{"syllable_count":"1","syntax":"countable noun","collocation":"around the world","register":"neutral","etymology":"Old English \"weorold\"","example_sentence":"People all over the world speak English."},"easiness_factor":2.3,"interval":3,"repetitions":1,"total_attempts":3,"total_correct":2}`,
+		"101": `{"id":101,"word":"食べる","reading":"たべる","meaning":"to eat","pos":"verb","language":"ja","level":"N5","detail":{"syllable_count":"3","morphology":"下一段活用動詞、連用形「食べ」","syntax":"他動詞、ヲ格を取る","collocation":"ご飯を食べる","register":"普通","etymology":"古典日本語「食ぶ」より","example_sentence":"毎日朝ごはんを食べます。","pitch_accent":"中高","conjugation_class":"一段","case_government":"ヲ","orthographic_variants":"喰べる","keigo_level":"召し上がる（尊敬語）"},"easiness_factor":2.5,"interval":6,"repetitions":2,"total_attempts":5,"total_correct":4}`,
+		"201": `{"id":201,"word":"学习","reading":"xuéxí","meaning":"to study","pos":"verb","language":"zh","level":"HSK1","detail":{"syllable_count":"2","morphology":"离合词，可拆分使用","syntax":"及物动词，可带宾语","collocation":"努力学习","register":"普通","example_sentence":"我每天学习中文两个小时。"},"easiness_factor":2.5,"interval":6,"repetitions":2,"total_attempts":5,"total_correct":4}`,
+		"301": `{"id":301,"word":"공부하다","reading":"gongbuhada","meaning":"to study","pos":"verb","language":"ko","level":"TOPIK1","detail":{"syllable_count":"4","morphology":"하다動詞、規則活用","syntax":"他動詞、을/를を取る","collocation":"열심히 공부하다","register":"普通","example_sentence":"매일 한국어를 공부합니다.","conjugation_class":"하다"},"easiness_factor":2.5,"interval":6,"repetitions":2,"total_attempts":5,"total_correct":4}`,
 	}
 	if v, ok := m[id]; ok {
 		return v
 	}
-	return `{"id":1,"word":"hello","reading":"heˈloʊ","meaning":"a greeting","pos":"interjection","language":"en","easiness_factor":2.5,"interval":6,"repetitions":2,"total_attempts":5,"total_correct":4}`
+	return `{"id":1,"word":"hello","reading":"heˈloʊ","meaning":"a greeting","pos":"interjection","language":"en","level":"A1","detail":{},"easiness_factor":2.5,"interval":6,"repetitions":2,"total_attempts":5,"total_correct":4}`
 }
 
 func wordsList(lang string) string {
 	switch lang {
 	case "en":
 		return `{"words":[
-			{"id":1,"word":"hello","reading":"heˈloʊ","meaning":"a greeting","pos":"interjection","language":"en","easiness_factor":2.5,"interval":6,"repetitions":2,"total_attempts":5,"total_correct":4},
-			{"id":2,"word":"world","reading":"wɜːld","meaning":"the earth","pos":"noun","language":"en","easiness_factor":2.3,"interval":3,"repetitions":1,"total_attempts":3,"total_correct":2},
-			{"id":3,"word":"abandon","reading":"əˈbændən","meaning":"to leave behind","pos":"verb","language":"en","easiness_factor":2.5,"interval":0,"repetitions":0,"total_attempts":0,"total_correct":0},
-			{"id":4,"word":"benefit","reading":"ˈbɛnɪfɪt","meaning":"an advantage","pos":"noun","language":"en","easiness_factor":2.5,"interval":0,"repetitions":0,"total_attempts":0,"total_correct":0}
+			{"id":1,"word":"hello","reading":"heˈloʊ","meaning":"a greeting","pos":"interjection","language":"en","level":"A1","detail":{"syllable_count":"2","syntax":"interjection, used as greeting","collocation":"say hello","register":"neutral","etymology":"Old English \"hǽl\"","example_sentence":"Hello, how are you today?"},"easiness_factor":2.5,"interval":6,"repetitions":2,"total_attempts":5,"total_correct":4},
+			{"id":2,"word":"world","reading":"wɜːld","meaning":"the earth","pos":"noun","language":"en","level":"A1","detail":{"syllable_count":"1","syntax":"countable noun","collocation":"around the world","register":"neutral","example_sentence":"People all over the world speak English."},"easiness_factor":2.3,"interval":3,"repetitions":1,"total_attempts":3,"total_correct":2},
+			{"id":3,"word":"abandon","reading":"əˈbændən","meaning":"to leave behind","pos":"verb","language":"en","level":"B2","detail":{"syllable_count":"3","morphology":"regular verb","syntax":"transitive verb","collocation":"abandon hope","register":"formal","etymology":"Old French \"abandoner\"","example_sentence":"They had to abandon the sinking ship."},"easiness_factor":2.5,"interval":0,"repetitions":0,"total_attempts":0,"total_correct":0},
+			{"id":4,"word":"benefit","reading":"ˈbɛnɪfɪt","meaning":"an advantage","pos":"noun","language":"en","level":"B1","detail":{"syllable_count":"3","syntax":"countable noun","collocation":"health benefit","register":"neutral","etymology":"Latin \"benefactum\"","example_sentence":"Exercise has many health benefits."},"easiness_factor":2.5,"interval":0,"repetitions":0,"total_attempts":0,"total_correct":0}
 		],"total":4}`
 	case "ja":
 		return `{"words":[
-			{"id":101,"word":"食べる","reading":"たべる","meaning":"to eat","pos":"verb","language":"ja","easiness_factor":2.5,"interval":6,"repetitions":2,"total_attempts":5,"total_correct":4},
-			{"id":102,"word":"飲む","reading":"のむ","meaning":"to drink","pos":"verb","language":"ja","easiness_factor":2.3,"interval":3,"repetitions":1,"total_attempts":3,"total_correct":2},
-			{"id":103,"word":"歩く","reading":"あるく","meaning":"to walk","pos":"verb","language":"ja","easiness_factor":2.5,"interval":0,"repetitions":0,"total_attempts":0,"total_correct":0},
-			{"id":104,"word":"学校","reading":"がっこう","meaning":"school","pos":"noun","language":"ja","easiness_factor":2.5,"interval":0,"repetitions":0,"total_attempts":0,"total_correct":0}
+			{"id":101,"word":"食べる","reading":"たべる","meaning":"to eat","pos":"verb","language":"ja","level":"N5","detail":{"syllable_count":"3","morphology":"下一段活用動詞、連用形「食べ」","syntax":"他動詞、ヲ格を取る","collocation":"ご飯を食べる","register":"普通","etymology":"古典日本語「食ぶ」より","example_sentence":"毎日朝ごはんを食べます。","pitch_accent":"中高","conjugation_class":"一段","case_government":"ヲ","orthographic_variants":"喰べる","keigo_level":"召し上がる（尊敬語）"},"easiness_factor":2.5,"interval":6,"repetitions":2,"total_attempts":5,"total_correct":4},
+			{"id":102,"word":"飲む","reading":"のむ","meaning":"to drink","pos":"verb","language":"ja","level":"N5","detail":{"syllable_count":"2","morphology":"五段活用動詞、連用形「飲み」","syntax":"他動詞、ヲ格を取る","collocation":"水を飲む","register":"普通","example_sentence":"毎朝コーヒーを飲みます。","pitch_accent":"頭高","conjugation_class":"五段","case_government":"ヲ"},"easiness_factor":2.3,"interval":3,"repetitions":1,"total_attempts":3,"total_correct":2},
+			{"id":103,"word":"歩く","reading":"あるく","meaning":"to walk","pos":"verb","language":"ja","level":"N5","detail":{"syllable_count":"3","morphology":"五段活用動詞、連用形「歩き」","syntax":"自動詞、ガ格を取る","collocation":"道を歩く","register":"普通","etymology":"古典日本語「歩く」より","example_sentence":"毎日公園を歩きます。","pitch_accent":"中高","conjugation_class":"五段","case_government":"ガ"},"easiness_factor":2.5,"interval":0,"repetitions":0,"total_attempts":0,"total_correct":0},
+			{"id":104,"word":"学校","reading":"がっこう","meaning":"school","pos":"noun","language":"ja","level":"N5","detail":{"syllable_count":"4","syntax":"場所名詞、ニ/デ格を取る","collocation":"学校に行く","register":"普通","etymology":"「学」+「校」の漢語","example_sentence":"子供たちは学校へ行きました。","pitch_accent":"頭高"},"easiness_factor":2.5,"interval":0,"repetitions":0,"total_attempts":0,"total_correct":0}
 		],"total":4}`
 	case "zh":
 		return `{"words":[
-			{"id":201,"word":"学习","reading":"xuéxí","meaning":"to study","pos":"verb","language":"zh","easiness_factor":2.5,"interval":6,"repetitions":2,"total_attempts":5,"total_correct":4},
-			{"id":202,"word":"工作","reading":"gōngzuò","meaning":"to work","pos":"verb","language":"zh","easiness_factor":2.3,"interval":3,"repetitions":1,"total_attempts":3,"total_correct":2},
-			{"id":203,"word":"美丽","reading":"měilì","meaning":"beautiful","pos":"adj","language":"zh","easiness_factor":2.5,"interval":0,"repetitions":0,"total_attempts":0,"total_correct":0},
-			{"id":204,"word":"电脑","reading":"diànnǎo","meaning":"computer","pos":"noun","language":"zh","easiness_factor":2.5,"interval":0,"repetitions":0,"total_attempts":0,"total_correct":0}
+			{"id":201,"word":"学习","reading":"xuéxí","meaning":"to study","pos":"verb","language":"zh","level":"HSK1","detail":{"syllable_count":"2","morphology":"离合词，可拆分使用","syntax":"及物动词，可带宾语","collocation":"努力学习","register":"普通","example_sentence":"我每天学习中文两个小时。"},"easiness_factor":2.5,"interval":6,"repetitions":2,"total_attempts":5,"total_correct":4},
+			{"id":202,"word":"工作","reading":"gōngzuò","meaning":"to work","pos":"verb","language":"zh","level":"HSK1","detail":{"syllable_count":"2","morphology":"兼类词（动/名）","syntax":"不及物动词，也可作名词","collocation":"认真工作","register":"普通","example_sentence":"他在一家大公司工作。"},"easiness_factor":2.3,"interval":3,"repetitions":1,"total_attempts":3,"total_correct":2},
+			{"id":203,"word":"美丽","reading":"měilì","meaning":"beautiful","pos":"adj","language":"zh","level":"HSK3","detail":{"syllable_count":"2","syntax":"形容词，修饰名词","collocation":"美丽的风景","register":"书面/正式","example_sentence":"这里的风景非常美丽。"},"easiness_factor":2.5,"interval":0,"repetitions":0,"total_attempts":0,"total_correct":0},
+			{"id":204,"word":"电脑","reading":"diànnǎo","meaning":"computer","pos":"noun","language":"zh","level":"HSK1","detail":{"syllable_count":"2","syntax":"名词，可作主语或宾语","collocation":"打开电脑","register":"普通","etymology":"「电子」+「大脑」","example_sentence":"我的电脑坏了，需要修理。"},"easiness_factor":2.5,"interval":0,"repetitions":0,"total_attempts":0,"total_correct":0}
 		],"total":4}`
 	case "ko":
 		return `{"words":[
-			{"id":301,"word":"공부하다","reading":"gongbuhada","meaning":"to study","pos":"verb","language":"ko","easiness_factor":2.5,"interval":6,"repetitions":2,"total_attempts":5,"total_correct":4},
-			{"id":302,"word":"아름답다","reading":"areumdapda","meaning":"beautiful","pos":"adj","language":"ko","easiness_factor":2.3,"interval":3,"repetitions":1,"total_attempts":3,"total_correct":2},
-			{"id":303,"word":"학교","reading":"hakgyo","meaning":"school","pos":"noun","language":"ko","easiness_factor":2.5,"interval":0,"repetitions":0,"total_attempts":0,"total_correct":0},
-			{"id":304,"word":"사랑","reading":"sarang","meaning":"love","pos":"noun","language":"ko","easiness_factor":2.5,"interval":0,"repetitions":0,"total_attempts":0,"total_correct":0}
+			{"id":301,"word":"공부하다","reading":"gongbuhada","meaning":"to study","pos":"verb","language":"ko","level":"TOPIK1","detail":{"syllable_count":"4","morphology":"하다動詞、規則活用","syntax":"他動詞、을/를を取る","collocation":"열심히 공부하다","register":"普通","example_sentence":"매일 한국어를 공부합니다.","conjugation_class":"하다"},"easiness_factor":2.5,"interval":6,"repetitions":2,"total_attempts":5,"total_correct":4},
+			{"id":302,"word":"아름답다","reading":"areumdapda","meaning":"beautiful","pos":"adj","language":"ko","level":"TOPIK1","detail":{"syllable_count":"4","morphology":"ㅂ不規則形容詞","syntax":"連体形「아름다운」で名詞修飾","collocation":"아름다운 풍경","register":"普通","example_sentence":"오늘 하늘이 정말 아름답습니다.","conjugation_class":"ㅂ変格"},"easiness_factor":2.3,"interval":3,"repetitions":1,"total_attempts":3,"total_correct":2},
+			{"id":303,"word":"학교","reading":"hakgyo","meaning":"school","pos":"noun","language":"ko","level":"TOPIK1","detail":{"syllable_count":"2","syntax":"場所名詞、에/에서を取る","collocation":"학교에 가다","register":"普通","etymology":"漢字語「學校」","example_sentence":"아이들이 학교에 갔습니다."},"easiness_factor":2.5,"interval":0,"repetitions":0,"total_attempts":0,"total_correct":0},
+			{"id":304,"word":"사랑","reading":"sarang","meaning":"love","pos":"noun","language":"ko","level":"TOPIK1","detail":{"syllable_count":"2","syntax":"名詞、을/를を取る","collocation":"사랑을 고백하다","register":"普通","example_sentence":"사랑은 아름다운 감정입니다."},"easiness_factor":2.5,"interval":0,"repetitions":0,"total_attempts":0,"total_correct":0}
 		],"total":4}`
 	default:
 		return `{"words":[],"total":0}`

@@ -16,6 +16,9 @@ class QuizSessionPage extends StatefulWidget {
   final Future<List<GrammarPoint>> Function()? onGetStudyGrammar;
   final Future<SessionSummary?> Function()? onSummarize;
   final VoidCallback? onComplete;
+  final Future<void> Function(int wordId) onPlayWordAudio;
+  final Future<void> Function(String text) onPlayTextAudio;
+  final Future<List<WordFieldConfig>> Function()? onGetFieldConfig;
 
   const QuizSessionPage({
     super.key,
@@ -23,9 +26,12 @@ class QuizSessionPage extends StatefulWidget {
     required this.onNextQuestion,
     required this.onSubmit,
     required this.onGetStudyWords,
+    required this.onPlayWordAudio,
+    required this.onPlayTextAudio,
     this.onGetStudyGrammar,
     this.onSummarize,
     this.onComplete,
+    this.onGetFieldConfig,
   });
 
   @override
@@ -45,7 +51,10 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
   // Learning phase
   List<Word> _studyWords = [];
   List<GrammarPoint> _studyGrammar = [];
+  List<WordFieldConfig>? _fieldConfig;
   bool _loadingStudy = true;
+  int _currentPage = 0;
+  late final PageController _pageCtrl = PageController();
 
   // Quiz phase
   Question? _question;
@@ -68,6 +77,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
   void dispose() {
     _textController.dispose();
     _textFocus.dispose();
+    _pageCtrl.dispose();
     super.dispose();
   }
 
@@ -104,6 +114,11 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
     if (widget.onGetStudyGrammar != null) {
       try {
         _studyGrammar = await widget.onGetStudyGrammar!();
+      } catch (_) {}
+    }
+    if (widget.onGetFieldConfig != null) {
+      try {
+        _fieldConfig = await widget.onGetFieldConfig!();
       } catch (_) {}
     }
     if (mounted) setState(() => _loadingStudy = false);
@@ -262,11 +277,20 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
   // ─── Learning ────────────────────────────────────────────
 
   Widget _buildLearning() {
+    if (_loadingStudy) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final totalCards = _studyWords.length + _studyGrammar.length;
+    if (totalCards == 0) {
+      _startQuiz();
+      return const SizedBox.shrink();
+    }
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
@@ -276,28 +300,63 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('学习新内容', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
-                    Text('浏览今日新学单词和语法，准备好后开始答题',
+                    Text('${_currentPage + 1} / $totalCards',
                         style: TextStyle(fontSize: 13, color: AppTheme.textHint)),
                   ],
                 ),
+                const Spacer(),
+                TextButton(
+                  onPressed: _startQuiz,
+                  child: const Text('跳过'),
+                ),
               ],
             ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: _loadingStudy
-                  ? const Center(child: CircularProgressIndicator())
-                  : SingleChildScrollView(
-                      child: Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          ..._studyWords.map((w) => _StudyCard(word: w)),
-                          ..._studyGrammar.map((g) => _GrammarCard(grammar: g)),
-                        ],
-                      ),
-                    ),
-            ),
             const SizedBox(height: 16),
+            Expanded(
+              child: PageView.builder(
+                controller: _pageCtrl,
+                itemCount: totalCards,
+                onPageChanged: (i) => setState(() => _currentPage = i),
+                itemBuilder: (context, index) {
+                  if (index < _studyWords.length) {
+                    final w = _studyWords[index];
+                    return _StudyCard(
+                      word: w,
+                      fieldConfig: _fieldConfig,
+                      onPlayWord: () => widget.onPlayWordAudio(w.id),
+                      onPlayText: widget.onPlayTextAudio,
+                    );
+                  } else {
+                    final g = _studyGrammar[index - _studyWords.length];
+                    return _GrammarCard(grammar: g);
+                  }
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Navigation: prev — dots — next
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.chevron_left, size: 28),
+                  onPressed: _currentPage > 0 ? () => _pageCtrl.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut) : null,
+                ),
+                ...List.generate(totalCards, (i) => Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: 8, height: 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: i == _currentPage ? AppTheme.primary : AppTheme.textHint.withValues(alpha: 0.3),
+                  ),
+                )),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right, size: 28),
+                  onPressed: _currentPage < totalCards - 1 ? () => _pageCtrl.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut) : null,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -582,46 +641,296 @@ class _CountRow extends StatelessWidget {
 
 class _StudyCard extends StatelessWidget {
   final Word word;
-  const _StudyCard({required this.word});
+  final List<WordFieldConfig>? fieldConfig;
+  final Future<void> Function() onPlayWord;
+  final Future<void> Function(String text) onPlayText;
+
+  const _StudyCard({
+    required this.word,
+    this.fieldConfig,
+    required this.onPlayWord,
+    required this.onPlayText,
+  });
+
+  // Layout categories for smart field placement
+  static const _badgeKeys = {'pos', 'level', 'syllable_count', 'register', 'pitch_accent'};
+  static const _exampleKeys = {'example_sentence'};
+  static const _playableFields = {'word', 'morphology', 'collocation', 'example_sentence'};
+  static const _fallbackFieldOrder = [
+    'meaning', 'pos', 'level', 'syllable_count',
+    'morphology', 'syntax', 'collocation', 'register',
+    'etymology', 'example_sentence',
+    'pitch_accent', 'conjugation_class', 'case_government',
+    'orthographic_variants', 'keigo_level',
+  ];
+  static const _fallbackLabels = {
+    'meaning': '核心释义', 'pos': '词性', 'level': '等级', 'syllable_count': '音拍数',
+    'morphology': '形态变化', 'syntax': '句法功能', 'collocation': '常用搭配', 'register': '语体/语域',
+    'etymology': '词源/构词', 'example_sentence': '例句',
+    'pitch_accent': '高低アクセント', 'conjugation_class': '活用类型', 'case_government': '格支配',
+    'orthographic_variants': '表記揺れ', 'keigo_level': '敬語階層',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final w = word;
+    final detail = Map<String, dynamic>.from(w.detail ?? {});
+    detail['meaning'] = w.meaning.isNotEmpty ? w.meaning : detail['meaning'];
+    detail['pos'] = w.pos.isNotEmpty ? w.pos : detail['pos'];
+    detail['level'] = w.level.isNotEmpty ? w.level : detail['level'];
+
+    final List<String> fieldOrder;
+    final Map<String, String> labels;
+    if (fieldConfig != null && fieldConfig!.isNotEmpty) {
+      fieldOrder = [];
+      labels = {};
+      for (final fc in fieldConfig!) {
+        if (fc.key.isNotEmpty) {
+          fieldOrder.add(fc.key);
+          labels[fc.key] = fc.label;
+        }
+      }
+    } else {
+      fieldOrder = _fallbackFieldOrder;
+      labels = _fallbackLabels;
+    }
+
+    // Categorize available fields
+    final badges = <Widget>[];
+    final gridFields = <Widget>[];
+    Widget? exampleCard;
+    final fullFields = <Widget>[];
+
+    // Meaning always gets a prominent spot (not a badge)
+    final meaning = detail['meaning']?.toString() ?? '';
+    if (meaning.isNotEmpty) {
+      badges.add(_Badge(meaning, AppTheme.accent));
+    }
+
+    for (final key in fieldOrder) {
+      if (key == 'meaning') continue; // handled above
+      final val = (detail[key] ?? '').toString();
+      if (val.isEmpty) continue;
+      if (_badgeKeys.contains(key)) {
+        badges.add(_Badge(labels[key]?.isNotEmpty == true ? '${labels[key]}: $val' : val, AppTheme.primary));
+      } else if (_exampleKeys.contains(key)) {
+        final play = _playableFields.contains(key);
+        exampleCard = _ExampleBlock(text: val, onPlay: play ? () => onPlayText(val) : null);
+      } else if (_playableFields.contains(key)) {
+        // Playable grid item
+        gridFields.add(_GridCell(label: labels[key] ?? key, value: val, onPlay: () => onPlayText(val)));
+      } else {
+        // Default: try grid, fallback to full-width
+        if (val.length < 30) {
+          gridFields.add(_GridCell(label: labels[key] ?? key, value: val));
+        } else {
+          fullFields.add(_CompactRow(label: labels[key] ?? key, value: val));
+        }
+      }
+    }
+
+    // Pad grid to even count
+    if (gridFields.length.isOdd) gridFields.add(const SizedBox(width: 1));
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const SizedBox(height: 12),
+          // ── Hero: word + reading ──
+          Text(w.word, style: TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
+          const SizedBox(height: 4),
+          if (w.reading.isNotEmpty)
+            Text(w.reading, style: TextStyle(fontSize: 20, color: AppTheme.accent)),
+          const SizedBox(height: 10),
+          _PlayButton(onTap: onPlayWord),
+          const SizedBox(height: 20),
+          // ── Badge row ──
+          if (badges.isNotEmpty) ...[
+            Wrap(spacing: 8, runSpacing: 6, alignment: WrapAlignment.center, children: badges),
+            const SizedBox(height: 20),
+          ],
+          // ── Example sentence (highlighted) ──
+          if (exampleCard != null) ...[exampleCard, const SizedBox(height: 16)],
+          // ── 2-column grid ──
+          if (gridFields.isNotEmpty)
+            ..._buildGrid(gridFields),
+          // ── Full-width compact fields ──
+          if (fullFields.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            ...fullFields,
+          ],
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildGrid(List<Widget> cells) {
+    final rows = <Widget>[];
+    for (var i = 0; i < cells.length; i += 2) {
+      rows.add(Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: cells[i]),
+            const SizedBox(width: 10),
+            if (i + 1 < cells.length) Expanded(child: cells[i + 1]) else const Spacer(),
+          ],
+        ),
+      ));
+    }
+    return rows;
+  }
+}
+
+// ── Study card sub-widgets ──
+
+class _Badge extends StatelessWidget {
+  final String text;
+  final Color color;
+  const _Badge(this.text, this.color);
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 160,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(text, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color)),
+    );
+  }
+}
+
+class _ExampleBlock extends StatelessWidget {
+  final String text;
+  final VoidCallback? onPlay;
+  const _ExampleBlock({required this.text, this.onPlay});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(Icons.format_quote, size: 18, color: AppTheme.primary.withValues(alpha: 0.5)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(text, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppTheme.textPrimary, height: 1.5)),
+          ),
+          if (onPlay != null) ...[const SizedBox(width: 8), _PlayButton(onTap: onPlay!)],
+        ],
+      ),
+    );
+  }
+}
+
+class _GridCell extends StatelessWidget {
+  final String label;
+  final String value;
+  final VoidCallback? onPlay;
+  const _GridCell({required this.label, required this.value, this.onPlay});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppTheme.cardBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppTheme.isDark ? AppTheme.textPrimary : Colors.grey.shade100),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.isDark ? Colors.white10 : Colors.grey.shade100),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(child: Text(word.word, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary))),
-              Icon(Icons.volume_up, size: 18, color: AppTheme.primary),
+              Expanded(child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.textHint))),
+              if (onPlay != null) _PlayButton(onTap: onPlay!),
             ],
           ),
-          if (word.reading.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(word.reading, style: TextStyle(fontSize: 12, color: AppTheme.accent)),
-          ],
-          const SizedBox(height: 6),
-          Text(word.meaning, style: TextStyle(fontSize: 12, color: AppTheme.textPrimary)),
-          if (word.pos.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(word.pos, style: TextStyle(fontSize: 10, color: AppTheme.primary)),
-            ),
-          ],
+          const SizedBox(height: 5),
+          Text(value, style: TextStyle(fontSize: 14, color: AppTheme.textPrimary)),
         ],
+      ),
+    );
+  }
+}
+
+class _CompactRow extends StatelessWidget {
+  final String label;
+  final String value;
+  const _CompactRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppTheme.cardBg,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(width: 70, child: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textHint))),
+            const SizedBox(width: 8),
+            Expanded(child: Text(value, style: TextStyle(fontSize: 14, color: AppTheme.textPrimary))),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PlayButton extends StatefulWidget {
+  final VoidCallback onTap;
+  const _PlayButton({required this.onTap});
+
+  @override
+  State<_PlayButton> createState() => _PlayButtonState();
+}
+
+class _PlayButtonState extends State<_PlayButton> {
+  bool _playing = false;
+
+  Future<void> _tap() async {
+    if (_playing) return;
+    setState(() => _playing = true);
+    try {
+      widget.onTap();
+      if (mounted) await Future.delayed(const Duration(milliseconds: 800));
+    } finally {
+      if (mounted) setState(() => _playing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _tap,
+      child: SizedBox(
+        width: 24, height: 24,
+        child: _playing
+            ? Center(child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary)))
+            : Icon(Icons.volume_up, size: 20, color: AppTheme.primary),
       ),
     );
   }
@@ -633,35 +942,29 @@ class _GrammarCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 200,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppTheme.cardBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.red.shade200),
-      ),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.menu_book, size: 16, color: Colors.red.shade400),
-              const SizedBox(width: 6),
-              Expanded(child: Text(grammar.title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary))),
+              Icon(Icons.menu_book, size: 28, color: Colors.red.shade400),
+              const SizedBox(width: 12),
+              Expanded(child: Text(grammar.title, style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppTheme.textPrimary))),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(grammar.explanation, style: TextStyle(fontSize: 12, color: AppTheme.textSecondary), maxLines: 3, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 20),
+          Text(grammar.explanation, style: TextStyle(fontSize: 18, color: AppTheme.textSecondary)),
           if (grammar.example.isNotEmpty) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.red.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Text(grammar.example, style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: AppTheme.textPrimary)),
+              child: Text(grammar.example, style: TextStyle(fontSize: 18, fontStyle: FontStyle.italic, color: AppTheme.textPrimary)),
             ),
           ],
         ],

@@ -7,7 +7,7 @@ import (
 
 func TestSM2FirstReviewCorrect(t *testing.T) {
 	now := time.Now()
-	r := SM2(2.5, 0, 0, 4, now)
+	r := SM2(2.5, 0, 0, 4, now, 0)
 	if r == nil {
 		t.Fatal("expected result")
 	}
@@ -24,7 +24,7 @@ func TestSM2FirstReviewCorrect(t *testing.T) {
 
 func TestSM2SecondReviewCorrect(t *testing.T) {
 	now := time.Now()
-	r := SM2(2.5, 1, 1, 4, now)
+	r := SM2(2.5, 1, 1, 4, now, 0)
 	if r == nil {
 		t.Fatal("expected result")
 	}
@@ -38,7 +38,7 @@ func TestSM2SecondReviewCorrect(t *testing.T) {
 
 func TestSM2IncorrectResets(t *testing.T) {
 	now := time.Now()
-	r := SM2(2.5, 6, 2, 1, now)
+	r := SM2(2.5, 6, 2, 1, now, 0)
 	if r == nil {
 		t.Fatal("expected result")
 	}
@@ -55,7 +55,7 @@ func TestSM2EasinessFloor(t *testing.T) {
 	// Multiple incorrect reviews should not push EF below 1.3
 	ef := 2.5
 	for i := 0; i < 20; i++ {
-		r := SM2(ef, 1, 0, 0, now)
+		r := SM2(ef, 1, 0, 0, now, 0)
 		ef = r.EasinessFactor
 	}
 	if ef < 1.3 {
@@ -64,11 +64,11 @@ func TestSM2EasinessFloor(t *testing.T) {
 }
 
 func TestSM2InvalidQuality(t *testing.T) {
-	r := SM2(2.5, 0, 0, -1, time.Now())
+	r := SM2(2.5, 0, 0, -1, time.Now(), 0)
 	if r != nil {
 		t.Error("expected nil for quality < 0")
 	}
-	r = SM2(2.5, 0, 0, 6, time.Now())
+	r = SM2(2.5, 0, 0, 6, time.Now(), 0)
 	if r != nil {
 		t.Error("expected nil for quality > 5")
 	}
@@ -78,7 +78,7 @@ func TestSM2ThirdReviewCorrect(t *testing.T) {
 	now := time.Now()
 	// reps >= 2: interval = round(previous_interval * EF)
 	// interval=6, ef=2.5 → round(6*2.5) = 15
-	r := SM2(2.5, 6, 2, 4, now)
+	r := SM2(2.5, 6, 2, 4, now, 0)
 	if r == nil {
 		t.Fatal("expected result")
 	}
@@ -93,7 +93,7 @@ func TestSM2ThirdReviewCorrect(t *testing.T) {
 func TestSM2QualityBoundaryPass(t *testing.T) {
 	now := time.Now()
 	// Quality 3 is the threshold: >= 3 means correct
-	r := SM2(2.5, 0, 0, 3, now)
+	r := SM2(2.5, 0, 0, 3, now, 0)
 	if r == nil {
 		t.Fatal("expected result")
 	}
@@ -108,7 +108,7 @@ func TestSM2QualityBoundaryPass(t *testing.T) {
 func TestSM2QualityBoundaryFail(t *testing.T) {
 	now := time.Now()
 	// Quality 2 is below threshold — resets
-	r := SM2(2.5, 6, 3, 2, now)
+	r := SM2(2.5, 6, 3, 2, now, 0)
 	if r == nil {
 		t.Fatal("expected result")
 	}
@@ -123,7 +123,7 @@ func TestSM2QualityBoundaryFail(t *testing.T) {
 func TestSM2EFDecreasesOnLowQuality(t *testing.T) {
 	now := time.Now()
 	// quality 0 causes strong EF decrease
-	r := SM2(2.5, 0, 0, 0, now)
+	r := SM2(2.5, 0, 0, 0, now, 0)
 	if r == nil {
 		t.Fatal("expected result")
 	}
@@ -134,7 +134,7 @@ func TestSM2EFDecreasesOnLowQuality(t *testing.T) {
 
 func TestSM2EFIncreasesOnHighQuality(t *testing.T) {
 	now := time.Now()
-	r := SM2(2.5, 0, 0, 5, now)
+	r := SM2(2.5, 0, 0, 5, now, 0)
 	if r == nil {
 		t.Fatal("expected result")
 	}
@@ -146,7 +146,7 @@ func TestSM2EFIncreasesOnHighQuality(t *testing.T) {
 func TestSM2EFUnchangedOnQuality4(t *testing.T) {
 	now := time.Now()
 	// quality 4: EF delta ≈ 0.1 - (5-4)*(0.08+(5-4)*0.02) = 0.1 - 0.1 = 0
-	r := SM2(2.5, 0, 0, 4, now)
+	r := SM2(2.5, 0, 0, 4, now, 0)
 	if r == nil {
 		t.Fatal("expected result")
 	}

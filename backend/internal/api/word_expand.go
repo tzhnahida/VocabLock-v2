@@ -9,22 +9,15 @@ import (
 
 	"github.com/vocablock/v2/internal/ai"
 	"github.com/vocablock/v2/internal/db"
+	"github.com/vocablock/v2/internal/dict"
 )
 
 const maxExpandRounds = 3
 
-type expandWordEntry struct {
-	Word       string `json:"word"`
-	Reading    string `json:"reading"`
-	Meaning    string `json:"meaning"`
-	POS        string `json:"pos"`
-	Confidence string `json:"confidence"`
-}
-
 type expandResponse struct {
-	Status string            `json:"status"`
-	Reason string            `json:"reason"`
-	Words  []expandWordEntry `json:"words"`
+	Status string   `json:"status"`
+	Reason string   `json:"reason"`
+	Words  []string `json:"words"`
 }
 
 // expandWords generates new words via AI, with dedup feedback loop and dict verification.
@@ -41,11 +34,56 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 	existingWords, totalCount := s.collectExistingWords(lang)
 
 	// Build language context once
-	teacherRole, level, explLang := s.expandLangContext(lang)
+	teacherRole, level, explLang, targetLang := s.expandLangContext(lang)
 
 	// Build extraContext from recent words if not provided
 	if extraContext == "" {
 		extraContext = s.buildRecentContext(lang)
+	}
+
+	// Retry pending-review words before expanding new ones
+	if s.DB != nil {
+		pendingWords, _ := s.DB.ListPendingReview(lang)
+		if len(pendingWords) > 10 {
+			pendingWords = pendingWords[:10]
+		}
+		for _, pw := range pendingWords {
+			// Try dictionary lookup again
+			dictEntry := s.lookupDict(ctx, pw.Word)
+			if dictEntry != nil {
+				aiDetail := s.generateDetail(ctx, pw.Word, dictEntry.Reading, dictEntry.Meaning, dictEntry.POS, level, lang)
+				detail := mergeJSON(dictEntry.Detail, aiDetail)
+				wordLevel := dictEntry.Level
+				if lv := extractFieldFromDetail(detail, "level"); lv != "" {
+					wordLevel = lv
+				}
+				pw.Reading = dictEntry.Reading
+				pw.Meaning = dictEntry.Meaning
+				pw.POS = dictEntry.POS
+				pw.Level = wordLevel
+				pw.Detail = detail
+				pw.Status = "active"
+				pw.Source = "ai_expansion_dict"
+				pw.Confidence = "high"
+				s.DB.UpdateWord(pw)
+				verified++
+				continue
+			}
+			// Dict still miss -- try AI fill
+			aiDetail := s.generateDetail(ctx, pw.Word, "", "", "", level, lang)
+			if aiDetail != "" {
+				pw.Reading = extractFieldFromDetail(aiDetail, "reading")
+				pw.Meaning = extractFieldFromDetail(aiDetail, "meaning")
+				pw.POS = extractFieldFromDetail(aiDetail, "pos")
+				pw.Level = extractFieldFromDetail(aiDetail, "level")
+				pw.Detail = aiDetail
+				pw.Status = "active"
+				pw.Source = "ai_expansion_ai"
+				pw.Confidence = "low"
+				s.DB.UpdateWord(pw)
+				verified++
+			}
+		}
 	}
 
 	duplicates := ""
@@ -57,10 +95,12 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 
 		messages, err := pt.BuildMessages(&ai.PromptVars{
 			TeacherRole:     teacherRole,
+			Language:        targetLang,
 			Level:           level,
 			ExplanationLang: explLang,
 			ExistingWords:   existingWords,
 			WordCount:       totalCount,
+			ExpandCount:     count,
 			ExtraContext:    extraContext,
 			DuplicateWords:  duplicates,
 		})
@@ -69,7 +109,7 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 		}
 
 		timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
-		response, aiErr := s.AI.Chat(timeoutCtx, messages)
+		response, aiErr := s.AI.Chat(timeoutCtx, messages, pt.Temperature)
 		cancel()
 		if aiErr != nil {
 			return 0, 0, fmt.Errorf("AI chat: %w", aiErr)
@@ -91,17 +131,13 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 
 		// Check each word for duplicates
 		var dupList []string
-		for i := range result.Words {
-			if result.Words[i].Word == "" {
+		for _, word := range result.Words {
+			if word == "" {
 				continue
 			}
-			w := &result.Words[i]
-			if w.Confidence == "" {
-				w.Confidence = "medium"
-			}
-			exists, _ := s.DB.WordExists(lang, w.Word)
+			exists, _ := s.DB.WordExists(lang, word)
 			if exists {
-				dupList = append(dupList, w.Word)
+				dupList = append(dupList, word)
 			}
 		}
 
@@ -117,37 +153,67 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 			dupSet[d] = true
 		}
 
-		for i := range result.Words {
-			w := &result.Words[i]
-			if w.Word == "" || dupSet[w.Word] {
+		for _, word := range result.Words {
+			if word == "" || dupSet[word] {
 				continue
 			}
 
-			// Dictionary verification
-			dictOK := s.verifyWord(ctx, w)
+			// Dictionary provides reading, meaning, POS — not AI
+			dictEntry := s.lookupDict(ctx, word)
+			if dictEntry != nil {
+				// AI generates extension fields (morphology, collocation, etc.)
+				aiDetail := s.generateDetail(ctx, word, dictEntry.Reading, dictEntry.Meaning, dictEntry.POS, level, lang)
 
-			// Auto-accept conditions
-			dictAvailable := s.DictProvider != nil
-			dictFailed := dictAvailable && !dictOK
-			shouldAutoAccept := dictOK || (!dictAvailable && w.Confidence == "high")
+				// Merge: dict detail base + AI detail overrides
+				detail := mergeJSON(dictEntry.Detail, aiDetail)
 
-			if shouldAutoAccept && !dictFailed {
+				// Extract level from detail JSON (dictEntry.Level is often empty)
+				wordLevel := dictEntry.Level
+				if lv := extractFieldFromDetail(detail, "level"); lv != "" {
+					wordLevel = lv
+				}
+
 				_, insertErr := s.DB.InsertWord(&db.Word{
-					Word:       w.Word,
-					Reading:    w.Reading,
-					Meaning:    w.Meaning,
-					POS:        w.POS,
+					Word:       word,
+					Reading:    dictEntry.Reading,
+					Meaning:    dictEntry.Meaning,
+					POS:        dictEntry.POS,
+					Level:      wordLevel,
+					Detail:     detail,
 					Language:   lang,
-					Source:     "ai_expansion",
-					Confidence: w.Confidence,
+					Source:     "ai_expansion_dict",
+					Confidence: "high",
 				})
 				if insertErr == nil {
 					verified++
 				}
 			} else {
+				// Dictionary miss — AI fills all fields (reading, meaning, POS, detail)
+				aiDetail := s.generateDetail(ctx, word, "", "", "", level, lang)
+				if aiDetail != "" {
+					reading := extractFieldFromDetail(aiDetail, "reading")
+					meaning := extractFieldFromDetail(aiDetail, "meaning")
+					pos := extractFieldFromDetail(aiDetail, "pos")
+					wordLevel := extractFieldFromDetail(aiDetail, "level")
+
+					_, insertErr := s.DB.InsertWord(&db.Word{
+						Word:       word,
+						Reading:    reading,
+						Meaning:    meaning,
+						POS:        pos,
+						Level:      wordLevel,
+						Detail:     aiDetail,
+						Language:   lang,
+						Source:     "ai_expansion_ai",
+						Confidence: "low",
+					})
+					if insertErr == nil {
+						verified++
+						continue
+					}
+				}
 				s.DB.InsertWord(&db.Word{
-					Word: w.Word, Reading: w.Reading, Meaning: w.Meaning,
-					POS: w.POS, Language: lang, Source: "ai_expansion", Status: "pending_review",
+					Word: word, Language: lang, Source: "ai_expansion", Status: "pending_review",
 				})
 				pending++
 			}
@@ -193,41 +259,119 @@ func (s *Server) buildRecentContext(lang string) string {
 	return strings.Join(parts, ", ")
 }
 
-func (s *Server) expandLangContext(lang string) (teacherRole, level, explLang string) {
+func (s *Server) expandLangContext(lang string) (teacherRole, level, explLang, targetLang string) {
 	teacherRole = "Language Teacher"
-	level = "beginner"
+	level = s.getStudentLevel(lang)
 	explLang = "zh-CN"
+	targetLang = lang
 	if lc, ok := s.Config.Languages[lang]; ok {
 		teacherRole = lc.PromptContext.TeacherRole
 		explLang = lc.PromptContext.ExplanationLang
-		for lvl := range lc.PromptContext.LevelDescriptions {
-			level = lvl
-			break
-		}
+		targetLang = lc.Lang.DisplayName
 	}
 	return
 }
 
-// verifyWord looks up the word in the configured dict provider.
-// Returns true if found and meaning/reading/pos are patched with dict data.
-func (s *Server) verifyWord(ctx context.Context, w *expandWordEntry) bool {
+// lookupDict returns the dictionary entry for a word, or nil if not found.
+func (s *Server) lookupDict(ctx context.Context, word string) *dict.LookupResult {
 	if s.DictProvider == nil {
-		return false
+		return nil
 	}
 	lookupCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	result, err := s.DictProvider.Lookup(lookupCtx, w.Word)
+	result, err := s.DictProvider.Lookup(lookupCtx, word)
 	if err != nil || result == nil || !result.Found {
-		return false
+		return nil
 	}
-	if result.Reading != "" {
-		w.Reading = result.Reading
+	return result
+}
+
+// generateDetail fills missing extension fields via AI.
+// Takes dict-provided data and returns a JSON string with additional linguistic detail.
+func (s *Server) generateDetail(ctx context.Context, word, reading, meaning, pos, level, lang string) string {
+	if s.AI == nil {
+		return ""
 	}
-	if result.Meaning != "" {
-		w.Meaning = result.Meaning
+
+	pt, err := ai.LoadPrompt("detail")
+	if err != nil {
+		return ""
 	}
-	if result.POS != "" {
-		w.POS = result.POS
+
+	teacherRole, _, explLang, _ := s.expandLangContext(lang)
+
+	messages, err := pt.BuildMessages(&ai.PromptVars{
+		Word:            word,
+		Reading:         reading,
+		Meaning:         meaning,
+		POS:             pos,
+		Level:           level,
+		Language:        lang,
+		TeacherRole:     teacherRole,
+		ExplanationLang: explLang,
+	})
+	if err != nil {
+		return ""
 	}
-	return true
+
+	aiCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	response, err := s.AI.Chat(aiCtx, messages, pt.Temperature)
+	if err != nil {
+		return ""
+	}
+
+	// Extract JSON from response (may be wrapped in markdown)
+	cleaned := extractJSON(response)
+	if cleaned == "" {
+		return ""
+	}
+	return cleaned
+}
+
+// extractFieldFromDetail extracts a single string field from a detail JSON blob.
+func extractFieldFromDetail(detail, key string) string {
+	if detail == "" || detail == "{}" {
+		return ""
+	}
+	var m map[string]interface{}
+	if err := json.Unmarshal([]byte(detail), &m); err != nil {
+		return ""
+	}
+	if v, ok := m[key]; ok {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return ""
+}
+
+// mergeJSON merges two JSON objects. Values in b override values in a.
+func mergeJSON(a, b string) string {
+	if a == "" || a == "{}" {
+		if b == "" {
+			return "{}"
+		}
+		return b
+	}
+	if b == "" || b == "{}" {
+		return a
+	}
+
+	var ma, mb map[string]interface{}
+	if err := json.Unmarshal([]byte(a), &ma); err != nil {
+		return b
+	}
+	if err := json.Unmarshal([]byte(b), &mb); err != nil {
+		return a
+	}
+	for k, v := range mb {
+		ma[k] = v
+	}
+	result, err := json.Marshal(ma)
+	if err != nil {
+		return a
+	}
+	return string(result)
 }

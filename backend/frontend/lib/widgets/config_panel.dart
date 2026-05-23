@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
@@ -50,16 +51,14 @@ class _ConfigPanelState extends State<ConfigPanel> with SingleTickerProviderStat
     'active_lang': widget.state.activeLangCode,
     'daily_target': 20,
     'min_accuracy': 0.8,
-    'listening_ratio': 0.15,
-    'reading_ratio': 0.15,
-    'grammar_ratio': 0.15,
-    'extra_ratio': 0.15,
     'passive_enabled': true,
     'passive_min_interval': 25,
     'passive_max_interval': 60,
     'auto_expand_words': true,
     'expand_batch_size': 10,
-    'expand_threshold': 0.6,
+    'sm2_max_interval_days': 180,
+    'session_time_budget': 0,
+    'max_slow_type_ratio': 0.0,
     'model': 'deepseek-chat',
     'base_url': 'https://api.deepseek.com',
     'languages': [],
@@ -71,12 +70,7 @@ class _ConfigPanelState extends State<ConfigPanel> with SingleTickerProviderStat
     final configApi = widget.state.configApi;
     if (configApi != null) {
       try {
-        final assignment = _appConfig['assignment'] as Map<String, dynamic>?;
-        await configApi.updateConfig(
-          activeLang: _appConfig['active_lang'],
-          dailyTarget: _appConfig['daily_target'],
-          assignment: assignment,
-        );
+        await configApi.updateConfigRaw({key: value});
       } catch (_) {}
     }
     if (mounted) setState(() => _saving = false);
@@ -195,22 +189,21 @@ class _ConfigPanelState extends State<ConfigPanel> with SingleTickerProviderStat
           _section('学习'),
           _intField('每日目标', 'daily_target', 1, 200),
           _percentField('最低正确率', 'min_accuracy'),
+          _intField('学习时长(分钟, 0=不限)', 'session_time_budget', 0, 120),
+          _percentField('慢速题型上限', 'max_slow_type_ratio'),
 
-          _section('题型比例'),
-          _percentField('听力', 'listening_ratio'),
-          _percentField('阅读', 'reading_ratio'),
-          _percentField('语法', 'grammar_ratio'),
-          _percentField('额外', 'extra_ratio'),
+          _section('AI 学习方案'),
+          _buildPlanPanel(),
 
-          _section('被动答题'),
-          _boolField('启用', 'passive_enabled'),
-          _intField('最小间隔(分钟)', 'passive_min_interval', 5, 120),
-          _intField('最大间隔(分钟)', 'passive_max_interval', 10, 240),
+          _section('被动答题 (即将推出)'),
+          _dimmedField(_boolField('启用', 'passive_enabled')),
+          _dimmedField(_intField('最小间隔(分钟)', 'passive_min_interval', 5, 120)),
+          _dimmedField(_intField('最大间隔(分钟)', 'passive_max_interval', 10, 240)),
 
           _section('AI 扩词'),
           _boolField('自动扩词', 'auto_expand_words'),
           _intField('每批扩词数', 'expand_batch_size', 3, 50),
-          _percentField('触发阈值', 'expand_threshold'),
+          _intField('SM-2 最大间隔(天)', 'sm2_max_interval_days', 30, 365),
 
           _section('课后作业'),
           _assignmentIntField('每几天一次', 'cadence_days', 1, 30),
@@ -252,7 +245,7 @@ class _ConfigPanelState extends State<ConfigPanel> with SingleTickerProviderStat
             )),
 
           _section('系统'),
-          _boolField('开机自启', 'auto_start'),
+          _dimmedField(_boolField('开机自启 (即将推出)', 'auto_start')),
           _readOnly('当前语言', _appConfig['active_lang']?.toString().toUpperCase() ?? '-'),
           _readOnly('可用语言', _langs.join(', ').toUpperCase()),
 
@@ -523,6 +516,111 @@ class _ConfigPanelState extends State<ConfigPanel> with SingleTickerProviderStat
           Switch(value: value, activeColor: AppTheme.primary, onChanged: (v) => _save(key, v)),
         ],
       ),
+    );
+  }
+
+  Widget _dimmedField(Widget child) {
+    return Opacity(opacity: 0.4, child: child);
+  }
+
+  Widget _buildPlanPanel() {
+    return FutureBuilder(
+      future: widget.state.quizApi?.getPlan(),
+      builder: (context, snapshot) {
+        final plan = snapshot.data;
+        if (plan == null || plan.planJson.isEmpty) {
+          return _hint('完成一次学习后 AI 将生成方案');
+        }
+
+        Map<String, dynamic> tomorrow;
+        try {
+          final parsed = const JsonDecoder().convert(plan.planJson);
+          tomorrow = (parsed['tomorrow'] as Map<String, dynamic>?) ?? {};
+        } catch (_) {
+          return _hint('计划数据解析失败');
+        }
+
+        final ratio = tomorrow['question_type_ratio'] as Map<String, dynamic>?;
+        final wordCount = (tomorrow['word_count'] as num?)?.toInt() ?? 0;
+        final grammarFocus = (tomorrow['grammar_focus'] as List?)?.cast<String>() ?? [];
+        final difficulty = tomorrow['difficulty'] as String? ?? '';
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (difficulty.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                margin: const EdgeInsets.only(bottom: 6),
+                decoration: BoxDecoration(color: AppTheme.cardBg, borderRadius: BorderRadius.circular(12)),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('难度', style: TextStyle(fontSize: 14, color: AppTheme.textPrimary)),
+                    Text(difficulty, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.primary)),
+                  ],
+                ),
+              ),
+            if (wordCount > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                margin: const EdgeInsets.only(bottom: 6),
+                decoration: BoxDecoration(color: AppTheme.cardBg, borderRadius: BorderRadius.circular(12)),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('建议扩词数', style: TextStyle(fontSize: 14, color: AppTheme.textPrimary)),
+                    Text('$wordCount', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.primary)),
+                  ],
+                ),
+              ),
+            if (ratio != null && ratio.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text('题型配比', style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
+              const SizedBox(height: 4),
+              ...ratio.entries.map((e) {
+                final pct = (e.value as num).toDouble();
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                  margin: const EdgeInsets.only(bottom: 4),
+                  decoration: BoxDecoration(color: AppTheme.cardBg, borderRadius: BorderRadius.circular(8)),
+                  child: Row(
+                    children: [
+                      SizedBox(width: 80, child: Text(e.key, style: TextStyle(fontSize: 13, color: AppTheme.textPrimary))),
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: pct / 100.0,
+                            minHeight: 8,
+                            backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
+                            valueColor: AlwaysStoppedAnimation(AppTheme.primary),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      SizedBox(width: 36, child: Text('${pct.toInt()}%', textAlign: TextAlign.end, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primary))),
+                    ],
+                  ),
+                );
+              }),
+            ],
+            if (grammarFocus.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text('语法重点', style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 6, runSpacing: 4,
+                children: grammarFocus.map((g) => Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(color: AppTheme.primary.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6)),
+                  child: Text(g, style: TextStyle(fontSize: 12, color: AppTheme.primary)),
+                )).toList(),
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 }

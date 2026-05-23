@@ -30,8 +30,9 @@ type Message struct {
 }
 
 type chatRequest struct {
-	Model    string    `json:"model"`
-	Messages []Message `json:"messages"`
+	Model       string    `json:"model"`
+	Messages    []Message `json:"messages"`
+	Temperature float64   `json:"temperature,omitempty"`
 }
 
 type chatResponse struct {
@@ -57,10 +58,10 @@ func NewClient(cfg Config) *Client {
 	}
 }
 
-func (c *Client) Chat(ctx context.Context, messages []Message) (string, error) {
+func (c *Client) Chat(ctx context.Context, messages []Message, temperature float64) (string, error) {
 	var lastErr error
 	for attempt := 1; attempt <= 3; attempt++ {
-		reply, err := c.chatOnce(ctx, messages)
+		reply, err := c.chatOnce(ctx, messages, temperature)
 		if err == nil {
 			return reply, nil
 		}
@@ -76,10 +77,11 @@ func (c *Client) Chat(ctx context.Context, messages []Message) (string, error) {
 	return "", fmt.Errorf("chat failed after 3 attempts: %w", lastErr)
 }
 
-func (c *Client) chatOnce(ctx context.Context, messages []Message) (string, error) {
+func (c *Client) chatOnce(ctx context.Context, messages []Message, temperature float64) (string, error) {
 	reqBody := chatRequest{
-		Model:    c.model,
-		Messages: messages,
+		Model:       c.model,
+		Messages:    messages,
+		Temperature: temperature,
 	}
 
 	body, err := json.Marshal(reqBody)

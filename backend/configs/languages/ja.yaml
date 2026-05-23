@@ -33,3 +33,77 @@ grammar_points:
   - 文型（〜ている/〜てしまう/〜なければならない）
 
 seed_words_file: seeds/ja.json
+
+word_fields_base:
+  - key: word
+    label: 词条（书写形式）
+    type: text
+  - key: reading
+    label: 读音
+    type: text
+  - key: syllable_count
+    label: 音拍数
+    type: text
+  - key: pos
+    label: 词性
+    type: text
+  - key: meaning
+    label: 核心释义
+    type: text
+  - key: level
+    label: JLPT等级
+    type: select
+    options: [N5, N4, N3, N2, N1]
+  - key: morphology
+    label: 形态变化
+    type: text
+  - key: syntax
+    label: 句法功能
+    type: text
+  - key: collocation
+    label: 常用搭配
+    type: text
+  - key: register
+    label: 语体/语域
+    type: select
+    options: [口语, 书面语, 敬语, 谦让语, 普通]
+  - key: etymology
+    label: 词源/构词
+    type: text
+  - key: example_sentence
+    label: 例句
+    type: text
+
+word_fields_dlc:
+  - category: phonology
+    label: 语音/音系类扩展
+    fields:
+      - key: pitch_accent
+        label: 高低アクセント
+        type: select
+        options: [头高, 中高, 尾高, 平板]
+  - category: morphology
+    label: 形态/语法类扩展
+    fields:
+      - key: conjugation_class
+        label: 活用类型
+        type: select
+        options: [五段, 一段, カ変, サ変, 不規則]
+  - category: syntax_usage
+    label: 句法/用法类扩展
+    fields:
+      - key: case_government
+        label: 格支配
+        type: text
+  - category: writing
+    label: 书写/模态类扩展
+    fields:
+      - key: orthographic_variants
+        label: 表記揺れ
+        type: text
+  - category: semantics_pragmatics
+    label: 语义/语用/文化类扩展
+    fields:
+      - key: keigo_level
+        label: 敬語階層
+        type: text

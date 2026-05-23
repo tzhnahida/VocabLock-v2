@@ -15,7 +15,7 @@ import (
 
 func (s *Server) handleWordsList(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleWordsList(w, r); return
+		mock.HandleWordsList(w, r, s.Config.App.ActiveLang); return
 	}
 	if s.DB == nil {
 		writeError(w, 500, "database not available")
@@ -374,18 +374,17 @@ func (s *Server) handleWordsExpand(w http.ResponseWriter, r *http.Request) {
 	}
 
 	teacherRole := "Language Teacher"
-	level := "beginner"
+	level := s.getStudentLevel(lang)
 	explLang := "zh-CN"
+	targetLang := lang
 	if lc, ok := s.Config.Languages[lang]; ok {
 		teacherRole = lc.PromptContext.TeacherRole
 		explLang = lc.PromptContext.ExplanationLang
-		for lvl := range lc.PromptContext.LevelDescriptions {
-			level = lvl
-			break
-		}
+		targetLang = lc.Lang.DisplayName
 	}
 
 	messages, err := pt.BuildMessages(&ai.PromptVars{
+		Language:        targetLang,
 		TeacherRole:     teacherRole,
 		Level:           level,
 		ExplanationLang: explLang,
@@ -399,7 +398,7 @@ func (s *Server) handleWordsExpand(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
 
-	response, err := s.AI.Chat(ctx, messages)
+	response, err := s.AI.Chat(ctx, messages, pt.Temperature)
 	if err != nil {
 		writeJSON(w, map[string]interface{}{
 			"verified":       []interface{}{},
@@ -408,121 +407,78 @@ func (s *Server) handleWordsExpand(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-
-	// Parse AI JSON response
-	var aiResult struct {
-		Words []struct {
-			Word       string `json:"word"`
-			Reading    string `json:"reading"`
-			Meaning    string `json:"meaning"`
-			POS        string `json:"pos"`
-			Confidence string `json:"confidence"`
-		} `json:"words"`
-	}
-	if err := json.Unmarshal([]byte(response), &aiResult); err != nil {
-		// Try extracting JSON from markdown code blocks
-		cleaned := extractJSON(response)
-		if err2 := json.Unmarshal([]byte(cleaned), &aiResult); err2 != nil {
-			writeError(w, 500, "parse AI response: "+err.Error())
-			return
+		// Parse AI JSON response — AI only provides words, dictionary provides everything else
+		var aiResult struct {
+			Words []string `json:"words"`
 		}
-	}
-
-	// Classify and insert
-	var verified []map[string]interface{}
-	var pendingReview []map[string]interface{}
-
-	for _, aiw := range aiResult.Words {
-		if aiw.Word == "" {
-			continue
-		}
-		if aiw.Confidence == "" {
-			aiw.Confidence = "medium"
-		}
-
-		entry := map[string]interface{}{
-			"word":       aiw.Word,
-			"reading":    aiw.Reading,
-			"meaning":    aiw.Meaning,
-			"pos":        aiw.POS,
-			"confidence": aiw.Confidence,
-			"source":     "ai_expansion",
-		}
-
-		// Verify against dictionary if available
-		verifiedByDict := false
-		if s.DictProvider != nil {
-			lookupCtx, lookupCancel := context.WithTimeout(r.Context(), 5*time.Second)
-			result, lookupErr := s.DictProvider.Lookup(lookupCtx, aiw.Word)
-			lookupCancel()
-			if lookupErr == nil && result != nil && result.Found {
-				verifiedByDict = true
-				// Use dict-provided data when available (more reliable)
-				if result.Reading != "" {
-					aiw.Reading = result.Reading
-				}
-				if result.Meaning != "" {
-					aiw.Meaning = result.Meaning
-				}
-				if result.POS != "" {
-					aiw.POS = result.POS
-				}
-				entry["reading"] = aiw.Reading
-				entry["meaning"] = aiw.Meaning
-				entry["pos"] = aiw.POS
+		if err := json.Unmarshal([]byte(response), &aiResult); err != nil {
+			cleaned := extractJSON(response)
+			if err2 := json.Unmarshal([]byte(cleaned), &aiResult); err2 != nil {
+				writeError(w, 500, "parse AI response: "+err.Error())
+				return
 			}
 		}
 
-		// Auto-accept: dict verified OR AI high-confidence when dict unavailable
-		dictAvailable := s.DictProvider != nil
-		dictFailed := dictAvailable && !verifiedByDict
-		shouldAutoAccept := verifiedByDict || (!dictAvailable && aiw.Confidence == "high")
+		var verified []map[string]interface{}
+		var pendingReview []map[string]interface{}
 
-		if shouldAutoAccept && !dictFailed {
-			_, insertErr := s.DB.InsertWord(&db.Word{
-				Word:       aiw.Word,
-				Reading:    aiw.Reading,
-				Meaning:    aiw.Meaning,
-				POS:        aiw.POS,
-				Language:   lang,
-				Source:     "ai_expansion",
-				Confidence: aiw.Confidence,
-			})
-			if insertErr != nil {
-				entry["insert_error"] = insertErr.Error()
+		for _, word := range aiResult.Words {
+			if word == "" {
+				continue
 			}
-			verified = append(verified, entry)
-		} else {
-			entry["review_reason"] = "词典未验证，需人工审核"
-			pendingReview = append(pendingReview, entry)
-		}
-	}
 
-	if verified == nil {
-		verified = []map[string]interface{}{}
-	}
-	if pendingReview == nil {
-		pendingReview = []map[string]interface{}{}
-	}
+			// Dictionary is the sole source of reading, meaning, POS
+			var reading, meaning, pos, level, detail, source, confidence string
+			var dictOK bool
+			if s.DictProvider != nil {
+				lookupCtx, lookupCancel := context.WithTimeout(r.Context(), 5*time.Second)
+				result, lookupErr := s.DictProvider.Lookup(lookupCtx, word)
+				lookupCancel()
+				if lookupErr == nil && result != nil && result.Found {
+					dictOK = true
+					reading = result.Reading
+					meaning = result.Meaning
+					pos = result.POS
+						level = result.Level
+						detail = result.Detail
+			}
 
-		// Store pending_review words in DB for later user judgment
-		for _, entry := range pendingReview {
-			wordStr, _ := entry["word"].(string)
-			readingStr, _ := entry["reading"].(string)
-			meaningStr, _ := entry["meaning"].(string)
-			posStr, _ := entry["pos"].(string)
-			if wordStr != "" {
+			if dictOK {
+				source = "ai_expansion_dict"
+				// AI generates extension fields
+				aiDetail := s.generateDetail(ctx, word, reading, meaning, pos, level, lang)
+				detail = mergeJSON(detail, aiDetail)
+				confidence = "high"
 				s.DB.InsertWord(&db.Word{
-					Word: wordStr, Reading: readingStr, Meaning: meaningStr,
-					POS: posStr, Language: lang, Source: "ai_expansion", Status: "pending_review",
+					Word: word, Reading: reading, Meaning: meaning, POS: pos, Level: level, Detail: detail,
+					Language: lang, Source: source, Confidence: confidence,
+				})
+				verified = append(verified, map[string]interface{}{
+					"word": word, "reading": reading, "meaning": meaning, "pos": pos, "source": source,
+				})
+			} else {
+				// Dictionary miss — pending review with no AI-generated fields
+				s.DB.InsertWord(&db.Word{
+					Word: word, Language: lang, Source: "ai_expansion", Status: "pending_review",
+				})
+				pendingReview = append(pendingReview, map[string]interface{}{
+					"word": word, "review_reason": "字典未查到，需人工审核",
 				})
 			}
 		}
 
-	writeJSON(w, map[string]interface{}{
-		"verified":       verified,
-		"pending_review": pendingReview,
-	})
+		if verified == nil {
+			verified = []map[string]interface{}{}
+		}
+		if pendingReview == nil {
+			pendingReview = []map[string]interface{}{}
+		}
+
+		writeJSON(w, map[string]interface{}{
+			"verified":       verified,
+			"pending_review": pendingReview,
+		})
+	}
 }
 
 func extractJSON(s string) string {

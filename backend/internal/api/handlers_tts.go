@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -70,7 +71,7 @@ func (s *Server) handleTTSWord(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, map[string]interface{}{
-		"url":    fmt.Sprintf("/data/audio/%s", path),
+		"url":    fmt.Sprintf("/data/audio/%s", filepath.Base(path)),
 		"format": "mp3",
 		"cached": true,
 		"status": "ok",
@@ -123,7 +124,7 @@ func (s *Server) handleTTSText(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, map[string]interface{}{
-		"url":    fmt.Sprintf("/data/audio/%s", path),
+		"url":    fmt.Sprintf("/data/audio/%s", filepath.Base(path)),
 		"format": "mp3",
 		"cached": true,
 		"status": "ok",

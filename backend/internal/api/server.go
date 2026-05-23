@@ -18,6 +18,17 @@ import (
 	"github.com/vocablock/v2/internal/tts"
 )
 
+type cachedQuestion struct {
+	q         *engine.Question
+	createdAt time.Time
+}
+
+var slowTypes = map[string]bool{
+	"listening":    true,
+	"reading_comp": true,
+	"grammar":      true,
+}
+
 type Server struct {
 	http   *http.Server
 	Port   int
@@ -32,9 +43,9 @@ type Server struct {
 	TTSProvider *tts.Provider
 	DictProvider *dict.Provider
 
-	// Question cache for AI-generated questions (maps question_id → Answer)
-	questionCache   map[string]*engine.Question
-	questionCacheMu sync.RWMutex
+	// Question cache for AI-generated questions (maps question_id → cachedQuestion)
+	questionCache   map[string]*cachedQuestion
+	questionCacheMu sync.Mutex
 
 	// Session budget tracks time/type usage for the current day
 	sessionBudget sessionBudget
@@ -44,13 +55,15 @@ func NewServer(mock bool, cfg *config.Config, database *db.Database) *Server {
 	token := make([]byte, 16)
 	rand.Read(token)
 
-	return &Server{
+	s := &Server{
 		Token:         hex.EncodeToString(token),
 		Mock:          mock,
 		Config:        cfg,
 		DB:            database,
-		questionCache: make(map[string]*engine.Question),
+		questionCache: make(map[string]*cachedQuestion),
 	}
+	s.startCacheCleanup()
+	return s
 }
 
 func (s *Server) Start() error {
@@ -87,11 +100,37 @@ func (s *Server) Shutdown() error {
 
 // sessionBudget tracks time and type usage during a single day session.
 type sessionBudget struct {
-	mu         sync.Mutex
-	date       string
-	timeUsed   int
-	slowCount  int
-	totalCount int
+	mu           sync.Mutex
+	date         string
+	timeUsed     int
+	slowCount    int
+	totalCount   int
+	typeWeights  map[string]int // cached from training plan's question_type_ratio
+	grammarFocus []string       // cached from training plan's grammar_focus
+}
+
+func (b *sessionBudget) setTypeWeights(weights map[string]int) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.typeWeights = weights
+}
+
+func (b *sessionBudget) getTypeWeights() map[string]int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.typeWeights
+}
+
+func (b *sessionBudget) setGrammarFocus(focus []string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.grammarFocus = focus
+}
+
+func (b *sessionBudget) getGrammarFocus() []string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.grammarFocus
 }
 
 func (b *sessionBudget) allowType(typeName string, timeBudgetMinutes int, maxSlowRatio float64) bool {
@@ -111,13 +150,16 @@ func (b *sessionBudget) allowType(typeName string, timeBudgetMinutes int, maxSlo
 		weight = 1
 	}
 
-	maxUnits := timeBudgetMinutes * 6
-
-	if b.timeUsed+weight > maxUnits {
-		return false
+	// 0 = unlimited time budget
+	if timeBudgetMinutes > 0 {
+		maxUnits := timeBudgetMinutes * 6
+		if b.timeUsed+weight > maxUnits {
+			return false
+		}
 	}
 
-	if engine.IsSlowType(typeName) {
+	// 0 = no slow-type ratio limit
+	if maxSlowRatio > 0 && engine.IsSlowType(typeName) {
 		maxSlow := int(float64(b.totalCount+1) * maxSlowRatio)
 		if b.slowCount >= maxSlow {
 			return false
@@ -150,26 +192,106 @@ func (b *sessionBudget) recordType(typeName string) {
 	}
 }
 
+// mergeTypeWeights caps slow-type weights to maxSlowRatio, redistributing excess to fast types.
+func mergeTypeWeights(aiWeights map[string]int, maxSlowRatio float64) map[string]int {
+	if len(aiWeights) == 0 || maxSlowRatio <= 0 {
+		return aiWeights
+	}
+	total := 0
+	slowTotal := 0
+	fastTotal := 0
+	for t, w := range aiWeights {
+		total += w
+		if slowTypes[t] {
+			slowTotal += w
+		} else {
+			fastTotal += w
+		}
+	}
+	if total == 0 {
+		return aiWeights
+	}
+	slowPct := float64(slowTotal) / float64(total)
+	if slowPct <= maxSlowRatio {
+		return aiWeights // already within cap
+	}
+	// Cap slow types and redistribute excess to fast types
+	maxSlow := int(float64(total) * maxSlowRatio)
+	result := make(map[string]int, len(aiWeights))
+	for t, w := range aiWeights {
+		if slowTypes[t] {
+			scaled := int(float64(w) * float64(maxSlow) / float64(slowTotal))
+			if scaled < 1 && w > 0 {
+				scaled = 1 // keep at least 1 for any slow type that has weight
+			}
+			result[t] = scaled
+		} else {
+			result[t] = w
+		}
+	}
+	// Redistribute excess proportionally to fast types
+	if fastTotal > 0 {
+		excess := slowTotal - maxSlow
+		fastWeightTotal := 0
+		for t, w := range aiWeights {
+			if !slowTypes[t] {
+				fastWeightTotal += w
+			}
+		}
+		if fastWeightTotal > 0 {
+			for t, w := range result {
+				if !slowTypes[t] {
+					result[t] = w + excess*w/fastWeightTotal
+				}
+			}
+		}
+	}
+	return result
+}
+
 func (s *Server) cacheQuestion(q *engine.Question) {
 	s.questionCacheMu.Lock()
 	defer s.questionCacheMu.Unlock()
-	// Evict one random entry when over limit, instead of discarding all.
-	// Discarding all would lose expected answers for pending AI questions.
-	if len(s.questionCache) > 2000 {
+	if len(s.questionCache) >= 2000 {
+		// Evict one random entry when over limit, instead of discarding all.
+		// Discarding all would lose expected answers for pending AI questions.
 		for k := range s.questionCache {
 			delete(s.questionCache, k)
 			break
 		}
 	}
-	s.questionCache[q.ID] = q
+	s.questionCache[q.ID] = &cachedQuestion{q: q, createdAt: time.Now()}
 }
 
 func (s *Server) getAndDelCachedQuestion(id string) *engine.Question {
 	s.questionCacheMu.Lock()
 	defer s.questionCacheMu.Unlock()
-	q, ok := s.questionCache[id]
-	if ok {
-		delete(s.questionCache, id)
+	cq, ok := s.questionCache[id]
+	if !ok {
+		return nil
 	}
-	return q
+	// Expire after 15 days
+	if time.Since(cq.createdAt) > 15*24*time.Hour {
+		delete(s.questionCache, id)
+		return nil
+	}
+	delete(s.questionCache, id)
+	return cq.q
+}
+
+func (s *Server) startCacheCleanup() {
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			s.questionCacheMu.Lock()
+			now := time.Now()
+			for id, cq := range s.questionCache {
+				if now.Sub(cq.createdAt) > 15*24*time.Hour {
+					delete(s.questionCache, id)
+				}
+			}
+			s.questionCacheMu.Unlock()
+		}
+	}()
 }

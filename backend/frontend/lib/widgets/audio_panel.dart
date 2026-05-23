@@ -13,7 +13,7 @@ class AudioPanel extends StatefulWidget {
 
 class _AudioPanelState extends State<AudioPanel> {
   final _textCtrl = TextEditingController();
-  final _player = AudioPlayer();
+  final _player = AppAudioPlayer();
   String _status = '';
   String? _playingWord;
 

@@ -11,7 +11,7 @@ import (
 // handleGrammarPointsList returns grammar points for the active language.
 func (s *Server) handleGrammarPointsList(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleGrammarPointsList(w, r); return
+		mock.HandleGrammarPointsList(w, r, s.Config.App.ActiveLang); return
 	}
 	if s.DB == nil {
 		writeError(w, 500, "database not available"); return

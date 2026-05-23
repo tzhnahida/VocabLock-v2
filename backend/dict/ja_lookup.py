@@ -28,10 +28,23 @@ import sys
 DICT_FILE = os.environ.get("JADICT_PATH", "dict/ja/final.json")
 
 # Full-width： U+FF08  U+FF09  【 U+3010  】 U+3011
-_RE_READING = re.compile(r"（(.+?)）")
-_RE_POS = re.compile(r"【(.+?)】")
+_RE_READING_FW = re.compile(r"（(.+?)）")
+_RE_POS_FW = re.compile(r"【(.+?)】")
+# Half-width fallbacks: (kana) with optional pitch digit
+_RE_READING_HW = re.compile(r"\(([ぁ-んァ-ヴー0-9]+?)\)")
 # Circled numbers / pitch: ⓪①②③④⑤⑥⑦⑧⑨
 _RE_PITCH = re.compile(r"[⓪①-⑨⑨]︎?")
+
+# Known POS tokens for half-width entries (try longest match first)
+_POS_TOKENS = [
+    "名·自他动3", "名·他动3", "名·自动3",
+    "自他动2", "自他动", "他动2", "他动", "自动2", "自动",
+    "形容動詞", "形容詞", "形容", "名詞", "名",
+    "副詞", "副", "接続詞", "接続", "接", "連体詞", "連体", "連",
+    "感動詞", "感", "助動詞", "助詞", "助", "数詞", "数", "代名詞", "代",
+    # Chinese-character variants (common in this dictionary)
+    "名词", "动词", "形容词", "形容动词", "副词", "接续词", "连体词", "感叹词", "助词",
+]
 
 
 def load_dict(path: str) -> dict:
@@ -56,8 +69,10 @@ def parse_entry(key: str, value: str) -> dict:
     if not isinstance(value, str):
         value = str(value)
 
-    # 1. Extract reading from value: （kana）
-    m = _RE_READING.search(value)
+    # 1. Extract reading from value: （kana） or (kana)
+    m = _RE_READING_FW.search(value)
+    if not m:
+        m = _RE_READING_HW.search(value)
     if m:
         reading = m.group(1)
 
@@ -67,26 +82,41 @@ def parse_entry(key: str, value: str) -> dict:
         if m:
             reading = m.group(1)
 
-    # 3. Extract POS from value: 【POS】
-    m = _RE_POS.search(value)
+    # 3. Extract POS from value: 【POS】 first, then known half-width tokens
+    m = _RE_POS_FW.search(value)
     if m:
         pos = m.group(1)
+    else:
+        for tok in _POS_TOKENS:
+            if tok in value:
+                pos = tok
+                break
 
-    # 4. Clean up value to get meaning: strip reading, pitch, POS markers
+    # 4. Clean up value to get meaning
     meaning = value
-    meaning = _RE_READING.sub("", meaning)  # remove （kana）
-    meaning = _RE_PITCH.sub("", meaning)    # remove pitch numbers
-    meaning = _RE_POS.sub("", meaning)      # remove 【POS】
+    meaning = _RE_READING_FW.sub("", meaning)   # remove （kana）
+    meaning = _RE_READING_HW.sub("", meaning)    # remove (kana)
+    meaning = _RE_PITCH.sub("", meaning)         # remove pitch numbers
+    meaning = _RE_POS_FW.sub("", meaning)        # remove 【POS】
+    if pos:
+        meaning = meaning.replace(pos, "", 1)
     meaning = meaning.strip()
 
-    # If value only had metadata and meaning is empty, use the whole value
     if not meaning:
         meaning = value.strip()
+
+    # Build detail JSON with derived fields
+    detail = {}
+    # Syllable count: count kana characters in reading (excluding pitch digits)
+    clean_reading = re.sub(r'[0-9]', '', reading)
+    if clean_reading:
+        detail["syllable_count"] = str(len(clean_reading))
 
     return {
         "reading": reading,
         "pos": pos,
         "meaning": meaning,
+        "detail": json.dumps(detail, ensure_ascii=False) if detail else "",
     }
 
 
@@ -95,14 +125,18 @@ def lookup(word: str, data: dict) -> dict | None:
     value = data.get(word)
     if value is not None:
         parsed = parse_entry(word, value)
-        return {"found": True, "word": word, **parsed}
+        result = {"found": True, "word": word}
+        result.update(parsed)
+        return result
 
     # 2. Search for (kana)word — grammar patterns like (～が)欲しいです
     #    where the query might be just "欲しいです"
     for key, value in data.items():
         if key.endswith(word) and key.startswith("("):
             parsed = parse_entry(key, value)
-            return {"found": True, "word": key, **parsed}
+            result = {"found": True, "word": key}
+            result.update(parsed)
+            return result
 
     return None
 

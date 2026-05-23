@@ -2,11 +2,20 @@ import 'package:flutter/material.dart';
 import '../models/word.dart';
 import '../models/question.dart';
 import '../providers/app_state.dart';
+import '../screens/word_detail_page.dart';
 import '../theme/app_theme.dart';
 
 class WordsPanel extends StatefulWidget {
   final AppState state;
-  const WordsPanel({super.key, required this.state});
+  final Future<void> Function(int wordId) onPlayWordAudio;
+  final Future<void> Function(String text) onPlayTextAudio;
+
+  const WordsPanel({
+    super.key,
+    required this.state,
+    required this.onPlayWordAudio,
+    required this.onPlayTextAudio,
+  });
 
   @override
   State<WordsPanel> createState() => _WordsPanelState();
@@ -134,7 +143,11 @@ class _WordsPanelState extends State<WordsPanel> with SingleTickerProviderStateM
     }
     return ListView.builder(
       itemCount: filtered.length,
-      itemBuilder: (_, i) => _WordRow(word: filtered[i]),
+      itemBuilder: (_, i) => _WordRow(
+        word: filtered[i],
+        onPlayWord: () => widget.onPlayWordAudio(filtered[i].id),
+        onPlayText: (text) => widget.onPlayTextAudio(text),
+      ),
     );
   }
 
@@ -197,50 +210,116 @@ class _MiniStat extends StatelessWidget {
 
 class _WordRow extends StatelessWidget {
   final Word word;
-  const _WordRow({required this.word});
+  final VoidCallback onPlayWord;
+  final ValueChanged<String> onPlayText;
+
+  const _WordRow({
+    required this.word,
+    required this.onPlayWord,
+    required this.onPlayText,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final detail = word.detail ?? {};
+    final chips = <Widget>[];
+    if (word.pos.isNotEmpty) {
+      chips.add(_Tag(word.pos, AppTheme.primary));
+    }
+    if (word.level.isNotEmpty) {
+      chips.add(_Tag(word.level, Colors.teal));
+    }
+    final collocation = (detail['collocation'] ?? '').toString();
+    if (collocation.isNotEmpty) {
+      chips.add(_Tag(collocation, Colors.orange));
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => WordDetailPage(
+              word: word,
+              onPlayWord: () async => onPlayWord(),
+              onPlayText: (text) async => onPlayText(text),
+            ),
+          ),
+        );
+      },
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppTheme.cardBg,
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            alignment: Alignment.center,
-            child: Text(word.language.toUpperCase(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.primary)),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(word.word, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
-                const SizedBox(height: 2),
-                Text(word.meaning, style: TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          Row(
             children: [
-              Text(word.reading, style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
-              const SizedBox(height: 4),
-              Text('${word.totalCorrect}/${word.totalAttempts}', style: TextStyle(fontSize: 11, color: AppTheme.textHint)),
+              Container(
+                width: 36, height: 36,
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                alignment: Alignment.center,
+                child: Text(word.language.toUpperCase(),
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.primary)),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(word.word, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+                    if (word.reading.isNotEmpty)
+                      Text(word.reading, style: TextStyle(fontSize: 12, color: AppTheme.accent)),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(word.meaning, style: TextStyle(fontSize: 14, color: AppTheme.textSecondary)),
+                  const SizedBox(height: 4),
+                  Text('${word.totalCorrect}/${word.totalAttempts}',
+                      style: TextStyle(fontSize: 11, color: AppTheme.textHint)),
+                ],
+              ),
             ],
           ),
+          if (chips.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(spacing: 6, runSpacing: 4, children: chips),
+          ],
         ],
       ),
+      ),
+      ),
+    );
+  }
+}
+
+class _Tag extends StatelessWidget {
+  final String text;
+  final Color color;
+  const _Tag(this.text, this.color);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(text, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
     );
   }
 }

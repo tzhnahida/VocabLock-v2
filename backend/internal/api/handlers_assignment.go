@@ -138,7 +138,14 @@ func (s *Server) handleAssignmentSubmit(w http.ResponseWriter, r *http.Request) 
 	}
 
 	lang := s.Config.App.ActiveLang
-	grade, err := s.gradeAssignment(r.Context(), lang, req.Answer)
+
+	// Derive topic from pending assignments
+	topic := ""
+	if pending, err := s.DB.ListPendingAssignments(lang); err == nil && len(pending) > 0 {
+		topic = pending[0].Prompt
+	}
+
+	grade, err := s.gradeAssignment(r.Context(), lang, topic, req.Answer)
 	if err != nil {
 		writeError(w, 500, "grade assignment: "+err.Error())
 		return
@@ -186,14 +193,10 @@ func (s *Server) generateAssignment(ctx context.Context, lang string, aType engi
 
 	teacherRole := "Language Teacher"
 	explLang := "en"
-	level := "beginner"
+	level := s.getStudentLevel(lang)
 	if lc, ok := s.Config.Languages[lang]; ok {
 		teacherRole = lc.PromptContext.TeacherRole
 		explLang = lc.PromptContext.ExplanationLang
-		for lvl := range lc.PromptContext.LevelDescriptions {
-			level = lvl
-			break
-		}
 	}
 
 	// Get recent words for context
@@ -208,6 +211,12 @@ func (s *Server) generateAssignment(ctx context.Context, lang string, aType engi
 		wordList = "(new learner, no words yet)"
 	}
 
+	// Get current grammar point for context
+	grammarPoint := ""
+	if gps, _, err := s.DB.ListGrammarPoints(lang, 1, 0); err == nil && len(gps) > 0 {
+		grammarPoint = gps[0].Title
+	}
+
 	messages, err := pt.BuildMessages(&ai.PromptVars{
 		TeacherRole:     teacherRole,
 		ExplanationLang: explLang,
@@ -215,6 +224,7 @@ func (s *Server) generateAssignment(ctx context.Context, lang string, aType engi
 		Level:           level,
 		AssignmentType:  string(aType),
 		WordList:        wordList,
+		GrammarPoint:    grammarPoint,
 		WordCount:       100, // default for essay
 	})
 	if err != nil {
@@ -224,7 +234,7 @@ func (s *Server) generateAssignment(ctx context.Context, lang string, aType engi
 	timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	response, err := s.AI.Chat(timeoutCtx, messages)
+	response, err := s.AI.Chat(timeoutCtx, messages, pt.Temperature)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +259,7 @@ func (s *Server) generateAssignment(ctx context.Context, lang string, aType engi
 	}, nil
 }
 
-func (s *Server) gradeAssignment(ctx context.Context, lang, answer string) (*engine.AssignmentGrade, error) {
+func (s *Server) gradeAssignment(ctx context.Context, lang, topic, answer string) (*engine.AssignmentGrade, error) {
 	pt, err := ai.LoadPrompt("assignment_grade")
 	if err != nil {
 		return nil, err
@@ -257,14 +267,10 @@ func (s *Server) gradeAssignment(ctx context.Context, lang, answer string) (*eng
 
 	teacherRole := "Language Teacher"
 	explLang := "en"
-	level := "beginner"
+	level := s.getStudentLevel(lang)
 	if lc, ok := s.Config.Languages[lang]; ok {
 		teacherRole = lc.PromptContext.TeacherRole
 		explLang = lc.PromptContext.ExplanationLang
-		for lvl := range lc.PromptContext.LevelDescriptions {
-			level = lvl
-			break
-		}
 	}
 
 	messages, err := pt.BuildMessages(&ai.PromptVars{
@@ -272,6 +278,8 @@ func (s *Server) gradeAssignment(ctx context.Context, lang, answer string) (*eng
 		ExplanationLang: explLang,
 		Level:           level,
 		UserSubmission:  answer,
+		Language:  lang,
+		Topic:		topic,
 	})
 	if err != nil {
 		return nil, err
@@ -280,7 +288,7 @@ func (s *Server) gradeAssignment(ctx context.Context, lang, answer string) (*eng
 	timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	response, err := s.AI.Chat(timeoutCtx, messages)
+	response, err := s.AI.Chat(timeoutCtx, messages, pt.Temperature)
 	if err != nil {
 		return nil, err
 	}
@@ -301,13 +309,63 @@ func (s *Server) aiCadenceRecommend(ctx context.Context, lang string) (map[strin
 
 	teacherRole := "Language Teacher"
 	explLang := "en"
-	level := "beginner"
+	level := s.getStudentLevel(lang)
 	if lc, ok := s.Config.Languages[lang]; ok {
 		teacherRole = lc.PromptContext.TeacherRole
 		explLang = lc.PromptContext.ExplanationLang
-		for lvl := range lc.PromptContext.LevelDescriptions {
-			level = lvl
-			break
+	}
+
+	// Collect session data for cadence recommendation
+	sessionStats := ""
+	trendData := "stable"
+	weakPoints := ""
+	if logs, err := s.DB.GetSessionLogs(lang, 200); err == nil && len(logs) > 0 {
+		typeCount := map[string]int{}
+		correct, total := 0, 0
+		var wrongWords []string
+		for _, l := range logs {
+			typeCount[l.QuestionType]++
+			total++
+			if l.Correct {
+				correct++
+			} else {
+				wrongWords = append(wrongWords, l.ExpectedAnswer)
+			}
+		}
+		accuracy := 0.0
+		if total > 0 {
+			accuracy = float64(correct) / float64(total)
+		}
+		stats := map[string]interface{}{
+			"total":    total,
+			"correct":  correct,
+			"accuracy": accuracy,
+			"by_type":  typeCount,
+		}
+		b, _ := json.Marshal(stats)
+		sessionStats = string(b)
+
+		switch {
+		case accuracy >= 0.8:
+			trendData = "improving"
+		case accuracy < 0.5:
+			trendData = "declining"
+		}
+
+		if len(wrongWords) > 0 {
+			// Deduplicate and limit
+			seen := map[string]bool{}
+			uniq := make([]string, 0, len(wrongWords))
+			for _, w := range wrongWords {
+				if !seen[w] && w != "" {
+					seen[w] = true
+					uniq = append(uniq, w)
+				}
+			}
+			if len(uniq) > 10 {
+				uniq = uniq[:10]
+			}
+			weakPoints = strings.Join(uniq, ", ")
 		}
 	}
 
@@ -315,6 +373,9 @@ func (s *Server) aiCadenceRecommend(ctx context.Context, lang string) (map[strin
 		TeacherRole:     teacherRole,
 		ExplanationLang: explLang,
 		Level:           level,
+		TrendData:       trendData,
+		SessionStats:    sessionStats,
+		WeakPoints:      weakPoints,
 	})
 	if err != nil {
 		return nil, err
@@ -323,7 +384,7 @@ func (s *Server) aiCadenceRecommend(ctx context.Context, lang string) (map[strin
 	timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	response, err := s.AI.Chat(timeoutCtx, messages)
+	response, err := s.AI.Chat(timeoutCtx, messages, pt.Temperature)
 	if err != nil {
 		return nil, err
 	}

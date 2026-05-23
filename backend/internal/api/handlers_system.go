@@ -8,9 +8,6 @@ import (
 )
 
 func (s *Server) handleSystemStatus(w http.ResponseWriter, r *http.Request) {
-	if s.Mock {
-		mock.HandleSystemStatus(w, r); return
-	}
 	writeJSON(w, map[string]interface{}{
 		"status":      "running",
 		"locked":      false,

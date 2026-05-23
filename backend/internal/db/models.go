@@ -39,6 +39,8 @@ type Word struct {
 	Language       string     `json:"language"`
 	Source         string     `json:"source"`
 	Confidence     string     `json:"confidence"`
+	Level          string     `json:"level"`
+	Detail         string     `json:"detail"`    // JSON for extension fields
 	Direction      string     `json:"direction"` // learning domain
 	Status         string     `json:"status"`    // active/pending_review/rejected
 	Tags           string     `json:"tags"`      // JSON array of tags

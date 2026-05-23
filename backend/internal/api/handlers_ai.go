@@ -68,7 +68,7 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	fmt.Printf("  AI user: %.80s...\n", req.Message)
-	reply, err := s.AI.Chat(ctx, allMsgs)
+	reply, err := s.AI.Chat(ctx, allMsgs, pt.Temperature)
 	if err != nil {
 		fmt.Printf("  AI error: %v\n", err)
 		writeJSON(w, map[string]interface{}{

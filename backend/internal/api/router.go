@@ -7,6 +7,9 @@ import (
 func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/health", s.handleHealth)
 
+	// Serve generated audio files
+	mux.Handle("GET /data/audio/", http.StripPrefix("/data/audio/", http.FileServer(http.Dir("data/audio"))))
+
 	prefix := "/api/v1"
 
 	// Quiz

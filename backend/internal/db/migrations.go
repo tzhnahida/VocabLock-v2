@@ -157,5 +157,28 @@ func (d *Database) migrate() error {
 		}
 	}
 
+	// Phase 5: student_state table for AI-evaluated persistent level
+	if _, err := d.DB.Exec(`
+		CREATE TABLE IF NOT EXISTS student_state (
+			language TEXT PRIMARY KEY,
+			level TEXT NOT NULL DEFAULT 'beginner',
+			updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+		)
+	`); err != nil {
+		return fmt.Errorf("create student_state table: %w", err)
+	}
+
+	// Phase 6: add level, detail columns to words (extension fields for AI detail)
+	if _, err := d.DB.Exec(`ALTER TABLE words ADD COLUMN level TEXT NOT NULL DEFAULT ''`); err != nil {
+		if !strings.Contains(err.Error(), "duplicate column") {
+			return fmt.Errorf("add level column: %w", err)
+		}
+	}
+	if _, err := d.DB.Exec(`ALTER TABLE words ADD COLUMN detail TEXT NOT NULL DEFAULT ''`); err != nil {
+		if !strings.Contains(err.Error(), "duplicate column") {
+			return fmt.Errorf("add detail column: %w", err)
+		}
+	}
+
 	return nil
 }

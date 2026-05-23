@@ -21,8 +21,9 @@ type SM2Result struct {
 // SM2 computes the next review schedule using the SM-2 algorithm.
 //
 // quality: 0-5 where 0=complete blackout, 5=perfect recall.
+// maxInterval: maximum interval in days (0 = no limit).
 // Returns nil if quality is invalid.
-func SM2(ef float64, interval, reps int, quality int, now time.Time) *SM2Result {
+func SM2(ef float64, interval, reps int, quality int, now time.Time, maxInterval int) *SM2Result {
 	if quality < 0 || quality > maxQuality {
 		return nil
 	}
@@ -47,6 +48,11 @@ func SM2(ef float64, interval, reps int, quality int, now time.Time) *SM2Result 
 		// Incorrect response — reset
 		r.Interval = 1
 		r.Repetitions = 0
+	}
+
+	// Clamp to max interval
+	if maxInterval > 0 && r.Interval > maxInterval {
+		r.Interval = maxInterval
 	}
 
 	// Update easiness factor

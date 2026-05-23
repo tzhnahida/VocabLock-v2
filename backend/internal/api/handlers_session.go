@@ -177,7 +177,7 @@ func (s *Server) runSummarize(ctx context.Context, lang, stats, yesterdayPlan st
 	timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	response, err := s.AI.Chat(timeoutCtx, messages)
+	response, err := s.AI.Chat(timeoutCtx, messages, pt.Temperature)
 	if err != nil {
 		return nil, err
 	}
@@ -204,6 +204,20 @@ func (s *Server) runPlan(ctx context.Context, lang, stats string, summary map[st
 		weakPoints = string(b)
 	}
 
+	// Derive trend data from session stats accuracy
+	trendData := "stable"
+	var statsData struct {
+		Accuracy float64 `json:"accuracy"`
+	}
+	if err := json.Unmarshal([]byte(stats), &statsData); err == nil {
+		switch {
+		case statsData.Accuracy >= 0.8:
+			trendData = "improving"
+		case statsData.Accuracy < 0.5:
+			trendData = "declining"
+		}
+	}
+
 	messages, err := pt.BuildMessages(&ai.PromptVars{
 		TeacherRole:     teacherRole,
 		ExplanationLang: explLang,
@@ -211,6 +225,7 @@ func (s *Server) runPlan(ctx context.Context, lang, stats string, summary map[st
 		Level:           level,
 		SessionStats:    stats,
 		WeakPoints:      weakPoints,
+		TrendData:       trendData,
 		YesterdayPlan:   s.getYesterdayPlan(lang),
 	})
 	if err != nil {
@@ -220,7 +235,7 @@ func (s *Server) runPlan(ctx context.Context, lang, stats string, summary map[st
 	timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	response, err := s.AI.Chat(timeoutCtx, messages)
+	response, err := s.AI.Chat(timeoutCtx, messages, pt.Temperature)
 	if err != nil {
 		return nil, err
 	}
@@ -243,20 +258,68 @@ func (s *Server) runPlan(ctx context.Context, lang, stats string, summary map[st
 	planJSON, _ := json.Marshal(result)
 	s.DB.InsertTrainingPlan(lang, direction, confidence, string(planJSON))
 
+	// Persist AI-evaluated student level from plan response
+	if diff, ok := result["tomorrow"].(map[string]interface{})["difficulty"].(string); ok && diff != "" {
+		if s.DB != nil {
+			s.DB.SetStudentLevel(lang, diff)
+		}
+	}
+
 	return result, nil
+}
+
+// ——— plan JSON parsing ———
+
+type planTomorrow struct {
+	WordCount            int            `json:"word_count"`
+	QuestionTypeRatio    map[string]int `json:"question_type_ratio"`
+	Difficulty           string         `json:"difficulty"`
+	GrammarFocus         []string       `json:"grammar_focus"`
+	DomainWords          []string       `json:"domain_words"`
+	AssignmentSuggestion string         `json:"assignment_suggestion"`
+}
+
+type planData struct {
+	Direction           string       `json:"direction"`
+	DirectionConfidence float64      `json:"direction_confidence"`
+	Tomorrow            planTomorrow `json:"tomorrow"`
+}
+
+// parsePlanTomorrow extracts the "tomorrow" section from a stored plan JSON string.
+// Returns nil if parsing fails or the plan is empty.
+func parsePlanTomorrow(planJSON string) *planTomorrow {
+	if planJSON == "" || planJSON == "{}" {
+		return nil
+	}
+	var pd planData
+	if err := json.Unmarshal([]byte(planJSON), &pd); err != nil {
+		return nil
+	}
+	if pd.Tomorrow.WordCount == 0 && len(pd.Tomorrow.DomainWords) == 0 &&
+		len(pd.Tomorrow.QuestionTypeRatio) == 0 {
+		return nil
+	}
+	return &pd.Tomorrow
 }
 
 func (s *Server) langContext(lang string) (teacherRole, explLang, level string) {
 	teacherRole = "Language Teacher"
 	explLang = "en"
-	level = "beginner"
+	level = s.getStudentLevel(lang)
 	if lc, ok := s.Config.Languages[lang]; ok {
 		teacherRole = lc.PromptContext.TeacherRole
 		explLang = lc.PromptContext.ExplanationLang
-		for lvl := range lc.PromptContext.LevelDescriptions {
-			level = lvl
-			break
-		}
 	}
 	return
+}
+
+// getStudentLevel returns the persisted student level for a language.
+// Falls back to "beginner" if no level is stored or DB is unavailable.
+func (s *Server) getStudentLevel(lang string) string {
+	if s.DB != nil {
+		if lvl := s.DB.GetStudentLevel(lang); lvl != "" {
+			return lvl
+		}
+	}
+	return "beginner"
 }

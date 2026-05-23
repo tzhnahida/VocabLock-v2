@@ -4,6 +4,7 @@ import 'providers/app_state.dart';
 import 'theme/app_theme.dart';
 import 'screens/home_screen.dart';
 import 'screens/onboarding_screen.dart';
+import 'l10n/generated/app_localizations.dart';
 
 class VocabLockApp extends StatelessWidget {
   final String? apiPort;
@@ -20,6 +21,9 @@ class VocabLockApp extends StatelessWidget {
           return MaterialApp(
             title: 'VocabLock',
             debugShowCheckedModeBanner: false,
+            locale: state.locale,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             themeMode: state.themeMode,
             theme: AppTheme.themeData,
             darkTheme: AppTheme.themeData,

@@ -36,6 +36,11 @@ class ConfigApi {
     return r.data as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> updateConfigRaw(Map<String, dynamic> body) async {
+    final r = await _client.put('/api/v1/config', data: body);
+    return r.data as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> setPassword(String password) async {
     final r = await _client.post('/api/v1/config/password', data: {'password': password});
     return r.data as Map<String, dynamic>;

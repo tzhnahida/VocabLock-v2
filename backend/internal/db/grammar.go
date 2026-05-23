@@ -152,6 +152,15 @@ func (d *Database) UpdateGrammarPoint(g *GrammarPoint) error {
 	return nil
 }
 
+func (d *Database) GrammarPointExists(language, title string) (bool, error) {
+	var count int
+	err := d.DB.QueryRow(`SELECT COUNT(*) FROM grammar_points WHERE language = ? AND title = ?`, language, title).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("grammar point exists: %w", err)
+	}
+	return count > 0, nil
+}
+
 func (d *Database) DeleteGrammarPoint(id int64) error {
 	_, err := d.DB.Exec(`DELETE FROM grammar_points WHERE id = ?`, id)
 	if err != nil {

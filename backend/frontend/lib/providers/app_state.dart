@@ -83,8 +83,18 @@ class AppState extends ChangeNotifier {
   int _expandPending = 0;
   int get expandPending => _expandPending;
 
-  String _uiLang = 'en';
+  String _uiLang = 'zh-CN';
   String get uiLang => _uiLang;
+  set uiLang(String v) { _uiLang = v; notifyListeners(); }
+
+  Locale get locale {
+    switch (_uiLang) {
+      case 'zh-CN': return const Locale('zh');
+      case 'ja': return const Locale('ja');
+      case 'en': return const Locale('en');
+      default: return const Locale('en');
+    }
+  }
 
   ThemeMode _themeMode = ThemeMode.dark;
   ThemeMode get themeMode => _themeMode;
@@ -305,13 +315,17 @@ class AppState extends ChangeNotifier {
         AppTheme.setActiveIndex(0);
       }
 
-      // Apply theme from server config
+      // Apply theme and interface language from server config
       try {
         final cfg = await configApi.getConfig();
         final theme = cfg['theme'] as String?;
         if (theme == 'vs-dark') {
           _themeMode = ThemeMode.dark;
           AppTheme.setThemeMode(ThemeMode.dark);
+        }
+        final ifLang = cfg['interface_lang'] as String?;
+        if (ifLang != null && ifLang.isNotEmpty) {
+          _uiLang = ifLang;
         }
       } catch (_) {}
 

@@ -29,15 +29,57 @@ var tierTypes = map[int][]QuestionType{
 // available is the list of question types enabled for this language (from config).
 // aiAvailable indicates whether AI-dependent types (listening/reading_comp/grammar) can be used.
 func SelectQuestionType(nextReviewAt *time.Time, ef float64, interval, reps int, available []QuestionType, aiAvailable bool) QuestionType {
+	candidates := selectCandidates(nextReviewAt, ef, interval, reps, available, aiAvailable)
+	return candidates[rand.Intn(len(candidates))]
+}
+
+// SelectQuestionTypeWithWeights is like SelectQuestionType but biases the random
+// pick toward the given type weights (higher weight = more likely). Weights are
+// the plan's question_type_ratio percentages; types not in the map get a
+// default weight of 10.
+func SelectQuestionTypeWithWeights(nextReviewAt *time.Time, ef float64, interval, reps int, available []QuestionType, aiAvailable bool, weights map[string]int) QuestionType {
+	candidates := selectCandidates(nextReviewAt, ef, interval, reps, available, aiAvailable)
+	if len(weights) == 0 || len(candidates) <= 1 {
+		if len(candidates) == 0 {
+			return TypeChoice
+		}
+		return candidates[rand.Intn(len(candidates))]
+	}
+
+	totalWeight := 0
+	for _, qt := range candidates {
+		if w, ok := weights[string(qt)]; ok && w > 0 {
+			totalWeight += w
+		} else {
+			totalWeight += 10 // default for unweighted types
+		}
+	}
+	if totalWeight <= 0 {
+		return candidates[rand.Intn(len(candidates))]
+	}
+
+	r := rand.Intn(totalWeight)
+	for _, qt := range candidates {
+		w := weights[string(qt)]
+		if w <= 0 {
+			w = 10
+		}
+		r -= w
+		if r < 0 {
+			return qt
+		}
+	}
+	return candidates[len(candidates)-1]
+}
+
+func selectCandidates(nextReviewAt *time.Time, ef float64, interval, reps int, available []QuestionType, aiAvailable bool) []QuestionType {
 	tier := computeTier(nextReviewAt, interval, reps)
 	if ef < 1.5 && tier > 0 {
 		tier--
 	}
 
-	// Build the set of allowed types for this tier
 	allowed := tierTypes[tier]
 
-	// Intersect with language config's available types
 	availableSet := make(map[QuestionType]bool, len(available))
 	for _, qt := range available {
 		availableSet[qt] = true
@@ -63,12 +105,10 @@ func SelectQuestionType(nextReviewAt *time.Time, ef float64, interval, reps int,
 		}
 	}
 
-	// Ultimate fallback
 	if len(candidates) == 0 {
-		return TypeChoice
+		return []QuestionType{TypeChoice}
 	}
-
-	return candidates[rand.Intn(len(candidates))]
+	return candidates
 }
 
 func computeTier(nextReviewAt *time.Time, interval, reps int) int {

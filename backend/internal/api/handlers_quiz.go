@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/vocablock/v2/internal/ai"
@@ -74,17 +75,17 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Auto-expand new words when plan says more content is needed
+	// Auto-expand new words when the student has nothing to study
 	if nw == 0 && s.AI != nil {
-		plan, planErr := s.DB.GetActivePlan(lang)
-		if planErr == nil && plan != nil && plan.Direction != "" &&
-			plan.Direction != "complete" && plan.Direction != "review-only" {
-			verified, pending, expandErr := s.expandWords(r.Context(), lang, 5, plan.Direction)
-			if expandErr == nil && (verified > 0 || pending > 0) {
-				nw += verified + pending // pending also counts as "new" for the student
-			}
+		expandCount, extraCtx := s.planExpandParams(lang)
+		verified, pending, expandErr := s.expandWords(r.Context(), lang, expandCount, extraCtx)
+		if expandErr == nil && (verified > 0 || pending > 0) {
+			nw += verified + pending
 		}
 	}
+
+	// Cache plan's question type weights for this session
+	s.cachePlanWeights(lang)
 
 	writeJSON(w, map[string]interface{}{
 		"new_words":    nw,
@@ -96,7 +97,7 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 
 func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleQuizNext(w, r); return
+		mock.HandleQuizNext(w, r, s.Config.App.ActiveLang); return
 	}
 	if s.DB == nil {
 		writeError(w, 500, "database not available")
@@ -123,14 +124,15 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 500, "get review grammar: "+err.Error())
 		return
 	}
+	// Prioritize grammar points matching the plan's grammar_focus
+	prioritizeGrammarByPlan(grammarPoints, s.sessionBudget.getGrammarFocus())
 
 	if len(words) == 0 && len(grammarPoints) == 0 {
 		// Try expanding new words before giving up
 		if s.AI != nil {
-			plan, planErr := s.DB.GetActivePlan(lang)
-			if planErr == nil && plan != nil && plan.Direction != "" &&
-				plan.Direction != "complete" && plan.Direction != "review-only" {
-				s.expandWords(r.Context(), lang, 5, plan.Direction)
+			expandCount, extraCtx := s.planExpandParams(lang)
+			if expandCount > 0 {
+				s.expandWords(r.Context(), lang, expandCount, extraCtx)
 				// Re-fetch after expansion
 				words, _ = s.DB.GetReviewWords(lang, 10)
 				grammarPoints, _ = s.DB.GetReviewGrammarPoints(lang, 5)
@@ -166,9 +168,10 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 			info := wordToInfo(word)
 			distractors := wordsToInfos(words[wi:]) // remaining words as distractors
 
-			qType := engine.SelectQuestionType(
+			qType := engine.SelectQuestionTypeWithWeights(
 				word.NextReviewAt, word.EasinessFactor, word.Interval, word.Repetitions,
 				langQuestionTypes(lang, s.Config), s.AI != nil,
+				s.sessionBudget.getTypeWeights(),
 			)
 
 			if !s.sessionBudget.allowType(string(qType), s.Config.App.SessionTimeBudget, s.Config.App.MaxSlowTypeRatio) {
@@ -301,7 +304,12 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if primaryExpected == "" {
-			writeError(w, 400, "cached answer required for grammar questions")
+			// Cache miss -- return friendly error instead of HTTP 400
+			writeJSON(w, map[string]interface{}{
+				"correct":  false,
+				"feedback": "Question expired, please get a new one",
+				"source":   "cache_miss",
+			})
 			return
 		}
 		expected = []string{primaryExpected}
@@ -336,7 +344,7 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 
 	switch req.SubjectType {
 	case "grammar":
-		sm2 := engine.SM2(grammar.EasinessFactor, grammar.Interval, grammar.Repetitions, quality, now)
+		sm2 := engine.SM2(grammar.EasinessFactor, grammar.Interval, grammar.Repetitions, quality, now, 0)
 		if sm2 != nil {
 			grammar.EasinessFactor = sm2.EasinessFactor
 			grammar.Interval = sm2.Interval
@@ -353,7 +361,7 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	default:
-		sm2 := engine.SM2(word.EasinessFactor, word.Interval, word.Repetitions, quality, now)
+		sm2 := engine.SM2(word.EasinessFactor, word.Interval, word.Repetitions, quality, now, s.Config.App.Sm2MaxIntervalDays)
 		if sm2 != nil {
 			word.EasinessFactor = sm2.EasinessFactor
 			word.Interval = sm2.Interval
@@ -494,14 +502,14 @@ func expectedAnswers(qType string, w *db.Word) []string {
 
 func nonEmpty(s string) []string {
 	if s == "" {
-		return []string{""}
+		return nil
 	}
 	return []string{s}
 }
 
 func dedupNonEmpty(a, b string) []string {
 	if a == "" && b == "" {
-		return []string{""}
+		return nil
 	}
 	if a == "" {
 		return []string{b}
@@ -553,7 +561,7 @@ func (s *Server) makeAIJudge(qType string, word *db.Word) func(user, expected st
 		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 		defer cancel()
 
-		response, err := s.AI.Chat(ctx, messages)
+		response, err := s.AI.Chat(ctx, messages, pt.Temperature)
 		if err != nil {
 			return nil, err
 		}
@@ -573,5 +581,93 @@ func (s *Server) makeAIJudge(qType string, word *db.Word) func(user, expected st
 			Score:    aiResult.Score,
 			Feedback: aiResult.Feedback,
 		}, nil
+	}
+}
+
+// planExpandParams returns the expand count and context string based on the active plan.
+// Falls back to app config when no plan exists or plan data is incomplete.
+func (s *Server) planExpandParams(lang string) (count int, extraCtx string) {
+	count = s.Config.App.ExpandBatchSize
+	extraCtx = "general"
+
+	plan, err := s.DB.GetActivePlan(lang)
+	if err != nil || plan == nil {
+		return
+	}
+	if plan.Direction == "complete" || plan.Direction == "review-only" {
+		return
+	}
+
+	extraCtx = plan.Direction
+
+	tw := parsePlanTomorrow(plan.PlanJSON)
+	if tw == nil {
+		return
+	}
+	if tw.WordCount > 0 {
+		count = tw.WordCount
+	}
+	if len(tw.DomainWords) > 0 {
+		extraCtx = plan.Direction + ": " + strings.Join(tw.DomainWords, ", ")
+	}
+
+	// Also cache type weights for this session (capped by max slow-type ratio)
+	if len(tw.QuestionTypeRatio) > 0 {
+		merged := mergeTypeWeights(tw.QuestionTypeRatio, s.Config.App.MaxSlowTypeRatio)
+		s.sessionBudget.setTypeWeights(merged)
+	}
+	return
+}
+
+// cachePlanWeights loads the active plan and caches its question_type_ratio
+// and grammar_focus for use during question selection. Called at session start.
+func (s *Server) cachePlanWeights(lang string) {
+	plan, err := s.DB.GetActivePlan(lang)
+	if err != nil || plan == nil {
+		return
+	}
+	tw := parsePlanTomorrow(plan.PlanJSON)
+	if tw == nil {
+		return
+	}
+	if len(tw.QuestionTypeRatio) > 0 {
+		merged := mergeTypeWeights(tw.QuestionTypeRatio, s.Config.App.MaxSlowTypeRatio)
+		s.sessionBudget.setTypeWeights(merged)
+	}
+	if len(tw.GrammarFocus) > 0 {
+		s.sessionBudget.setGrammarFocus(tw.GrammarFocus)
+	}
+}
+
+// prioritizeGrammarByPlan reorders grammar points so that those matching the
+// plan's grammar_focus come first. Non-matching points retain original order.
+func prioritizeGrammarByPlan(points []*db.GrammarPoint, focus []string) {
+	if len(focus) == 0 || len(points) <= 1 {
+		return
+	}
+	focusSet := make(map[string]bool, len(focus))
+	for _, f := range focus {
+		focusSet[f] = true
+	}
+
+	matched := make([]*db.GrammarPoint, 0, len(points))
+	rest := make([]*db.GrammarPoint, 0, len(points))
+	for _, g := range points {
+		if focusSet[g.Title] {
+			matched = append(matched, g)
+		} else {
+			rest = append(rest, g)
+		}
+	}
+
+	// In-place reorder: matched first, then rest
+	i := 0
+	for _, g := range matched {
+		points[i] = g
+		i++
+	}
+	for _, g := range rest {
+		points[i] = g
+		i++
 	}
 }

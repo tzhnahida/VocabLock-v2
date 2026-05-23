@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/vocablock/v2/internal/config"
@@ -25,31 +26,25 @@ func NewProvider(name string, cfg config.TTSProvider, cacheDir string) (*Provide
 	return &Provider{cfg: cfg, name: name, cache: cache}, nil
 }
 
-// Generate synthesizes speech for the given text and returns the audio file path.
-// Returns cached file path if available.
+// Generate synthesizes speech for the given text and returns the audio filename.
+// Returns cached filename if available.
 func (p *Provider) Generate(ctx context.Context, voice, text string) (string, error) {
 	key := cacheKey(p.name, voice, text)
 
-	// Check cache
+	// Check cache — return just the filename (not full path)
 	if path, ok := p.cache.Get(key); ok {
-		return path, nil
+		return filepath.Base(path), nil
 	}
+
+	filename := key + "." + p.cfg.Format
+	outputPath := filepath.Join(p.cache.Dir(), filename)
 
 	// Build command
 	args := buildArgs(p.cfg.Args, map[string]string{
 		"voice":  voice,
 		"text":   text,
-		"output": key + "." + p.cfg.Format,
+		"output": outputPath,
 	})
-
-	outputPath := filepathAbs(key + "." + p.cfg.Format)
-
-	// Ensure the output path variable is set correctly
-	for i, arg := range args {
-		if strings.Contains(arg, "{output}") {
-			args[i] = outputPath
-		}
-	}
 
 	cmd := exec.CommandContext(ctx, p.cfg.Binary, args...)
 	cmd.Stderr = os.Stderr
@@ -61,7 +56,7 @@ func (p *Provider) Generate(ctx context.Context, voice, text string) (string, er
 	// Cache the result
 	p.cache.Put(key, outputPath, p.cfg.Format)
 
-	return outputPath, nil
+	return filename, nil
 }
 
 func cacheKey(provider, voice, text string) string {
@@ -79,13 +74,4 @@ func buildArgs(templates []string, vars map[string]string) []string {
 		args[i] = arg
 	}
 	return args
-}
-
-func filepathAbs(p string) string {
-	// Returns the absolute path relative to the cache directory
-	return p
-}
-
-func init() {
-	// Placeholder for init-time checks
 }

@@ -10,10 +10,6 @@ import (
 )
 
 func (s *Server) handleConfigGet(w http.ResponseWriter, r *http.Request) {
-	if s.Mock {
-		mock.HandleConfigGet(w, r); return
-	}
-
 	langs := make([]string, 0, len(s.Config.Languages))
 	for code := range s.Config.Languages {
 		langs = append(langs, code)
@@ -35,13 +31,10 @@ func (s *Server) handleConfigGet(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, map[string]interface{}{
 		"active_lang":          s.Config.App.ActiveLang,
+		"interface_lang":       s.Config.App.InterfaceLang,
 		"mock_mode":            s.Config.App.MockMode,
 		"daily_target":         s.Config.App.DailyTarget,
 		"min_accuracy":         s.Config.App.MinAccuracy,
-		"listening_ratio":      s.Config.App.ListeningRatio,
-		"reading_ratio":        s.Config.App.ReadingRatio,
-		"grammar_ratio":        s.Config.App.GrammarRatio,
-		"extra_ratio":          s.Config.App.ExtraRatio,
 		"passive_enabled":      s.Config.App.PassiveEnabled,
 		"passive_min_interval": s.Config.App.PassiveMinInterval,
 		"passive_max_interval": s.Config.App.PassiveMaxInterval,
@@ -50,7 +43,9 @@ func (s *Server) handleConfigGet(w http.ResponseWriter, r *http.Request) {
 		"auto_start":           s.Config.App.AutoStart,
 		"auto_expand_words":    s.Config.App.AutoExpandWords,
 		"expand_batch_size":    s.Config.App.ExpandBatchSize,
-		"expand_threshold":     s.Config.App.ExpandThreshold,
+		"sm2_max_interval_days": s.Config.App.Sm2MaxIntervalDays,
+		"session_time_budget":  s.Config.App.SessionTimeBudget,
+		"max_slow_type_ratio":  s.Config.App.MaxSlowTypeRatio,
 		"theme":                s.Config.App.Theme,
 		"model":                s.Config.App.AI.Model,
 		"base_url":             s.Config.App.AI.BaseURL,
@@ -66,10 +61,6 @@ func (s *Server) handleConfigGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleConfigGetKey(w http.ResponseWriter, r *http.Request) {
-	if s.Mock {
-		mock.HandleConfigGetKey(w, r); return
-	}
-
 	key := r.PathValue("key")
 	var value interface{}
 
@@ -103,14 +94,17 @@ func (s *Server) handleConfigGetKey(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleConfigUpdate(w http.ResponseWriter, r *http.Request) {
-	if s.Mock {
-		mock.HandleConfigUpdate(w, r); return
-	}
-
 	var req map[string]interface{}
 	if err := readJSON(r, &req); err != nil {
 		writeError(w, 400, "invalid request body")
 		return
+	}
+
+	langChanged := false
+	if v, ok := req["interface_lang"]; ok {
+		if lang, ok := v.(string); ok && lang != "" {
+			s.Config.App.InterfaceLang = lang
+		}
 	}
 
 	if v, ok := req["active_lang"]; ok {
@@ -123,6 +117,9 @@ func (s *Server) handleConfigUpdate(w http.ResponseWriter, r *http.Request) {
 					writeError(w, 400, "unknown language: "+lang)
 					return
 				}
+			}
+			if s.Config.App.ActiveLang != lang {
+				langChanged = true
 			}
 			s.Config.App.ActiveLang = lang
 		}
@@ -151,9 +148,56 @@ func (s *Server) handleConfigUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	updateAssignmentConfig(&s.Config.App.Assignment, req)
 
-	// Persist changes to app.yaml
-	if err := s.Config.SaveAppConfig(s.ConfigDir); err != nil {
-		fmt.Fprintf(os.Stderr, "save config: %v\n", err)
+	if v, ok := req["min_accuracy"]; ok {
+		if n, ok := v.(float64); ok && n >= 0 && n <= 1 {
+			s.Config.App.MinAccuracy = n
+		}
+	}
+	if v, ok := req["auto_expand_words"]; ok {
+		if b, ok := v.(bool); ok {
+			s.Config.App.AutoExpandWords = b
+		}
+	}
+	if v, ok := req["expand_batch_size"]; ok {
+		if n, ok := v.(float64); ok {
+			iv := int(n)
+			if iv > 0 && iv <= 50 {
+				s.Config.App.ExpandBatchSize = iv
+			}
+		}
+	}
+	if v, ok := req["sm2_max_interval_days"]; ok {
+		if n, ok := v.(float64); ok {
+			iv := int(n)
+			if iv >= 30 && iv <= 365 {
+				s.Config.App.Sm2MaxIntervalDays = iv
+			}
+		}
+	}
+	if v, ok := req["session_time_budget"]; ok {
+		if n, ok := v.(float64); ok {
+			iv := int(n)
+			if iv >= 0 && iv <= 120 {
+				s.Config.App.SessionTimeBudget = iv
+			}
+		}
+	}
+	if v, ok := req["max_slow_type_ratio"]; ok {
+		if n, ok := v.(float64); ok && n >= 0 && n <= 1 {
+			s.Config.App.MaxSlowTypeRatio = n
+		}
+	}
+
+	// Persist changes to app.yaml (skip in mock mode to avoid touching real config)
+	if !s.Mock {
+		if err := s.Config.SaveAppConfig(s.ConfigDir); err != nil {
+			fmt.Fprintf(os.Stderr, "save config: %v\n", err)
+		}
+	}
+
+	// Bootstrap seed words and grammar points for newly activated language
+	if langChanged {
+		go s.ensureBootstrap(s.Config.App.ActiveLang)
 	}
 
 	writeJSON(w, map[string]interface{}{

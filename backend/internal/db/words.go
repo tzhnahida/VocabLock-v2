@@ -15,6 +15,8 @@ type wordScanner struct {
 	Language       string
 	Source         string
 	Confidence     string
+	Level          string
+	Detail         string
 	Direction      string
 	Status         string
 	Tags           string
@@ -39,6 +41,8 @@ func (s *wordScanner) toWord() *Word {
 		Language:       s.Language,
 		Source:         s.Source,
 		Confidence:     s.Confidence,
+		Level:          s.Level,
+		Detail:         s.Detail,
 		Direction:      s.Direction,
 		Status:         s.Status,
 		Tags:           s.Tags,
@@ -54,13 +58,13 @@ func (s *wordScanner) toWord() *Word {
 	}
 }
 
-const wordColumns = `id, word, reading, meaning, pos, language, source, confidence, direction, status, tags, easiness_factor, interval, repetitions, next_review_at, last_review_at, total_attempts, total_correct, created_at, updated_at`
+const wordColumns = `id, word, reading, meaning, pos, language, source, confidence, level, detail, direction, status, tags, easiness_factor, interval, repetitions, next_review_at, last_review_at, total_attempts, total_correct, created_at, updated_at`
 
 func scanWordRow(row interface{ Scan(...interface{}) error }) (*Word, error) {
 	var s wordScanner
 	err := row.Scan(
 		&s.ID, &s.Word, &s.Reading, &s.Meaning, &s.POS, &s.Language, &s.Source, &s.Confidence,
-		&s.Direction, &s.Status, &s.Tags,
+		&s.Level, &s.Detail, &s.Direction, &s.Status, &s.Tags,
 		&s.EasinessFactor, &s.Interval, &s.Repetitions,
 		&s.NextReviewAt, &s.LastReviewAt,
 		&s.TotalAttempts, &s.TotalCorrect, &s.CreatedAt, &s.UpdatedAt,
@@ -76,10 +80,10 @@ func (d *Database) InsertWord(w *Word) (int64, error) {
 		w.Status = "active"
 	}
 	r, err := d.DB.Exec(`
-		INSERT OR IGNORE INTO words (word, reading, meaning, pos, language, source, confidence, direction, status, tags,
+		INSERT OR IGNORE INTO words (word, reading, meaning, pos, language, source, confidence, level, detail, direction, status, tags,
 		                   easiness_factor, interval, repetitions)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2.5, 0, 0)
-	`, w.Word, w.Reading, w.Meaning, w.POS, w.Language, w.Source, w.Confidence, w.Direction, w.Status, w.Tags)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2.5, 0, 0)
+	`, w.Word, w.Reading, w.Meaning, w.POS, w.Language, w.Source, w.Confidence, w.Level, w.Detail, w.Direction, w.Status, w.Tags)
 	if err != nil {
 		return 0, fmt.Errorf("insert word: %w", err)
 	}
@@ -163,13 +167,15 @@ func (d *Database) UpdateWord(w *Word) error {
 	}
 
 	_, err := d.DB.Exec(`
-		UPDATE words SET word=?, reading=?, meaning=?, pos=?,
+		UPDATE words SET word=?, reading=?, meaning=?, pos=?, level=?, detail=?,
+		       status=?, source=?, confidence=?, tags=?,
 		       easiness_factor=?, interval=?, repetitions=?,
 		       next_review_at=?, last_review_at=?,
 		       total_attempts=?, total_correct=?,
 		       updated_at=datetime('now','localtime')
 		WHERE id=?
-	`, w.Word, w.Reading, w.Meaning, w.POS,
+	`, w.Word, w.Reading, w.Meaning, w.POS, w.Level, w.Detail,
+		w.Status, w.Source, w.Confidence, w.Tags,
 		w.EasinessFactor, w.Interval, w.Repetitions,
 		nextRev, lastRev,
 		w.TotalAttempts, w.TotalCorrect, w.ID)
@@ -268,9 +274,9 @@ func (d *Database) BulkInsertWords(words []*Word) error {
 	defer tx.Rollback()
 
 	stmt, err := tx.Prepare(`
-		INSERT INTO words (word, reading, meaning, pos, language, source, confidence, direction, status, tags,
+		INSERT INTO words (word, reading, meaning, pos, language, source, confidence, level, detail, direction, status, tags,
 		                   easiness_factor, interval, repetitions)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2.5, 0, 0)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2.5, 0, 0)
 	`)
 	if err != nil {
 		return fmt.Errorf("prepare: %w", err)
@@ -281,7 +287,7 @@ func (d *Database) BulkInsertWords(words []*Word) error {
 		if w.Status == "" {
 			w.Status = "active"
 		}
-		if _, err := stmt.Exec(w.Word, w.Reading, w.Meaning, w.POS, w.Language, w.Source, w.Confidence, w.Direction, w.Status, w.Tags); err != nil {
+		if _, err := stmt.Exec(w.Word, w.Reading, w.Meaning, w.POS, w.Language, w.Source, w.Confidence, w.Level, w.Detail, w.Direction, w.Status, w.Tags); err != nil {
 			return fmt.Errorf("insert: %w", err)
 		}
 	}

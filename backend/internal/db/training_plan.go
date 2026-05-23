@@ -86,3 +86,18 @@ func (d *Database) GetSessionLogs(language string, limit int) ([]*ReviewLog, err
 	}
 	return logs, nil
 }
+
+func (d *Database) GetStudentLevel(language string) string {
+	var level string
+	err := d.DB.QueryRow(`SELECT level FROM student_state WHERE language = ?`, language).Scan(&level)
+	if err != nil {
+		return "beginner"
+	}
+	return level
+}
+
+func (d *Database) SetStudentLevel(language, level string) error {
+	_, err := d.DB.Exec(`INSERT INTO student_state (language, level, updated_at) VALUES (?, ?, datetime('now','localtime'))
+		ON CONFLICT(language) DO UPDATE SET level = excluded.level, updated_at = excluded.updated_at`, language, level)
+	return err
+}

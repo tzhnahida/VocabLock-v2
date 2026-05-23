@@ -11,17 +11,14 @@ import (
 // ——— App config ———
 
 type AppConfig struct {
-	ActiveLang  string   `yaml:"active_lang"`
-	MockMode    bool     `yaml:"mock_mode"`
+	ActiveLang    string   `yaml:"active_lang"`
+	InterfaceLang string   `yaml:"interface_lang"`
+	MockMode      bool     `yaml:"mock_mode"`
 	Server      struct {
 		Host string `yaml:"host"`
 	} `yaml:"server"`
 	DailyTarget         int      `yaml:"daily_target"`
 	MinAccuracy         float64  `yaml:"min_accuracy"`
-	ListeningRatio      float64  `yaml:"listening_ratio"`
-	ReadingRatio        float64  `yaml:"reading_ratio"`
-	GrammarRatio        float64  `yaml:"grammar_ratio"`
-	ExtraRatio          float64  `yaml:"extra_ratio"`
 	PassiveEnabled      bool     `yaml:"passive_enabled"`
 	PassiveMinInterval  int      `yaml:"passive_min_interval"`
 	PassiveMaxInterval  int      `yaml:"passive_max_interval"`
@@ -30,13 +27,13 @@ type AppConfig struct {
 	AutoStart           bool     `yaml:"auto_start"`
 	AutoExpandWords     bool     `yaml:"auto_expand_words"`
 	ExpandBatchSize     int      `yaml:"expand_batch_size"`
-	ExpandThreshold     float64  `yaml:"expand_threshold"`
 	Theme               string   `yaml:"theme"`
 	// Assignment cadence
 	Assignment          AssignmentConfig `yaml:"assignment"`
 	// Time budget
-	SessionTimeBudget int     `yaml:"session_time_budget"` // minutes
-	MaxSlowTypeRatio  float64 `yaml:"max_slow_type_ratio"` // 0.0–1.0
+	SessionTimeBudget   int     `yaml:"session_time_budget"` // minutes
+	MaxSlowTypeRatio    float64 `yaml:"max_slow_type_ratio"` // 0.0–1.0
+	Sm2MaxIntervalDays  int     `yaml:"sm2_max_interval_days"` // default 180
 	AI                  AIConfig `yaml:"ai"`
 }
 
@@ -115,8 +112,23 @@ type LanguageConfig struct {
 		ExplanationLang   string            `yaml:"explanation_lang"`
 		LevelDescriptions map[string]string `yaml:"level_descriptions"`
 	} `yaml:"prompt_context"`
-	GrammarPoints []string `yaml:"grammar_points"`
-	SeedWordsFile string   `yaml:"seed_words_file"`
+	GrammarPoints  []string        `yaml:"grammar_points"`
+	SeedWordsFile  string          `yaml:"seed_words_file"`
+	WordFieldsBase []WordFieldDef  `yaml:"word_fields_base"`
+	WordFieldsDLC  []WordFieldDLC  `yaml:"word_fields_dlc"`
+}
+
+type WordFieldDef struct {
+	Key     string   `yaml:"key" json:"key"`
+	Label   string   `yaml:"label" json:"label"`
+	Type    string   `yaml:"type" json:"type"` // text, select, number
+	Options []string `yaml:"options,omitempty" json:"options,omitempty"`
+}
+
+type WordFieldDLC struct {
+	Category string         `yaml:"category" json:"category"`
+	Label    string         `yaml:"label" json:"label"`
+	Fields   []WordFieldDef `yaml:"fields" json:"fields"`
 }
 
 // ——— Aggregate holder ———
@@ -132,12 +144,9 @@ func Load(configDir string) (*Config, error) {
 	cfg := &Config{
 		App: AppConfig{
 			ActiveLang:          "en",
+				InterfaceLang:       "zh-CN",
 			DailyTarget:         20,
 			MinAccuracy:         0.8,
-			ListeningRatio:      0.15,
-			ReadingRatio:        0.15,
-			GrammarRatio:        0.15,
-			ExtraRatio:          0.15,
 			PassiveEnabled:      true,
 			PassiveMinInterval:  25,
 			PassiveMaxInterval:  60,
@@ -145,7 +154,7 @@ func Load(configDir string) (*Config, error) {
 			EscapeClickLimit:    2,
 			AutoExpandWords:     true,
 			ExpandBatchSize:     10,
-			ExpandThreshold:     0.6,
+			Sm2MaxIntervalDays:  180,
 			Theme:               "vs-dark",
 			AI: AIConfig{
 				BaseURL: "https://api.deepseek.com",

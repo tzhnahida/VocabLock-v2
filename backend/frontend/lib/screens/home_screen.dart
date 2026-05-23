@@ -14,6 +14,8 @@ import '../widgets/ai_chat_panel.dart';
 import '../widgets/pending_review_panel.dart';
 import '../widgets/assignment_sheet.dart';
 import '../models/assignment.dart';
+import '../models/word.dart';
+import '../utils/audio_player.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,6 +29,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _showQuiz(AppState state) {
     final quizApi = state.quizApi;
+    final ttsApi = state.ttsApi;
+    final baseUrl = state.baseUrl ?? 'http://127.0.0.1:8080';
+    final token = state.token ?? '';
+    final player = AppAudioPlayer();
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -37,6 +43,40 @@ class _HomeScreenState extends State<HomeScreen> {
               state.submitAnswer(questionId: questionId, subjectType: subjectType, subjectId: subjectId, questionType: questionType, answer: answer),
           onGetStudyWords: () => state.getStudyWords(),
           onGetStudyGrammar: () => state.getStudyGrammarPoints(),
+          onPlayWordAudio: (wordId) async {
+            if (ttsApi == null) return;
+            final result = await ttsApi.getWordAudio(wordId);
+            final status = result['status'] as String? ?? '';
+            if (status != 'ok') return;
+            final url = result['url'] as String? ?? '';
+            if (url.isEmpty) return;
+            final fullUrl = '$baseUrl$url${url.contains('?') ? '&' : '?'}token=$token';
+            await player.playUrl(fullUrl);
+          },
+          onPlayTextAudio: (text) async {
+            if (ttsApi == null || text.isEmpty) return;
+            final result = await ttsApi.getTextAudio(text);
+            final status = result['status'] as String? ?? '';
+            if (status != 'ok') return;
+            final url = result['url'] as String? ?? '';
+            if (url.isEmpty) return;
+            final fullUrl = '$baseUrl$url${url.contains('?') ? '&' : '?'}token=$token';
+            await player.playUrl(fullUrl);
+          },
+          onGetFieldConfig: () async {
+            if (state.configApi == null) return [];
+            try {
+              final lc = await state.configApi!.getLanguageConfig(state.activeLangCode);
+              final base = (lc['word_fields_base'] as List<dynamic>?)
+                      ?.map((e) => WordFieldConfig.fromJson(e as Map<String, dynamic>))
+                      .toList() ??
+                  [];
+              final dlc = WordFieldConfig.listFromDLC(lc['word_fields_dlc'] as List<dynamic>?);
+              return [...base, ...dlc];
+            } catch (_) {
+              return [];
+            }
+          },
           onSummarize: quizApi != null
               ? () => quizApi.summarize(language: state.activeLangCode)
               : null,
@@ -88,6 +128,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildPanel(AppState state, double width) {
     final lang = state.activeLangCode;
+    final baseUrl = state.baseUrl ?? 'http://127.0.0.1:8080';
+    final token = state.token ?? '';
 
     // Show completion view when on dashboard and daily is completed
     if (_activeTool < 0 && state.dailyCompleted) {
@@ -95,7 +137,30 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     switch (_activeTool) {
-      case 1: return WordsPanel(key: ValueKey('words_$lang'), state: state);
+      case 1: return WordsPanel(
+        key: ValueKey('words_$lang'),
+        state: state,
+        onPlayWordAudio: (wordId) async {
+          if (state.ttsApi == null) return;
+          final result = await state.ttsApi!.getWordAudio(wordId);
+          final status = result['status'] as String? ?? '';
+          if (status != 'ok') return;
+          final url = result['url'] as String? ?? '';
+          if (url.isEmpty) return;
+          final fullUrl = '$baseUrl$url${url.contains('?') ? '&' : '?'}token=$token';
+          await AppAudioPlayer().playUrl(fullUrl);
+        },
+        onPlayTextAudio: (text) async {
+          if (state.ttsApi == null || text.isEmpty) return;
+          final result = await state.ttsApi!.getTextAudio(text);
+          final status = result['status'] as String? ?? '';
+          if (status != 'ok') return;
+          final url = result['url'] as String? ?? '';
+          if (url.isEmpty) return;
+          final fullUrl = '$baseUrl$url${url.contains('?') ? '&' : '?'}token=$token';
+          await AppAudioPlayer().playUrl(fullUrl);
+        },
+      );
       case 2: return AudioPanel(key: ValueKey('audio_$lang'), state: state);
       case 3: return StatsPanel(key: ValueKey('stats_$lang'), state: state);
       case 4: return ConfigPanel(key: ValueKey('config_$lang'), state: state);

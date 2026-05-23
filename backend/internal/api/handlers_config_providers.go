@@ -231,6 +231,8 @@ func (s *Server) handleConfigLanguageGet(w http.ResponseWriter, r *http.Request)
 		"dict_provider":    lc.Dict.Provider,
 		"question_types":   lc.QuestionTypes,
 		"prompt_context":   lc.PromptContext,
+		"word_fields_base": lc.WordFieldsBase,
+		"word_fields_dlc":  lc.WordFieldsDLC,
 	})
 }
 

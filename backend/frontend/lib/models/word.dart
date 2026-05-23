@@ -9,6 +9,8 @@ class Word {
   final String language;
   final String source;
   final String confidence;
+  final String level;
+  final Map<String, dynamic>? detail;
   final String direction;
   final String status;
   final List<String> tags;
@@ -31,6 +33,8 @@ class Word {
     this.language = '',
     this.source = '',
     this.confidence = '',
+    this.level = '',
+    this.detail,
     this.direction = '',
     this.status = 'active',
     this.tags = const [],
@@ -54,6 +58,8 @@ class Word {
         language: json['language'] ?? '',
         source: json['source'] ?? '',
         confidence: json['confidence'] ?? '',
+        level: json['level'] ?? '',
+        detail: _parseDetail(json['detail']),
         direction: json['direction'] ?? '',
         status: json['status'] ?? 'active',
         tags: _parseTags(json['tags']),
@@ -67,6 +73,19 @@ class Word {
         createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at']) : null,
         updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at']) : null,
       );
+
+  static Map<String, dynamic>? _parseDetail(dynamic d) {
+    if (d == null) return null;
+    if (d is Map<String, dynamic>) return d;
+    if (d is String) {
+      if (d.isEmpty) return null;
+      try {
+        final parsed = jsonDecode(d);
+        if (parsed is Map<String, dynamic>) return parsed;
+      } catch (_) {}
+    }
+    return null;
+  }
 
   static List<String> _parseTags(dynamic tags) {
     if (tags == null) return const [];
@@ -92,4 +111,43 @@ class Word {
         'status': status,
         'tags': tags,
       };
+}
+
+class WordFieldConfig {
+  final String key;
+  final String label;
+  final String type;
+  final List<String>? options;
+
+  const WordFieldConfig({
+    required this.key,
+    required this.label,
+    this.type = 'text',
+    this.options,
+  });
+
+  factory WordFieldConfig.fromJson(Map<String, dynamic> json) => WordFieldConfig(
+        key: json['key'] ?? '',
+        label: json['label'] ?? '',
+        type: json['type'] ?? 'text',
+        options: json['options'] != null ? List<String>.from(json['options']) : null,
+      );
+
+  static List<WordFieldConfig> listFromDLC(List<dynamic>? dlc) {
+    if (dlc == null) return [];
+    final result = <WordFieldConfig>[];
+    for (final category in dlc) {
+      if (category is Map<String, dynamic>) {
+        final fields = category['fields'];
+        if (fields is List) {
+          for (final f in fields) {
+            if (f is Map<String, dynamic>) {
+              result.add(WordFieldConfig.fromJson(f));
+            }
+          }
+        }
+      }
+    }
+    return result;
+  }
 }
