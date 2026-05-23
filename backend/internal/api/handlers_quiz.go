@@ -75,8 +75,22 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Check if daily target already met
+	reviewed, _, _ := s.DB.GetTodayStats(lang)
+	dailyDone := reviewed >= s.Config.App.DailyTarget
+	if dailyDone && nw == 0 && rw == 0 && ng == 0 && rg == 0 {
+		writeJSON(w, map[string]interface{}{
+			"new_words":       0,
+			"new_grammar":     0,
+			"review_words":    0,
+			"review_grammar":  0,
+			"daily_completed": true,
+		})
+		return
+	}
+
 	// Auto-expand new words when the student has nothing to study (non-blocking)
-	if nw == 0 && s.AI != nil && s.Config.App.AutoExpandWords {
+	if nw == 0 && s.AI != nil && s.Config.App.AutoExpandWords && !dailyDone {
 		expandCount, extraCtx := s.planExpandParams(lang)
 		if expandCount > 0 {
 			go func() {
@@ -599,7 +613,7 @@ func (s *Server) makeAIJudge(qType string, word *db.Word) func(user, expected st
 }
 
 // buildDistractors returns 3 unique-meaning WordInfo distractors for a choice question.
-// Uses remaining words first, then queries DB for random words to fill shortages.
+// Uses remaining words first, then queries DB to fill shortages.
 func (s *Server) buildDistractors(word *db.Word, remaining []*db.Word, lang string) []*engine.WordInfo {
 	result := make([]*engine.WordInfo, 0, 3)
 	seen := map[string]bool{word.Meaning: true}
@@ -610,20 +624,28 @@ func (s *Server) buildDistractors(word *db.Word, remaining []*db.Word, lang stri
 		}
 		seen[w.Meaning] = true
 		result = append(result, wordToInfo(w))
-		return len(result) >= 3
+		return false // keep collecting until we have 3
 	}
 
 	for _, w := range remaining {
-		if addIfNew(w) {
+		addIfNew(w)
+		if len(result) >= 3 {
 			return result
 		}
 	}
 
-	// Fallback: query random words from DB
-	if s.DB != nil && len(result) < 2 {
-		extra, _, _ := s.DB.ListWords(lang, 10, 0)
-		for _, w := range extra {
-			if addIfNew(w) {
+	// Fallback: query more words from DB (with offset to vary)
+	if s.DB != nil && len(result) < 3 {
+		// Try multiple offsets to get different words
+		for offset := 0; offset < 50 && len(result) < 3; offset += 10 {
+			extra, total, _ := s.DB.ListWords(lang, 20, offset)
+			for _, w := range extra {
+				addIfNew(w)
+				if len(result) >= 3 {
+					return result
+				}
+			}
+			if offset >= total {
 				break
 			}
 		}

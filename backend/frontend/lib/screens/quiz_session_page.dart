@@ -47,6 +47,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
   int _newGrammar = 0;
   int _reviewWords = 0;
   int _reviewGrammar = 0;
+  bool _dailyCompleted = false;
 
   // Learning phase
   List<Word> _studyWords = [];
@@ -101,6 +102,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
           _newGrammar = (counts['new_grammar'] as num?)?.toInt() ?? 0;
           _reviewWords = (counts['review_words'] as num?)?.toInt() ?? 0;
           _reviewGrammar = (counts['review_grammar'] as num?)?.toInt() ?? 0;
+          _dailyCompleted = counts['daily_completed'] == true;
         });
       }
     } catch (_) {}
@@ -126,6 +128,10 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
   }
 
   void _startLearning() {
+    if (_dailyCompleted) {
+      _dismiss();
+      return;
+    }
     final hasNew = _newWords + _newGrammar > 0;
     if (hasNew) {
       _loadStudyWords();
