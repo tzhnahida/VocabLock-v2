@@ -493,29 +493,18 @@ func (s *Server) expandGrammar(ctx context.Context, lang string, count int) (ins
 // Groups words by POS with counts and representative samples (not full list).
 func (s *Server) buildVocabSummary(lang string) string {
 	// Fetch with randomized offset so we don't always sample the same words
-	_, total, _ := s.DB.ListWords(lang, 1, 0)
+	words, total, _ := s.DB.ListWords(lang, 999, 0)
 	if total == 0 {
 		return "(no vocabulary yet)"
 	}
 
-	offset := rand.Intn(total)
-	if offset > total-50 {
-		offset = total - 50
-	}
-	if offset < 0 {
-		offset = 0
-	}
-	words, _, _ := s.DB.ListWords(lang, 200, offset)
-
-	// Shuffle before categorizing so different samples each call
-	rand.Shuffle(len(words), func(i, j int) { words[i], words[j] = words[j], words[i] })
-
-	// Group by POS category
+	// Count ALL by category (exact) + collect for random samples
+	var nCount, vCount, aCount, eCount, oCount int
 	nouns := make([]string, 0)
 	verbs := make([]string, 0)
-	adjectives := make([]string, 0)
-	expressions := make([]string, 0)
-	others := make([]string, 0)
+	adjs := make([]string, 0)
+	phrases := make([]string, 0)
+	other := make([]string, 0)
 
 	for _, w := range words {
 		if w.Word == "" || w.Meaning == "" {
@@ -525,66 +514,31 @@ func (s *Server) buildVocabSummary(lang string) string {
 		p := w.POS
 		switch {
 		case strings.Contains(p, "名") || strings.Contains(p, "noun") || strings.Contains(p, "名词"):
-			nouns = append(nouns, entry)
+			nCount++; nouns = append(nouns, entry)
 		case strings.Contains(p, "动") || strings.Contains(p, "verb") || strings.Contains(p, "自動") || strings.Contains(p, "他動"):
-			verbs = append(verbs, entry)
+			vCount++; verbs = append(verbs, entry)
 		case strings.Contains(p, "形容") || strings.Contains(p, "adj"):
-			adjectives = append(adjectives, entry)
+			aCount++; adjs = append(adjs, entry)
 		case strings.Contains(p, "惯用") || strings.Contains(p, "熟語") || strings.Contains(p, "感"):
-			expressions = append(expressions, entry)
+			eCount++; phrases = append(phrases, entry)
 		default:
-			others = append(others, entry)
+			oCount++; other = append(other, entry)
 		}
+	}
+
+	sample := func(list []string, max int) string {
+		if len(list) == 0 { return "" }
+		rand.Shuffle(len(list), func(i, j int) { list[i], list[j] = list[j], list[i] })
+		if len(list) > max { list = list[:max] }
+		return strings.Join(list, ", ")
 	}
 
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Total: %d words. ", total))
-
-	if len(nouns) > 0 {
-		b.WriteString(fmt.Sprintf("Nouns(%d): ", len(nouns)))
-		for i, n := range nouns {
-			if i >= 8 { b.WriteString("..."); break }
-			if i > 0 { b.WriteString(", ") }
-			b.WriteString(n)
-		}
-		b.WriteString(". ")
-	}
-	if len(verbs) > 0 {
-		b.WriteString(fmt.Sprintf("Verbs(%d): ", len(verbs)))
-		for i, v := range verbs {
-			if i >= 5 { b.WriteString("..."); break }
-			if i > 0 { b.WriteString(", ") }
-			b.WriteString(v)
-		}
-		b.WriteString(". ")
-	}
-	if len(adjectives) > 0 {
-		b.WriteString(fmt.Sprintf("Adjectives(%d): ", len(adjectives)))
-		for i, a := range adjectives {
-			if i >= 4 { b.WriteString("..."); break }
-			if i > 0 { b.WriteString(", ") }
-			b.WriteString(a)
-		}
-		b.WriteString(". ")
-	}
-	if len(expressions) > 0 {
-		b.WriteString(fmt.Sprintf("Greetings/Phrases(%d): ", len(expressions)))
-		for i, e := range expressions {
-			if i >= 4 { b.WriteString("..."); break }
-			if i > 0 { b.WriteString(", ") }
-			b.WriteString(e)
-		}
-		b.WriteString(". ")
-	}
-	if len(others) > 0 {
-		b.WriteString(fmt.Sprintf("Other(%d): ", len(others)))
-		for i, o := range others {
-			if i >= 4 { b.WriteString("..."); break }
-			if i > 0 { b.WriteString(", ") }
-			b.WriteString(o)
-		}
-		b.WriteString(".")
-	}
-
+	b.WriteString(fmt.Sprintf("Total: %d. ", total))
+	if nCount > 0 { b.WriteString(fmt.Sprintf("Nouns: %d (e.g. %s). ", nCount, sample(nouns, 5))) }
+	if vCount > 0 { b.WriteString(fmt.Sprintf("Verbs: %d (e.g. %s). ", vCount, sample(verbs, 4))) }
+	if aCount > 0 { b.WriteString(fmt.Sprintf("Adjectives: %d (e.g. %s). ", aCount, sample(adjs, 3))) }
+	if eCount > 0 { b.WriteString(fmt.Sprintf("Phrases: %d (e.g. %s). ", eCount, sample(phrases, 3))) }
+	if oCount > 0 { b.WriteString(fmt.Sprintf("Other: %d (e.g. %s).", oCount, sample(other, 3))) }
 	return b.String()
 }
