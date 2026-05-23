@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../models/word.dart';
 import '../models/question.dart';
 import '../providers/app_state.dart';
 import '../screens/word_detail_page.dart';
+import '../screens/grammar_detail_page.dart';
 import '../theme/app_theme.dart';
 
 class WordsPanel extends StatefulWidget {
@@ -173,7 +175,17 @@ class _WordsPanelState extends State<WordsPanel> with SingleTickerProviderStateM
     }
     return ListView.builder(
       itemCount: filtered.length,
-      itemBuilder: (_, i) => _GrammarRow(grammar: filtered[i]),
+      itemBuilder: (_, i) => _GrammarRow(
+        grammar: filtered[i],
+        onTap: () {
+          Navigator.push(context, MaterialPageRoute(
+            builder: (_) => GrammarDetailPage(
+              grammar: filtered[i],
+              onPlayText: widget.onPlayTextAudio,
+            ),
+          ));
+        },
+      ),
     );
   }
 
@@ -326,11 +338,19 @@ class _Tag extends StatelessWidget {
 
 class _GrammarRow extends StatelessWidget {
   final GrammarPoint grammar;
-  const _GrammarRow({required this.grammar});
+  final VoidCallback onTap;
+  const _GrammarRow({required this.grammar, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final detail = _tryParseDetail(grammar.detail);
+    final pattern = detail['pattern']?.toString() ?? '';
+    final usage = detail['usage_notes']?.toString() ?? '';
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -349,8 +369,10 @@ class _GrammarRow extends StatelessWidget {
               Text(grammar.language.toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.textHint)),
             ],
           ),
-          const SizedBox(height: 6),
-          Text(grammar.explanation, style: TextStyle(fontSize: 13, color: AppTheme.textSecondary), maxLines: 2, overflow: TextOverflow.ellipsis),
+          if (grammar.explanation.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(grammar.explanation, style: TextStyle(fontSize: 13, color: AppTheme.textSecondary), maxLines: 2, overflow: TextOverflow.ellipsis),
+          ],
           if (grammar.example.isNotEmpty) ...[
             const SizedBox(height: 6),
             Container(
@@ -359,11 +381,28 @@ class _GrammarRow extends StatelessWidget {
                 color: AppTheme.isDark ? Colors.white10 : Colors.grey.shade50,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(grammar.example, style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: AppTheme.textPrimary)),
+              child: Text(grammar.example, style: TextStyle(fontSize: 13, color: AppTheme.textPrimary)),
             ),
+          ],
+          if (pattern.isNotEmpty || usage.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(spacing: 6, runSpacing: 4, children: [
+              if (pattern.isNotEmpty) _Tag(pattern, Colors.teal),
+              if (usage.isNotEmpty) _Tag(usage, Colors.orange),
+            ]),
           ],
         ],
       ),
+      ),
     );
+  }
+}
+
+Map<String, dynamic> _tryParseDetail(String? detail) {
+  if (detail == null || detail.isEmpty || detail == '{}') return {};
+  try {
+    return const JsonDecoder().convert(detail) as Map<String, dynamic>;
+  } catch (_) {
+    return {};
   }
 }

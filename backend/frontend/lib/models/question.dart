@@ -110,6 +110,7 @@ class GrammarPoint {
   final String title;
   final String explanation;
   final String example;
+  final String detail;
   final String language;
 
   const GrammarPoint({
@@ -117,6 +118,7 @@ class GrammarPoint {
     required this.title,
     required this.explanation,
     required this.example,
+    this.detail = '',
     this.language = '',
   });
 
@@ -125,6 +127,7 @@ class GrammarPoint {
         title: json['title'] ?? '',
         explanation: json['explanation'] ?? '',
         example: json['example'] ?? '',
+        detail: json['detail'] ?? '',
         language: json['language'] ?? '',
       );
 }
