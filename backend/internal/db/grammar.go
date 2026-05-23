@@ -10,6 +10,7 @@ type grammarScanner struct {
 	Title          string
 	Explanation    string
 	Example        string
+	Detail         string
 	Language       string
 	Source         string
 	Status         string
@@ -30,6 +31,7 @@ func (s *grammarScanner) toGrammar() *GrammarPoint {
 		Title:          s.Title,
 		Explanation:    s.Explanation,
 		Example:        s.Example,
+		Detail:         s.Detail,
 		Language:       s.Language,
 		Source:         s.Source,
 		Status:         s.Status,
@@ -45,12 +47,12 @@ func (s *grammarScanner) toGrammar() *GrammarPoint {
 	}
 }
 
-const grammarColumns = `id, title, explanation, example, language, source, status, easiness_factor, interval, repetitions, next_review_at, last_review_at, total_attempts, total_correct, created_at, updated_at`
+const grammarColumns = `id, title, explanation, example, detail, language, source, status, easiness_factor, interval, repetitions, next_review_at, last_review_at, total_attempts, total_correct, created_at, updated_at`
 
 func scanGrammarRow(row interface{ Scan(...interface{}) error }) (*GrammarPoint, error) {
 	var s grammarScanner
 	err := row.Scan(
-		&s.ID, &s.Title, &s.Explanation, &s.Example, &s.Language, &s.Source, &s.Status,
+		&s.ID, &s.Title, &s.Explanation, &s.Example, &s.Detail, &s.Language, &s.Source, &s.Status,
 		&s.EasinessFactor, &s.Interval, &s.Repetitions,
 		&s.NextReviewAt, &s.LastReviewAt,
 		&s.TotalAttempts, &s.TotalCorrect, &s.CreatedAt, &s.UpdatedAt,
@@ -66,9 +68,9 @@ func (d *Database) InsertGrammarPoint(g *GrammarPoint) (int64, error) {
 		g.Status = "active"
 	}
 	r, err := d.DB.Exec(`
-		INSERT INTO grammar_points (title, explanation, example, language, source, status)
-		VALUES (?, ?, ?, ?, ?, ?)
-	`, g.Title, g.Explanation, g.Example, g.Language, g.Source, g.Status)
+		INSERT INTO grammar_points (title, explanation, example, detail, language, source, status)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, g.Title, g.Explanation, g.Example, g.Detail, g.Language, g.Source, g.Status)
 	if err != nil {
 		return 0, fmt.Errorf("insert grammar point: %w", err)
 	}
@@ -136,13 +138,13 @@ func (d *Database) UpdateGrammarPoint(g *GrammarPoint) error {
 	}
 
 	_, err := d.DB.Exec(`
-		UPDATE grammar_points SET title=?, explanation=?, example=?,
+		UPDATE grammar_points SET title=?, explanation=?, example=?, detail=?,
 		       easiness_factor=?, interval=?, repetitions=?,
 		       next_review_at=?, last_review_at=?,
 		       total_attempts=?, total_correct=?,
 		       updated_at=datetime('now','localtime')
 		WHERE id=?
-	`, g.Title, g.Explanation, g.Example,
+	`, g.Title, g.Explanation, g.Example, g.Detail,
 		g.EasinessFactor, g.Interval, g.Repetitions,
 		nextRev, lastRev,
 		g.TotalAttempts, g.TotalCorrect, g.ID)

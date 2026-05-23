@@ -75,6 +75,21 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// If no words exist yet but AI is configured, words are being generated
+	if nw == 0 && rw == 0 && s.AI != nil {
+		_, total, _ := s.DB.ListWords(lang, 1, 0)
+		if total == 0 {
+			writeJSON(w, map[string]interface{}{
+				"new_words":       0,
+				"new_grammar":     0,
+				"review_words":    0,
+				"review_grammar":  0,
+				"preparing":       true,
+			})
+			return
+		}
+	}
+
 	// If a session was already completed today, learning is done
 	if s.sessionBudget.isSessionDone() {
 		writeJSON(w, map[string]interface{}{

@@ -180,5 +180,12 @@ func (d *Database) migrate() error {
 		}
 	}
 
+	// Phase 7: add detail column to grammar_points (extension fields like words)
+	if _, err := d.DB.Exec(`ALTER TABLE grammar_points ADD COLUMN detail TEXT NOT NULL DEFAULT ''`); err != nil {
+		if !strings.Contains(err.Error(), "duplicate column") {
+			return fmt.Errorf("add grammar detail column: %w", err)
+		}
+	}
+
 	return nil
 }

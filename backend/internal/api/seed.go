@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/vocablock/v2/internal/ai"
 	"github.com/vocablock/v2/internal/db"
 )
 
@@ -165,6 +166,11 @@ func (s *Server) EnsureBootstrap(lang string) {
 			fmt.Fprintf(os.Stderr, "bootstrap: loaded %d grammar points for %s\n", n, lang)
 		}
 	}
+
+	// Fill missing detail fields for grammar points (background)
+	if s.AI != nil {
+		go s.fillGrammarDetails(lang)
+	}
 }
 
 // fillMissingDetails finds words that have reading/meaning but no detail JSON,
@@ -203,5 +209,83 @@ func (s *Server) fillMissingDetails(lang string) {
 	}
 	if filled > 0 {
 		fmt.Fprintf(os.Stderr, "bootstrap: filled detail for %d words in %s\n", filled, lang)
+	}
+}
+
+// fillGrammarDetails finds grammar points with empty explanation/example
+// and fills them via AI in the background.
+func (s *Server) fillGrammarDetails(lang string) {
+	if s.AI == nil || s.DB == nil {
+		return
+	}
+
+	points, _, err := s.DB.ListGrammarPoints(lang, 100, 0)
+	if err != nil {
+		return
+	}
+
+	teacherRole, _, explLang, _ := s.expandLangContext(lang)
+	filled := 0
+
+	for _, g := range points {
+		// Skip if already has rich detail
+		if g.Detail != "" && g.Detail != "{}" && len(g.Detail) > 10 {
+			continue
+		}
+		// Skip if no title
+		if g.Title == "" {
+			continue
+		}
+
+		pt, err := ai.LoadPrompt("grammar_detail")
+		if err != nil {
+			continue
+		}
+
+		messages, _ := pt.BuildMessages(&ai.PromptVars{
+			GrammarTitle:    g.Title,
+			Language:        lang,
+			TeacherRole:     teacherRole,
+			ExplanationLang: explLang,
+		})
+
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		resp, err := s.AI.Chat(ctx, messages, pt.Temperature)
+		cancel()
+		if err != nil {
+			continue
+		}
+
+		cleaned := extractJSON(resp)
+		if cleaned == "" || cleaned == "{}" {
+			continue
+		}
+
+		// Extract explanation and example from AI response
+		if g.Explanation == "" {
+			if v := extractFieldFromDetail(cleaned, "explanation"); v != "" {
+				g.Explanation = v
+			}
+		}
+		if g.Example == "" {
+			if v := extractFieldFromDetail(cleaned, "example"); v != "" {
+				g.Example = v
+			}
+		}
+
+		// Merge detail
+		if g.Detail != "" && g.Detail != "{}" {
+			cleaned = mergeJSON(g.Detail, cleaned)
+		}
+		g.Detail = cleaned
+
+		if err := s.DB.UpdateGrammarPoint(g); err == nil {
+			filled++
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	if filled > 0 {
+		fmt.Fprintf(os.Stderr, "bootstrap: filled detail for %d grammar points in %s\n", filled, lang)
 	}
 }

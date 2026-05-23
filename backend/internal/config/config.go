@@ -115,7 +115,9 @@ type LanguageConfig struct {
 	GrammarPoints  []string        `yaml:"grammar_points"`
 	SeedWordsFile  string          `yaml:"seed_words_file"`
 	WordFieldsBase []WordFieldDef  `yaml:"word_fields_base"`
-	WordFieldsDLC  []WordFieldDLC  `yaml:"word_fields_dlc"`
+	WordFieldsDLC     []WordFieldDLC  `yaml:"word_fields_dlc"`
+	GrammarFieldsBase []WordFieldDef  `yaml:"grammar_fields_base"`
+	GrammarFieldsDLC  []WordFieldDLC  `yaml:"grammar_fields_dlc"`
 }
 
 type WordFieldDef struct {

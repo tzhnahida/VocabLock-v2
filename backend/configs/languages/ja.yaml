@@ -107,3 +107,47 @@ word_fields_dlc:
       - key: keigo_level
         label: 敬語階層
         type: text
+
+grammar_fields_base:
+  - key: explanation
+    label: 解释
+    type: text
+  - key: example
+    label: 例句
+    type: text
+  - key: pattern
+    label: 句型公式
+    type: text
+  - key: usage_notes
+    label: 使用要点
+    type: text
+
+grammar_fields_dlc:
+  - category: formality
+    label: 语体/语境
+    fields:
+      - key: formality_level
+        label: 语体层级
+        type: select
+        options: [敬体, 常体, 书面, 口语, 不适用]
+  - category: pedagogy
+    label: 教学辅助
+    fields:
+      - key: common_mistakes
+        label: 常见错误
+        type: text
+      - key: related_points
+        label: 关联语法
+        type: text
+  - category: morphology
+    label: 形态变化
+    fields:
+      - key: conjugation_table
+        label: 活用表
+        type: text
+  - category: syntax
+    label: 句法位置
+    fields:
+      - key: sentence_position
+        label: 句中位置
+        type: text

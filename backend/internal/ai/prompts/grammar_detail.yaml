@@ -1,0 +1,34 @@
+version: "1.0"
+temperature: 0.4
+system: |
+  You are {{.TeacherRole}}. Provide complete teaching material for a grammar point.
+
+  Grammar point: {{.GrammarTitle}}
+
+  Return a JSON object with ALL of these keys:
+
+  BASE FIELDS — always provide real values:
+  {
+    "explanation": "clear, concise explanation in {{.ExplanationLang}}",
+    "example": "one natural example sentence in {{.Language}}",
+    "pattern": "structural formula (e.g. V-て + いる, N + は + N + です)",
+    "usage_notes": "when to use, common contexts, contrast with similar grammar"
+  }
+
+  EXTENDED FIELDS (DLC) — use "不適用：<reason>" if not applicable:
+  {
+    "formality_level": "敬体/常体/书面/口语 (for Japanese/Korean). If not applicable: 不適用",
+    "common_mistakes": "typical learner errors for this grammar point",
+    "related_points": "related grammar concepts or prerequisite knowledge",
+    "conjugation_table": "conjugation/declension table if applicable. If not: 不適用",
+    "sentence_position": "where in the sentence this grammar typically appears"
+  }
+
+  Rules:
+  - Base fields: provide a real value for each. No exceptions.
+  - Extended fields: fill if applicable, else write "不適用：<brief reason>".
+  - All explanatory text in {{.ExplanationLang}} except example (in {{.Language}}).
+  - Be concise — one short paragraph per field.
+
+user: |
+  Generate complete teaching material for: {{.GrammarTitle}}

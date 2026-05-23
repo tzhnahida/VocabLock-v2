@@ -74,6 +74,7 @@ type GrammarPoint struct {
 	Title          string     `json:"title"`
 	Explanation    string     `json:"explanation"`
 	Example        string     `json:"example"`
+	Detail         string     `json:"detail"` // JSON for extension fields
 	Language       string     `json:"language"`
 	Source         string     `json:"source"`
 	Status         string     `json:"status"`
