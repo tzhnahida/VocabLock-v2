@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../models/question.dart';
 import '../models/quiz_result.dart';
@@ -1037,8 +1038,20 @@ class _GrammarCard extends StatelessWidget {
   final GrammarPoint grammar;
   const _GrammarCard({required this.grammar});
 
+  Map<String, dynamic> _detail() {
+    if (grammar.detail.isEmpty || grammar.detail == '{}') return {};
+    try { return const JsonDecoder().convert(grammar.detail) as Map<String, dynamic>; } catch (_) { return {}; }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final d = _detail();
+    final pattern = d['pattern']?.toString() ?? '';
+    final usage = d['usage_notes']?.toString() ?? '';
+    final formality = d['formality_level']?.toString() ?? '';
+    final mistakes = d['common_mistakes']?.toString() ?? '';
+    final related = d['related_points']?.toString() ?? '';
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -1052,20 +1065,67 @@ class _GrammarCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          Text(grammar.explanation, style: TextStyle(fontSize: 18, color: AppTheme.textSecondary)),
+          // Explanation
+          if (grammar.explanation.isNotEmpty)
+            Text(grammar.explanation, style: TextStyle(fontSize: 16, color: AppTheme.textSecondary, height: 1.6)),
+          // Pattern
+          if (pattern.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppTheme.isDark ? Colors.white10 : Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppTheme.isDark ? Colors.white24 : Colors.grey.shade300),
+              ),
+              child: Text(pattern, style: TextStyle(fontSize: 16, fontFamily: 'monospace', color: AppTheme.textPrimary)),
+            ),
+          ],
+          // Example
           if (grammar.example.isNotEmpty) ...[
             const SizedBox(height: 16),
             Container(
+              width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.06),
+                color: AppTheme.primary.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.primary.withValues(alpha: 0.1)),
               ),
-              child: Text(grammar.example, style: TextStyle(fontSize: 18, fontStyle: FontStyle.italic, color: AppTheme.textPrimary)),
+              child: Text(grammar.example, style: TextStyle(fontSize: 18, color: AppTheme.textPrimary, height: 1.5)),
             ),
+          ],
+          // Usage notes
+          if (usage.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(usage, style: TextStyle(fontSize: 14, color: AppTheme.textHint, height: 1.5)),
+          ],
+          // DLC tags
+          if (formality.isNotEmpty || mistakes.isNotEmpty || related.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Wrap(spacing: 8, runSpacing: 6, children: [
+              if (formality.isNotEmpty) _GBadge(formality, Colors.teal),
+              if (mistakes.isNotEmpty) _GBadge('⚠ $mistakes', Colors.orange),
+              if (related.isNotEmpty) _GBadge('→ $related', Colors.blue),
+            ]),
           ],
         ],
       ),
+    );
+  }
+}
+
+class _GBadge extends StatelessWidget {
+  final String text;
+  final Color color;
+  const _GBadge(this.text, this.color);
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+      child: Text(text, style: TextStyle(fontSize: 13, color: color)),
     );
   }
 }
