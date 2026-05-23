@@ -375,3 +375,120 @@ func mergeJSON(a, b string) string {
 	}
 	return string(result)
 }
+
+// expandGrammar generates new grammar points via AI, following the same pattern as expandWords.
+func (s *Server) expandGrammar(ctx context.Context, lang string, count int) (inserted int, err error) {
+	if s.AI == nil || s.DB == nil {
+		return 0, fmt.Errorf("AI or DB not configured")
+	}
+	if count <= 0 || count > 5 {
+		count = 2
+	}
+
+	// Get existing grammar titles for dedup
+	existing, _, _ := s.DB.ListGrammarPoints(lang, 50, 0)
+	existingTitles := make([]string, 0, len(existing))
+	for _, g := range existing {
+		if g.Title != "" {
+			existingTitles = append(existingTitles, g.Title)
+		}
+	}
+
+	// Build language context
+	teacherRole, level, explLang, targetLang := s.expandLangContext(lang)
+	_, extraCtx := s.planExpandParams(lang)
+
+	// Get existing words to inform grammar suggestions
+	words, wordTotal, _ := s.DB.ListWords(lang, 10, 0)
+	wordList := make([]string, 0, len(words))
+	for _, w := range words {
+		if w.Word != "" {
+			wordList = append(wordList, w.Word)
+		}
+	}
+
+	pt, err := ai.LoadPrompt("expand_grammar")
+	if err != nil {
+		return 0, fmt.Errorf("load prompt: %w", err)
+	}
+
+	messages, err := pt.BuildMessages(&ai.PromptVars{
+		TeacherRole:      teacherRole,
+		Language:         targetLang,
+		Level:            level,
+		ExplanationLang:  explLang,
+		WordCount:        wordTotal,
+		ExistingWords:    strings.Join(wordList, ", "),
+		ExtraContext:      extraCtx,
+		ExistingGrammar:   strings.Join(existingTitles, ", "),
+	})
+	if err != nil {
+		return 0, fmt.Errorf("build prompt: %w", err)
+	}
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	response, aiErr := s.AI.Chat(timeoutCtx, messages, pt.Temperature)
+	cancel()
+	if aiErr != nil {
+		return 0, fmt.Errorf("AI chat: %w", aiErr)
+	}
+
+	cleaned := extractJSON(response)
+	var result struct {
+		Points []string `json:"grammar_points"`
+	}
+	if err := json.Unmarshal([]byte(cleaned), &result); err != nil {
+		return 0, fmt.Errorf("parse AI response: %w", err)
+	}
+
+	for _, title := range result.Points {
+		if title == "" {
+			continue
+		}
+		exists, _ := s.DB.GrammarPointExists(lang, title)
+		if exists {
+			continue
+		}
+
+		// Generate full detail for the grammar point
+		gp := &db.GrammarPoint{
+			Title:    title,
+			Language: lang,
+			Source:   "ai_expansion",
+			Status:   "active",
+		}
+
+		// AI fills explanation, example, and all detail fields
+		dt, _ := ai.LoadPrompt("grammar_detail")
+		if dt != nil {
+			dm, _ := dt.BuildMessages(&ai.PromptVars{
+				GrammarTitle:    title,
+				Language:        targetLang,
+				TeacherRole:     teacherRole,
+				ExplanationLang: explLang,
+				Level:           level,
+			})
+			aiCtx, c2 := context.WithTimeout(ctx, 30*time.Second)
+			resp, err := s.AI.Chat(aiCtx, dm, dt.Temperature)
+			c2()
+			if err == nil {
+				detailJSON := extractJSON(resp)
+				if detailJSON != "" && detailJSON != "{}" {
+					gp.Detail = detailJSON
+					if v := extractFieldFromDetail(detailJSON, "explanation"); v != "" {
+						gp.Explanation = v
+					}
+					if v := extractFieldFromDetail(detailJSON, "example"); v != "" {
+						gp.Example = v
+					}
+				}
+			}
+		}
+
+		if _, err := s.DB.InsertGrammarPoint(gp); err == nil {
+			inserted++
+		}
+	}
+
+	return inserted, nil
+}

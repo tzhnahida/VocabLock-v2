@@ -66,6 +66,11 @@ func (s *Server) handleQuizSummarize(w http.ResponseWriter, r *http.Request) {
 				go s.expandWords(context.Background(), lang, expandCount, extraCtx)
 			}
 		}
+		// Also expand grammar points if running low
+		_, gTotal, _ := s.DB.ListGrammarPoints(lang, 1, 0)
+		if gTotal < 5 {
+			go s.expandGrammar(context.Background(), lang, 2)
+		}
 	}
 
 	writeJSON(w, map[string]interface{}{

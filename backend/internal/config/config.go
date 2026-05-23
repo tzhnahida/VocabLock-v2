@@ -112,8 +112,6 @@ type LanguageConfig struct {
 		ExplanationLang   string            `yaml:"explanation_lang"`
 		LevelDescriptions map[string]string `yaml:"level_descriptions"`
 	} `yaml:"prompt_context"`
-	GrammarPoints  []string        `yaml:"grammar_points"`
-	SeedWordsFile  string          `yaml:"seed_words_file"`
 	WordFieldsBase []WordFieldDef  `yaml:"word_fields_base"`
 	WordFieldsDLC     []WordFieldDLC  `yaml:"word_fields_dlc"`
 	GrammarFieldsBase []WordFieldDef  `yaml:"grammar_fields_base"`

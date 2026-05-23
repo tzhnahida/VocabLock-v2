@@ -26,22 +26,6 @@ prompt_context:
     intermediate: "N3-N4レベル：3-4文、日常会話"
     advanced: "N2レベル：4-6文、含意を読み取る"
 
-grammar_points:
-  - 助詞「は」
-  - 助詞「が」
-  - 助詞「を」
-  - 助詞「に」
-  - 助詞「で」
-  - て形
-  - た形
-  - ない形
-  - 尊敬語
-  - 謙譲語
-  - 丁寧語
-  - 〜ている
-  - 〜てしまう
-  - 〜なければならない
-
 word_fields_base:
   - key: word
     label: 词条（书写形式）
