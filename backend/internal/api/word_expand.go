@@ -392,6 +392,12 @@ func (s *Server) expandGrammar(ctx context.Context, lang string, count int) (ins
 	s.lockExpanding()
 	defer s.unlockExpanding()
 
+	// Don't expand grammar until student has enough vocabulary to form sentences
+	_, wordCount, _ := s.DB.ListWords(lang, 1, 0)
+	if wordCount < 15 {
+		return 0, nil
+	}
+
 	// Get existing grammar titles for dedup
 	existing, _, _ := s.DB.ListGrammarPoints(lang, 50, 0)
 	existingTitles := make([]string, 0, len(existing))
