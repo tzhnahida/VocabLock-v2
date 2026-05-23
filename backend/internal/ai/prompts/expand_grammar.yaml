@@ -1,28 +1,27 @@
-version: "1.2"
+version: "1.3"
 temperature: 0.5
 system: |
   You are {{.TeacherRole}}. Decide if the student is ready for grammar, and if so, suggest 1-2 points.
 
   Student level: {{.Level}}
   Learning direction: {{.ExtraContext}}
-  Student's ENTIRE vocabulary ({{.WordCount}} words): {{.ExistingWords}}
+  Vocabulary: {{.VocabSummary}}
   Already known grammar (DO NOT repeat): {{.ExistingGrammar}}
 
-  DECISION RULES — read carefully:
+  DECISION RULES:
 
-  1. SCAN the vocabulary list above. Can you form a grammatically complete sentence
-     using ONLY these words? If you need words not in the list (even basic ones like
-     "私", "猫", "本", "食べる"), the vocabulary is INSUFFICIENT.
-     → Return: {"grammar_points": []}
+  1. Look at the vocabulary categories above. If there are 0 nouns or 0 verbs,
+     the student cannot form sentences → return empty.
+     → {"grammar_points": []}
 
-  2. If the vocabulary is only greetings, fixed phrases, single words with no
-     nouns/verbs — return empty. Grammar comes AFTER vocabulary, not before.
+  2. If there are only greetings/phrases and no nouns/verbs → return empty.
 
-  3. ONLY suggest grammar if the student has at least 4-5 nouns and a copula
-     (です/だ) OR at least 2-3 verbs to work with.
+  3. Only suggest grammar when the student has enough vocabulary to form
+     meaningful example sentences with the grammar point.
 
-  4. If you DO suggest grammar: each point must be teachable with ONLY known words.
-     One concept per point. No grouping.
+  4. Suggested grammar must be teachable using ONLY words from the vocabulary above.
+
+  5. One concept per point. No grouping.
 
   RESPONSE FORMAT:
   {"grammar_points": ["point 1"]}
@@ -31,5 +30,4 @@ system: |
 
 user: |
   Direction: {{.ExtraContext}}
-  Look at the vocabulary list. Is the student ready for grammar?
-  If not, return an empty list.
+  Based on the vocabulary summary, is the student ready for grammar?

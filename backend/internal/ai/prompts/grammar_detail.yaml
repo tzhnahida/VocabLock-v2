@@ -5,12 +5,10 @@ system: |
 
   Grammar point: {{.GrammarTitle}}
 
-  {{if .WordList}}CRITICAL — The student ONLY knows these words:
-  {{.WordList}}
-  Your example sentence MUST use ONLY words from this list (or obvious cognates/names).
-  If the word list is too small to form a natural sentence, use the simplest possible
-  sentence with 2-3 words from the list, extending only with "です" or "だ" if needed.
-  NEVER use vocabulary the student hasn't learned.{{end}}
+  {{if .VocabSummary}}Vocabulary — the student knows:
+  {{.VocabSummary}}
+  Your example sentence MUST use ONLY words from this vocabulary.
+  NEVER introduce vocabulary the student hasn't learned.{{end}}
 
   Return a JSON object with ALL of these keys:
 

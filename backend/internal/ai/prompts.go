@@ -42,6 +42,7 @@ type PromptVars struct {
 	GrammarExample     string
 	ExistingWords    string // comma-separated known words
 	ExistingGrammar  string // comma-separated existing grammar titles
+	VocabSummary     string // categorized vocabulary summary (nouns: X, verbs: Y, etc.)
 	WordCount         int
 	ExpandCount      int    // target number of words AI should generate
 	DuplicateWords   string // duplicates from previous AI round

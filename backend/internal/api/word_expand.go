@@ -399,14 +399,8 @@ func (s *Server) expandGrammar(ctx context.Context, lang string, count int) (ins
 	teacherRole, level, explLang, targetLang := s.expandLangContext(lang)
 	_, extraCtx := s.planExpandParams(lang)
 
-	// Get existing words to inform grammar suggestions
-	words, wordTotal, _ := s.DB.ListWords(lang, 30, 0)
-	wordList := make([]string, 0, len(words))
-	for _, w := range words {
-		if w.Word != "" && w.Meaning != "" {
-			wordList = append(wordList, w.Word+"("+w.Meaning+")")
-		}
-	}
+	// Build vocabulary summary (not full list — too large as vocab grows)
+	vocabSummary := s.buildVocabSummary(lang)
 
 	pt, err := ai.LoadPrompt("expand_grammar")
 	if err != nil {
@@ -418,8 +412,7 @@ func (s *Server) expandGrammar(ctx context.Context, lang string, count int) (ins
 		Language:         targetLang,
 		Level:            level,
 		ExplanationLang:  explLang,
-		WordCount:        wordTotal,
-		ExistingWords:    strings.Join(wordList, ", "),
+		VocabSummary:     vocabSummary,
 		ExtraContext:      extraCtx,
 		ExistingGrammar:   strings.Join(existingTitles, ", "),
 	})
@@ -468,7 +461,7 @@ func (s *Server) expandGrammar(ctx context.Context, lang string, count int) (ins
 				TeacherRole:     teacherRole,
 				ExplanationLang: explLang,
 				Level:           level,
-				WordList:        strings.Join(wordList, ", "),
+				VocabSummary:    vocabSummary,
 			})
 			aiCtx, c2 := context.WithTimeout(ctx, 30*time.Second)
 			resp, err := s.AI.Chat(aiCtx, dm, dt.Temperature)
@@ -493,4 +486,91 @@ func (s *Server) expandGrammar(ctx context.Context, lang string, count int) (ins
 	}
 
 	return inserted, nil
+}
+
+// buildVocabSummary returns a categorized summary of the student's vocabulary.
+// Groups words by POS with counts and representative samples (not full list).
+func (s *Server) buildVocabSummary(lang string) string {
+	words, total, _ := s.DB.ListWords(lang, 200, 0)
+	if total == 0 {
+		return "(no vocabulary yet)"
+	}
+
+	// Group by POS category
+	nouns := make([]string, 0)
+	verbs := make([]string, 0)
+	adjectives := make([]string, 0)
+	expressions := make([]string, 0)
+	others := make([]string, 0)
+
+	for _, w := range words {
+		if w.Word == "" || w.Meaning == "" {
+			continue
+		}
+		entry := w.Word + "(" + w.Meaning + ")"
+		p := w.POS
+		switch {
+		case strings.Contains(p, "名") || strings.Contains(p, "noun") || strings.Contains(p, "名词"):
+			nouns = append(nouns, entry)
+		case strings.Contains(p, "动") || strings.Contains(p, "verb") || strings.Contains(p, "自動") || strings.Contains(p, "他動"):
+			verbs = append(verbs, entry)
+		case strings.Contains(p, "形容") || strings.Contains(p, "adj"):
+			adjectives = append(adjectives, entry)
+		case strings.Contains(p, "惯用") || strings.Contains(p, "熟語") || strings.Contains(p, "感"):
+			expressions = append(expressions, entry)
+		default:
+			others = append(others, entry)
+		}
+	}
+
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("Total: %d words. ", total))
+
+	if len(nouns) > 0 {
+		b.WriteString(fmt.Sprintf("Nouns(%d): ", len(nouns)))
+		for i, n := range nouns {
+			if i >= 8 { b.WriteString("..."); break }
+			if i > 0 { b.WriteString(", ") }
+			b.WriteString(n)
+		}
+		b.WriteString(". ")
+	}
+	if len(verbs) > 0 {
+		b.WriteString(fmt.Sprintf("Verbs(%d): ", len(verbs)))
+		for i, v := range verbs {
+			if i >= 5 { b.WriteString("..."); break }
+			if i > 0 { b.WriteString(", ") }
+			b.WriteString(v)
+		}
+		b.WriteString(". ")
+	}
+	if len(adjectives) > 0 {
+		b.WriteString(fmt.Sprintf("Adjectives(%d): ", len(adjectives)))
+		for i, a := range adjectives {
+			if i >= 4 { b.WriteString("..."); break }
+			if i > 0 { b.WriteString(", ") }
+			b.WriteString(a)
+		}
+		b.WriteString(". ")
+	}
+	if len(expressions) > 0 {
+		b.WriteString(fmt.Sprintf("Greetings/Phrases(%d): ", len(expressions)))
+		for i, e := range expressions {
+			if i >= 4 { b.WriteString("..."); break }
+			if i > 0 { b.WriteString(", ") }
+			b.WriteString(e)
+		}
+		b.WriteString(". ")
+	}
+	if len(others) > 0 {
+		b.WriteString(fmt.Sprintf("Other(%d): ", len(others)))
+		for i, o := range others {
+			if i >= 4 { b.WriteString("..."); break }
+			if i > 0 { b.WriteString(", ") }
+			b.WriteString(o)
+		}
+		b.WriteString(".")
+	}
+
+	return b.String()
 }
