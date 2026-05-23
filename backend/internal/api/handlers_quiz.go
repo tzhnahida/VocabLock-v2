@@ -89,16 +89,6 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Auto-expand new words when the student has nothing to study (non-blocking)
-	if nw == 0 && s.AI != nil && s.Config.App.AutoExpandWords && !dailyDone {
-		expandCount, extraCtx := s.planExpandParams(lang)
-		if expandCount > 0 {
-			go func() {
-				s.expandWords(context.Background(), lang, expandCount, extraCtx)
-			}()
-		}
-	}
-
 	// Cache plan's question type weights for this session
 	s.cachePlanWeights(lang)
 

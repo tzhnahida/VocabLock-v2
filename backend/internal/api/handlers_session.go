@@ -57,6 +57,17 @@ func (s *Server) handleQuizSummarize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Auto-expand new words in background for the next session
+	if s.Config.App.AutoExpandWords && s.AI != nil {
+		nw, _, _, _, _ := s.DB.SessionCounts(lang)
+		if nw == 0 {
+			expandCount, extraCtx := s.planExpandParams(lang)
+			if expandCount > 0 {
+				go s.expandWords(context.Background(), lang, expandCount, extraCtx)
+			}
+		}
+	}
+
 	writeJSON(w, map[string]interface{}{
 		"summary": result,
 		"plan":    plan,
