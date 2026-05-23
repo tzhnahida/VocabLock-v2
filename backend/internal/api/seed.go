@@ -104,15 +104,16 @@ func (s *Server) EnsureBootstrap(lang string) {
 				} else {
 					fmt.Fprintf(os.Stderr, "bootstrap: AI generated %d grammar points\n", gc)
 				}
+				s.markBootstrapDone()
 			}()
 		} else {
-			// No AI — load seed words as fallback
 			n, err := loadSeedWords(s, lang)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "bootstrap: load seed words: %v\n", err)
 			} else if n > 0 {
 				fmt.Fprintf(os.Stderr, "bootstrap: loaded %d seed words for %s\n", n, lang)
 			}
+			s.markBootstrapDone()
 		}
 	}
 

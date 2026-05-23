@@ -51,6 +51,10 @@ type Server struct {
 	servedWordIDs   map[int64]time.Time
 	servedWordIDsMu sync.Mutex
 
+	// Blocks quiz until initial bootstrap is complete
+	bootstrapDone   bool
+	bootstrapDoneMu sync.RWMutex
+
 	// Session budget tracks time/type usage for the current day
 	sessionBudget sessionBudget
 }
@@ -345,5 +349,17 @@ func (s *Server) wasRecentlyServed(wordID int64) bool {
 		return false
 	}
 	return true
+}
+
+func (s *Server) markBootstrapDone() {
+	s.bootstrapDoneMu.Lock()
+	s.bootstrapDone = true
+	s.bootstrapDoneMu.Unlock()
+}
+
+func (s *Server) isBootstrapDone() bool {
+	s.bootstrapDoneMu.RLock()
+	defer s.bootstrapDoneMu.RUnlock()
+	return s.bootstrapDone
 }
 
