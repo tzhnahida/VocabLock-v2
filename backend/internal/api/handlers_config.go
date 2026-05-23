@@ -197,7 +197,7 @@ func (s *Server) handleConfigUpdate(w http.ResponseWriter, r *http.Request) {
 
 	// Bootstrap seed words and grammar points for newly activated language
 	if langChanged {
-		go s.ensureBootstrap(s.Config.App.ActiveLang)
+		go s.EnsureBootstrap(s.Config.App.ActiveLang)
 	}
 
 	writeJSON(w, map[string]interface{}{

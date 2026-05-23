@@ -96,6 +96,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Bootstrap seed words + grammar points for active language on first run
+	srv.EnsureBootstrap(cfg.App.ActiveLang)
+
 	spawnFlutter(srv.Port, srv.Token)
 
 	if lang != nil {

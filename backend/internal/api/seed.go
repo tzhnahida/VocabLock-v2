@@ -2,9 +2,11 @@ package api
 
 import (
 	"encoding/json"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/vocablock/v2/internal/db"
 )
@@ -96,11 +98,11 @@ func loadGrammarPoints(s *Server, lang string) (int, error) {
 	return inserted, nil
 }
 
-// ensureBootstrap checks whether the given language has any words or grammar
+// EnsureBootstrap checks whether the given language has any words or grammar
 // points in the database; if not, it loads seed data from the seed file and
 // language config. It is safe to call multiple times — duplicate inserts are
 // prevented by existence checks.
-func (s *Server) ensureBootstrap(lang string) {
+func (s *Server) EnsureBootstrap(lang string) {
 	if s.Mock {
 		return
 	}
@@ -124,6 +126,11 @@ func (s *Server) ensureBootstrap(lang string) {
 		}
 	}
 
+	// Fill missing detail fields for words that lack them (runs in background)
+	if s.AI != nil {
+		go s.fillMissingDetails(lang)
+	}
+
 	// Check grammar point count.
 	_, gTotal, err := s.DB.ListGrammarPoints(lang, 1, 0)
 	if err != nil {
@@ -138,5 +145,44 @@ func (s *Server) ensureBootstrap(lang string) {
 		} else if n > 0 {
 			fmt.Fprintf(os.Stderr, "bootstrap: loaded %d grammar points for %s\n", n, lang)
 		}
+	}
+}
+
+// fillMissingDetails finds words that have reading/meaning but no detail JSON,
+// and fills them via AI in the background.
+func (s *Server) fillMissingDetails(lang string) {
+	if s.AI == nil || s.DB == nil {
+		return
+	}
+	words, _, err := s.DB.ListWords(lang, 100, 0)
+	if err != nil {
+		return
+	}
+	_, level, _, _ := s.expandLangContext(lang)
+	filled := 0
+	for _, w := range words {
+		if w.Meaning == "" || (w.Detail != "" && w.Detail != "{}" && len(w.Detail) > 10) {
+			continue
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		aiDetail := s.generateDetail(ctx, w.Word, w.Reading, w.Meaning, w.POS, level, lang)
+		cancel()
+		if aiDetail == "" || aiDetail == "{}" {
+			continue
+		}
+		if w.Detail != "" && w.Detail != "{}" {
+			aiDetail = mergeJSON(w.Detail, aiDetail)
+		}
+		w.Detail = aiDetail
+		if lv := extractFieldFromDetail(aiDetail, "level"); lv != "" && w.Level == "" {
+			w.Level = lv
+		}
+		if s.DB.UpdateWord(w) == nil {
+			filled++
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	if filled > 0 {
+		fmt.Fprintf(os.Stderr, "bootstrap: filled detail for %d words in %s\n", filled, lang)
 	}
 }
