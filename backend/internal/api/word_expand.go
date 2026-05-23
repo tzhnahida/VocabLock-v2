@@ -408,35 +408,73 @@ func (s *Server) expandGrammar(ctx context.Context, lang string, count int) (ins
 		return 0, fmt.Errorf("load prompt: %w", err)
 	}
 
-	messages, err := pt.BuildMessages(&ai.PromptVars{
-		TeacherRole:      teacherRole,
-		Language:         targetLang,
-		Level:            level,
-		ExplanationLang:  explLang,
-		VocabSummary:     vocabSummary,
-		ExtraContext:      extraCtx,
-		ExistingGrammar:   strings.Join(existingTitles, ", "),
-	})
-	if err != nil {
-		return 0, fmt.Errorf("build prompt: %w", err)
+	// Multi-turn: AI can request word lookups (up to 3 rounds)
+	queryResult := ""
+	var grammarPoints []string
+
+	for round := 0; round < 3; round++ {
+		messages, err := pt.BuildMessages(&ai.PromptVars{
+			TeacherRole:      teacherRole,
+			Language:         targetLang,
+			Level:            level,
+			ExplanationLang:  explLang,
+			VocabSummary:     vocabSummary,
+			ExtraContext:      extraCtx,
+			ExistingGrammar:   strings.Join(existingTitles, ", "),
+			QueryResult:       queryResult,
+		})
+		if err != nil {
+			return 0, fmt.Errorf("build prompt: %w", err)
+		}
+
+		timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		response, aiErr := s.AI.Chat(timeoutCtx, messages, pt.Temperature)
+		cancel()
+		if aiErr != nil {
+			return 0, fmt.Errorf("AI chat: %w", aiErr)
+		}
+
+		cleaned := extractJSON(response)
+
+		// Check if AI wants to look up words
+		var checkReq struct {
+			CheckWords []string `json:"check_words"`
+			Points     []string `json:"grammar_points"`
+		}
+		if err := json.Unmarshal([]byte(cleaned), &checkReq); err != nil {
+			continue
+		}
+
+		// AI is asking to check words
+		if len(checkReq.CheckWords) > 0 && len(checkReq.Points) == 0 {
+			var results []string
+			for _, word := range checkReq.CheckWords {
+				exists, _ := s.DB.WordExists(lang, word)
+				if exists {
+					results = append(results, word+"=yes")
+				} else {
+					results = append(results, word+"=no")
+				}
+			}
+			queryResult = strings.Join(results, ", ")
+			continue
+		}
+
+		// AI made a final decision
+		if len(checkReq.Points) > 0 || round >= 2 {
+			grammarPoints = checkReq.Points
+			break
+		}
+
+		// Empty response with no check_words — try again
+		queryResult = "(try again — suggest check_words or grammar_points)"
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
-	response, aiErr := s.AI.Chat(timeoutCtx, messages, pt.Temperature)
-	cancel()
-	if aiErr != nil {
-		return 0, fmt.Errorf("AI chat: %w", aiErr)
+	if len(grammarPoints) == 0 {
+		return 0, nil
 	}
 
-	cleaned := extractJSON(response)
-	var result struct {
-		Points []string `json:"grammar_points"`
-	}
-	if err := json.Unmarshal([]byte(cleaned), &result); err != nil {
-		return 0, fmt.Errorf("parse AI response: %w", err)
-	}
-
-	for _, title := range result.Points {
+	for _, title := range grammarPoints {
 		if title == "" {
 			continue
 		}
@@ -535,10 +573,10 @@ func (s *Server) buildVocabSummary(lang string) string {
 
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("Total: %d. ", total))
-	if nCount > 0 { b.WriteString(fmt.Sprintf("Nouns: %d (e.g. %s). ", nCount, sample(nouns, 5))) }
-	if vCount > 0 { b.WriteString(fmt.Sprintf("Verbs: %d (e.g. %s). ", vCount, sample(verbs, 4))) }
-	if aCount > 0 { b.WriteString(fmt.Sprintf("Adjectives: %d (e.g. %s). ", aCount, sample(adjs, 3))) }
-	if eCount > 0 { b.WriteString(fmt.Sprintf("Phrases: %d (e.g. %s). ", eCount, sample(phrases, 3))) }
-	if oCount > 0 { b.WriteString(fmt.Sprintf("Other: %d (e.g. %s).", oCount, sample(other, 3))) }
+	if nCount > 0 { b.WriteString(fmt.Sprintf("Nouns: %d (e.g. %s). ", nCount, sample(nouns, 15))) }
+	if vCount > 0 { b.WriteString(fmt.Sprintf("Verbs: %d (e.g. %s). ", vCount, sample(verbs, 10))) }
+	if aCount > 0 { b.WriteString(fmt.Sprintf("Adjectives: %d (e.g. %s). ", aCount, sample(adjs, 8))) }
+	if eCount > 0 { b.WriteString(fmt.Sprintf("Phrases: %d (e.g. %s). ", eCount, sample(phrases, 5))) }
+	if oCount > 0 { b.WriteString(fmt.Sprintf("Other: %d (e.g. %s).", oCount, sample(other, 5))) }
 	return b.String()
 }

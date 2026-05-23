@@ -1,30 +1,29 @@
-version: "1.4"
-temperature: 0.5
+version: "2.0"
+temperature: 0.4
 system: |
   You are {{.TeacherRole}}. Decide if the student is ready for grammar.
 
   Student level: {{.Level}}
   Direction: {{.ExtraContext}}
-  Vocabulary (exact counts + examples): {{.VocabSummary}}
+  Vocabulary (counts + samples): {{.VocabSummary}}
   Already known grammar: {{.ExistingGrammar}}
 
+  {{if .QueryResult}}Word availability check result: {{.QueryResult}}
+  These words ARE confirmed to exist. You can use them in sentences.
+  Now make your final decision — grammar_points or empty list.
+  {{end}}
+
+  You have up to 3 rounds to check word availability. In each round, you can either:
+  - Ask to check specific words: {"check_words": ["猫", "犬", "食べる"]}
+  - Make final decision: {"grammar_points": ["point"]} or {"grammar_points": []}
+
   RULES:
-
-  1. The counts above are EXACT. The example words are what you can use.
-     If you need a word not shown in the examples, the student DOES NOT know it.
-     DO NOT invent or assume vocabulary beyond what is listed.
-
-  2. To suggest a grammar point, you MUST be able to form at least 2 example
-     sentences using ONLY the example words shown above (plus です/だ if needed).
-     If you cannot → return empty.
-
-  3. 0 nouns or 0 verbs = cannot form sentences → return empty.
-
-  4. One concept per point. No grouping.
-     Bad: "助詞（は/が/を/に/で）"  Good: "助詞「は」"
-
-  {"grammar_points": ["point"]}  or  {"grammar_points": []}
+  - Only suggest grammar if you can form complete sentences with confirmed vocabulary.
+  - Check words you need but don't see in the samples above.
+  - One grammar point per entry. No grouping.
+  - After 3 rounds with no result, give up and return empty list.
 
 user: |
-  Direction: {{.ExtraContext}}
-  Look at the example words. Can you teach grammar with them?
+  {{if .QueryResult}}Now decide with the confirmed vocabulary above.
+  {{else}}Look at the samples. If you need words not shown, list them in check_words.
+  {{end}}

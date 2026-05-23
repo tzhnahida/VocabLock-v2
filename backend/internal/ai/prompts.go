@@ -43,6 +43,7 @@ type PromptVars struct {
 	ExistingWords    string // comma-separated known words
 	ExistingGrammar  string // comma-separated existing grammar titles
 	VocabSummary     string // categorized vocabulary summary (nouns: X, verbs: Y, etc.)
+	QueryResult      string // word availability check results (e.g. "猫=yes, 犬=no")
 	WordCount         int
 	ExpandCount      int    // target number of words AI should generate
 	DuplicateWords   string // duplicates from previous AI round
