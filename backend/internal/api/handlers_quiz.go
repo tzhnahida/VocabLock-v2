@@ -3,7 +3,9 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -112,9 +114,55 @@ nw, ng, rw, rg, err := s.DB.SessionCounts(lang)
 		return
 	}
 
+	totalAvailable := nw + ng + rw + rg
+	fmt.Fprintf(os.Stderr, "[session/start] counts: nw=%d ng=%d rw=%d rg=%d total=%d target=%d expanding=%v\n",
+		nw, ng, rw, rg, totalAvailable, s.Config.App.DailyTarget, s.isExpanding())
+
+	// If AI is still expanding and total available below daily target, keep blocking.
+	if s.isExpanding() && totalAvailable < s.Config.App.DailyTarget {
+		fmt.Fprintf(os.Stderr, "[session/start] BLOCK: expansion running, total=%d < target=%d\n", totalAvailable, s.Config.App.DailyTarget)
+		writeJSON(w, map[string]interface{}{
+			"new_words":       0,
+			"new_grammar":     0,
+			"review_words":    0,
+			"review_grammar":  0,
+			"preparing":       true,
+		})
+		return
+	}
+
+	// If total available below daily target, trigger background expansion.
+	// Block until totalAvailable >= DailyTarget so the user has a full session ready.
+	if totalAvailable < s.Config.App.DailyTarget && s.AI != nil && s.tryStartExpanding() {
+		fmt.Fprintf(os.Stderr, "[session/start] TRIGGER expansion: total=%d < target=%d\n", totalAvailable, s.Config.App.DailyTarget)
+		go func() {
+			defer s.stopExpanding()
+			expandCount, extraCtx := s.planExpandParams(lang)
+			fmt.Fprintf(os.Stderr, "[expand] session/start goroutine: count=%d extraCtx=%s\n", expandCount, extraCtx)
+			v, p, err := s.expandWords(context.Background(), lang, expandCount, extraCtx)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "[expand] session/start ERROR: %v\n", err)
+			} else {
+				fmt.Fprintf(os.Stderr, "[expand] session/start DONE: %d verified + %d pending\n", v, p)
+			}
+		}()
+		if totalAvailable < s.Config.App.DailyTarget {
+			fmt.Fprintf(os.Stderr, "[session/start] return preparing=true (total=%d < target=%d)\n", totalAvailable, s.Config.App.DailyTarget)
+			writeJSON(w, map[string]interface{}{
+				"new_words":       0,
+				"new_grammar":     0,
+				"review_words":    0,
+				"review_grammar":  0,
+				"preparing":       true,
+			})
+			return
+		}
+	}
+
 	// Cache plan's question type weights for this session
 	s.cachePlanWeights(lang)
 
+	fmt.Fprintf(os.Stderr, "[session/start] READY: nw=%d ng=%d rw=%d rg=%d\n", nw, ng, rw, rg)
 	writeJSON(w, map[string]interface{}{
 		"new_words":    nw,
 		"new_grammar":  ng,
@@ -355,6 +403,14 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 		}
 		if primaryExpected == "" {
 			expected = expectedAnswers(req.QuestionType, word)
+			if len(expected) == 0 {
+				writeJSON(w, map[string]interface{}{
+					"correct":  false,
+					"feedback": "Word data incomplete, please try another word",
+					"source":   "data_missing",
+				})
+				return
+			}
 			primaryExpected = expected[0]
 		} else {
 			expected = []string{primaryExpected}
@@ -665,14 +721,34 @@ func (s *Server) buildDistractors(word *db.Word, remaining []*db.Word, lang stri
 // planExpandParams returns the expand count and context string based on the active plan.
 // Falls back to app config when no plan exists or plan data is incomplete.
 func (s *Server) planExpandParams(lang string) (count int, extraCtx string) {
-	count = s.Config.App.ExpandBatchSize
+	gap := 0
+
+	// Default: fill the gap between daily target and total available (new + review)
+	if s.DB != nil {
+		newWords, newGrammar, reviewWords, reviewGrammar, err := s.DB.SessionCounts(lang)
+		if err == nil {
+			total := newWords + newGrammar + reviewWords + reviewGrammar
+			gap = s.Config.App.DailyTarget - total
+			if gap > 0 {
+				count = gap
+			}
+			fmt.Fprintf(os.Stderr, "[expand] SessionCounts: nw=%d ng=%d rw=%d rg=%d total=%d gap=%d target=%d\n",
+				newWords, newGrammar, reviewWords, reviewGrammar, total, gap, s.Config.App.DailyTarget)
+		}
+	}
+	if count <= 0 {
+		count = s.Config.App.ExpandBatchSize
+		fmt.Fprintf(os.Stderr, "[expand] gap<=0, fallback=%d\n", count)
+	}
 	extraCtx = "general"
 
 	plan, err := s.DB.GetActivePlan(lang)
 	if err != nil || plan == nil {
+		fmt.Fprintf(os.Stderr, "[expand] no plan: count=%d extraCtx=%s\n", count, extraCtx)
 		return
 	}
 	if plan.Direction == "complete" || plan.Direction == "review-only" {
+		fmt.Fprintf(os.Stderr, "[expand] plan dir=%s, skip: count=%d\n", plan.Direction, count)
 		return
 	}
 
@@ -680,10 +756,17 @@ func (s *Server) planExpandParams(lang string) (count int, extraCtx string) {
 
 	tw := parsePlanTomorrow(plan.PlanJSON)
 	if tw == nil {
+		fmt.Fprintf(os.Stderr, "[expand] plan parse nil: count=%d extraCtx=%s\n", count, extraCtx)
 		return
 	}
+	fmt.Fprintf(os.Stderr, "[expand] plan.word_count=%d gap=%d before=%d\n", tw.WordCount, gap, count)
 	if tw.WordCount > 0 {
 		count = tw.WordCount
+		// Cap to actual gap: don't generate more than needed
+		if gap > 0 && count > gap {
+			fmt.Fprintf(os.Stderr, "[expand] CAP %d->%d (gap=%d)\n", tw.WordCount, gap, gap)
+			count = gap
+		}
 	}
 	if len(tw.DomainWords) > 0 {
 		extraCtx = plan.Direction + ": " + strings.Join(tw.DomainWords, ", ")
@@ -694,6 +777,7 @@ func (s *Server) planExpandParams(lang string) (count int, extraCtx string) {
 		merged := mergeTypeWeights(tw.QuestionTypeRatio, s.Config.App.MaxSlowTypeRatio)
 		s.sessionBudget.setTypeWeights(merged)
 	}
+	fmt.Fprintf(os.Stderr, "[expand] final: count=%d extraCtx=%s\n", count, extraCtx)
 	return
 }
 

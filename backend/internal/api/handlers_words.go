@@ -526,16 +526,90 @@ func (s *Server) handleWordsPendingReview(w http.ResponseWriter, r *http.Request
 }
 
 // handleWordsPendingAccept accepts a pending_review word.
+// User must provide reading, meaning, and pos — these are required.
+// AI then fills extended detail fields automatically.
 func (s *Server) handleWordsPendingAccept(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
 		writeError(w, 400, "invalid word id"); return
 	}
-	if err := s.DB.SetWordStatus(id, "active"); err != nil {
-		writeError(w, 500, "accept word: "+err.Error())
+
+	var req struct {
+		Reading string `json:"reading"`
+		Meaning string `json:"meaning"`
+		POS     string `json:"pos"`
+		Level   string `json:"level"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeError(w, 400, "invalid request body"); return
+	}
+	if strings.TrimSpace(req.Reading) == "" {
+		writeError(w, 400, "reading is required"); return
+	}
+	if strings.TrimSpace(req.Meaning) == "" {
+		writeError(w, 400, "meaning is required"); return
+	}
+	if strings.TrimSpace(req.POS) == "" {
+		writeError(w, 400, "pos is required"); return
+	}
+
+	word, err := s.DB.GetWord(id)
+	if err != nil {
+		writeError(w, 500, "get word: "+err.Error())
 		return
 	}
-	writeJSON(w, map[string]interface{}{"id": id, "status": "active"})
+	if word == nil {
+		writeError(w, 404, "word not found")
+		return
+	}
+
+	// Apply user-provided basic fields
+	word.Reading = strings.TrimSpace(req.Reading)
+	word.Meaning = strings.TrimSpace(req.Meaning)
+	word.POS = strings.TrimSpace(req.POS)
+	word.Level = strings.TrimSpace(req.Level)
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	// Try dictionary for additional context, then AI fills extended detail fields
+	dictEntry := s.lookupDict(ctx, word.Word)
+	dictReading := word.Reading
+	dictMeaning := word.Meaning
+	dictPOS := word.POS
+	dictLevel := word.Level
+	dictDetailJSON := ""
+	if dictEntry != nil {
+		// Dict data supplements but doesn't override user input
+		if dictReading == "" { dictReading = dictEntry.Reading }
+		if dictMeaning == "" { dictMeaning = dictEntry.Meaning }
+		if dictPOS == "" { dictPOS = dictEntry.POS }
+		if dictLevel == "" { dictLevel = dictEntry.Level }
+		dictDetailJSON = dictEntry.Detail
+	}
+
+	// AI generates extended detail from the combined data
+	aiDetail := s.generateDetail(ctx, word.Word, dictReading, dictMeaning, dictPOS, dictLevel, word.Language)
+	word.Detail = mergeJSON(dictDetailJSON, aiDetail)
+	word.Source = "user_review"
+	word.Confidence = "user"
+
+	word.Status = "active"
+	if err := s.DB.UpdateWord(word); err != nil {
+		writeError(w, 500, "update word: "+err.Error())
+		return
+	}
+
+	writeJSON(w, map[string]interface{}{
+		"id":         id,
+		"status":     "active",
+		"reading":    word.Reading,
+		"meaning":    word.Meaning,
+		"pos":        word.POS,
+		"level":      word.Level,
+		"detail":     word.Detail,
+		"confidence": word.Confidence,
+	})
 }
 
 // handleWordsPendingReject rejects a pending_review word.

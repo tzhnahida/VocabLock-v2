@@ -1,13 +1,10 @@
 active_lang: ja
+interface_lang: zh-CN
 mock_mode: false
 server:
     host: 127.0.0.1
 daily_target: 20
 min_accuracy: 0.8
-listening_ratio: 0.15
-reading_ratio: 0.15
-grammar_ratio: 0.15
-extra_ratio: 0.15
 passive_enabled: true
 passive_min_interval: 25
 passive_max_interval: 60
@@ -16,7 +13,6 @@ escape_click_limit: 2
 auto_start: false
 auto_expand_words: true
 expand_batch_size: 10
-expand_threshold: 0.6
 theme: vs-dark
 assignment:
     cadence_days: 0
@@ -25,6 +21,7 @@ assignment:
     ai_recommend: false
 session_time_budget: 0
 max_slow_type_ratio: 0
+sm2_max_interval_days: 180
 ai:
     base_url: https://api.deepseek.com
     api_key: sk-f9653fbc55af4d12b9a9337db8c2af1b

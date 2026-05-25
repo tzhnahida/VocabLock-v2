@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 )
 
@@ -59,13 +61,33 @@ func NewClient(cfg Config) *Client {
 }
 
 func (c *Client) Chat(ctx context.Context, messages []Message, temperature float64) (string, error) {
+	// Debug: log AI input
+	var sysPrompt, userPrompt string
+	for _, m := range messages {
+		switch m.Role {
+		case "system":
+			sysPrompt = m.Content
+		case "user":
+			userPrompt = m.Content
+		}
+	}
+	fmt.Fprintf(os.Stderr, "[AI] REQUEST model=%s temp=%.2f system_len=%d user_len=%d\n", c.model, temperature, len(sysPrompt), len(userPrompt))
+	if len(sysPrompt) > 0 {
+		fmt.Fprintf(os.Stderr, "[AI] SYSTEM:\n%s\n", truncateLog(sysPrompt, 2000))
+	}
+	if len(userPrompt) > 0 {
+		fmt.Fprintf(os.Stderr, "[AI] USER:\n%s\n", truncateLog(userPrompt, 500))
+	}
+
 	var lastErr error
 	for attempt := 1; attempt <= 3; attempt++ {
 		reply, err := c.chatOnce(ctx, messages, temperature)
 		if err == nil {
+			fmt.Fprintf(os.Stderr, "[AI] RESPONSE len=%d:\n%s\n", len(reply), truncateLog(reply, 2000))
 			return reply, nil
 		}
 		lastErr = err
+		fmt.Fprintf(os.Stderr, "[AI] attempt %d/3 failed: %v\n", attempt, err)
 		if attempt < 3 {
 			select {
 			case <-ctx.Done():
@@ -74,7 +96,16 @@ func (c *Client) Chat(ctx context.Context, messages []Message, temperature float
 			}
 		}
 	}
+	fmt.Fprintf(os.Stderr, "[AI] FAILED after 3 attempts: %v\n", lastErr)
 	return "", fmt.Errorf("chat failed after 3 attempts: %w", lastErr)
+}
+
+func truncateLog(s string, maxLen int) string {
+	s = strings.TrimSpace(s)
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + fmt.Sprintf("\n... [truncated, total %d chars]", len(s))
 }
 
 func (c *Client) chatOnce(ctx context.Context, messages []Message, temperature float64) (string, error) {

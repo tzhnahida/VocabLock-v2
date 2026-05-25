@@ -38,9 +38,60 @@ class _PendingReviewPanelState extends State<PendingReviewPanel> {
   }
 
   Future<void> _accept(Word w) async {
+    final readingCtrl = TextEditingController();
+    final meaningCtrl = TextEditingController();
+    final posCtrl = TextEditingController();
+    final levelCtrl = TextEditingController();
+
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.cardBg,
+        title: Text('审核 "${w.word}"', style: TextStyle(color: AppTheme.textPrimary)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _Field(label: '读法（必填）', hint: '如 たべる', controller: readingCtrl),
+              const SizedBox(height: 12),
+              _Field(label: '释义（必填）', hint: '如 吃', controller: meaningCtrl),
+              const SizedBox(height: 12),
+              _Field(label: '词性（必填）', hint: '如 動詞', controller: posCtrl),
+              const SizedBox(height: 12),
+              _Field(label: '等级（可选）', hint: '如 N5', controller: levelCtrl),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          TextButton(
+            onPressed: () {
+              if (readingCtrl.text.trim().isEmpty || meaningCtrl.text.trim().isEmpty || posCtrl.text.trim().isEmpty) {
+                return; // silently ignore — all required fields must be filled
+              }
+              Navigator.pop(ctx, {
+                'reading': readingCtrl.text.trim(),
+                'meaning': meaningCtrl.text.trim(),
+                'pos': posCtrl.text.trim(),
+                'level': levelCtrl.text.trim(),
+              });
+            },
+            child: Text('通过', style: TextStyle(color: Colors.green)),
+          ),
+        ],
+      ),
+    );
+    if (result == null) return;
+
     setState(() => _acting = true);
     try {
-      await widget.state.wordsApi!.acceptPendingReview(w.id);
+      await widget.state.wordsApi!.acceptPendingReview(
+        w.id,
+        reading: result['reading']!,
+        meaning: result['meaning']!,
+        pos: result['pos']!,
+        level: result['level'] ?? '',
+      );
       _showMessage('"${w.word}" 已通过校验');
     } catch (e) {
       _showMessage('操作失败: $e');
@@ -195,6 +246,30 @@ class _PendingReviewPanelState extends State<PendingReviewPanel> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _Field extends StatelessWidget {
+  final String label;
+  final String hint;
+  final TextEditingController controller;
+
+  const _Field({required this.label, required this.hint, required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      style: TextStyle(color: AppTheme.textPrimary, fontSize: 14),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        labelStyle: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+        border: const OutlineInputBorder(),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        isDense: true,
       ),
     );
   }

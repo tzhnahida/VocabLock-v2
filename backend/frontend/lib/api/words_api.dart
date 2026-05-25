@@ -89,8 +89,13 @@ class WordsApi {
         .toList();
   }
 
-  Future<Word> acceptPendingReview(int id) async {
-    final r = await _client.post('/api/v1/words/pending-review/$id/accept');
+  Future<Word> acceptPendingReview(int id, {required String reading, required String meaning, required String pos, String level = ''}) async {
+    final r = await _client.post('/api/v1/words/pending-review/$id/accept', data: {
+      'reading': reading,
+      'meaning': meaning,
+      'pos': pos,
+      'level': level,
+    });
     return Word.fromJson(r.data as Map<String, dynamic>);
   }
 

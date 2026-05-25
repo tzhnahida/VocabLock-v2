@@ -27,8 +27,11 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 	if s.AI == nil {
 		return 0, 0, fmt.Errorf("AI not configured")
 	}
-	if count <= 0 || count > 20 {
+	if count <= 0 {
 		count = 5
+	}
+	if count > 50 {
+		count = 50
 	}
 
 
@@ -53,16 +56,16 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 			// Try dictionary lookup again
 			dictEntry := s.lookupDict(ctx, pw.Word)
 			if dictEntry != nil {
-				aiDetail := s.generateDetail(ctx, pw.Word, dictEntry.Reading, dictEntry.Meaning, dictEntry.POS, level, lang)
+				aiDetail := s.generateDetail(ctx, pw.Word, dictEntry.Reading, dictEntry.Meaning, dictEntry.POS, dictEntry.Level, lang)
 				detail := mergeJSON(dictEntry.Detail, aiDetail)
-				wordLevel := dictEntry.Level
-				if lv := extractFieldFromDetail(detail, "level"); lv != "" {
-					wordLevel = lv
-				}
 				pw.Reading = dictEntry.Reading
+				if pw.Reading == "" { pw.Reading = extractFieldFromDetail(aiDetail, "reading") }
 				pw.Meaning = dictEntry.Meaning
+				if pw.Meaning == "" { pw.Meaning = extractFieldFromDetail(aiDetail, "meaning") }
 				pw.POS = dictEntry.POS
-				pw.Level = wordLevel
+				if pw.POS == "" { pw.POS = extractFieldFromDetail(aiDetail, "pos") }
+				pw.Level = dictEntry.Level
+				if pw.Level == "" { pw.Level = extractFieldFromDetail(aiDetail, "level") }
 				pw.Detail = detail
 				pw.Status = "active"
 				pw.Source = "ai_expansion_dict"
@@ -71,20 +74,7 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 				verified++
 				continue
 			}
-			// Dict still miss -- try AI fill
-			aiDetail := s.generateDetail(ctx, pw.Word, "", "", "", level, lang)
-			if aiDetail != "" {
-				pw.Reading = extractFieldFromDetail(aiDetail, "reading")
-				pw.Meaning = extractFieldFromDetail(aiDetail, "meaning")
-				pw.POS = extractFieldFromDetail(aiDetail, "pos")
-				pw.Level = extractFieldFromDetail(aiDetail, "level")
-				pw.Detail = aiDetail
-				pw.Status = "active"
-				pw.Source = "ai_expansion_ai"
-				pw.Confidence = "low"
-				s.DB.UpdateWord(pw)
-				verified++
-			}
+			// Dict still miss — stay pending for user review
 		}
 	}
 
@@ -163,24 +153,28 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 			// Dictionary provides reading, meaning, POS — not AI
 			dictEntry := s.lookupDict(ctx, word)
 			if dictEntry != nil {
-				// AI generates extension fields (morphology, collocation, etc.)
-				aiDetail := s.generateDetail(ctx, word, dictEntry.Reading, dictEntry.Meaning, dictEntry.POS, level, lang)
+				// Word confirmed by dictionary. Dict provides what it has;
+				// AI fills any gaps in reading/meaning/POS/level + DLC fields.
+				aiDetail := s.generateDetail(ctx, word, dictEntry.Reading, dictEntry.Meaning, dictEntry.POS, dictEntry.Level, lang)
 
-				// Merge: dict detail base + AI detail overrides
+				reading := dictEntry.Reading
+				if reading == "" { reading = extractFieldFromDetail(aiDetail, "reading") }
+				meaning := dictEntry.Meaning
+				if meaning == "" { meaning = extractFieldFromDetail(aiDetail, "meaning") }
+				pos := dictEntry.POS
+				if pos == "" { pos = extractFieldFromDetail(aiDetail, "pos") }
+				lvl := dictEntry.Level
+				if lvl == "" { lvl = extractFieldFromDetail(aiDetail, "level") }
+
+				// Dict detail base + AI gap-fill (dict keys take priority)
 				detail := mergeJSON(dictEntry.Detail, aiDetail)
-
-				// Extract level from detail JSON (dictEntry.Level is often empty)
-				wordLevel := dictEntry.Level
-				if lv := extractFieldFromDetail(detail, "level"); lv != "" {
-					wordLevel = lv
-				}
 
 				_, insertErr := s.DB.InsertWord(&db.Word{
 					Word:       word,
-					Reading:    dictEntry.Reading,
-					Meaning:    dictEntry.Meaning,
-					POS:        dictEntry.POS,
-					Level:      wordLevel,
+					Reading:    reading,
+					Meaning:    meaning,
+					POS:        pos,
+					Level:      lvl,
 					Detail:     detail,
 					Language:   lang,
 					Source:     "ai_expansion_dict",
@@ -190,30 +184,7 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 					verified++
 				}
 			} else {
-				// Dictionary miss — AI fills all fields (reading, meaning, POS, detail)
-				aiDetail := s.generateDetail(ctx, word, "", "", "", level, lang)
-				if aiDetail != "" {
-					reading := extractFieldFromDetail(aiDetail, "reading")
-					meaning := extractFieldFromDetail(aiDetail, "meaning")
-					pos := extractFieldFromDetail(aiDetail, "pos")
-					wordLevel := extractFieldFromDetail(aiDetail, "level")
-
-					_, insertErr := s.DB.InsertWord(&db.Word{
-						Word:       word,
-						Reading:    reading,
-						Meaning:    meaning,
-						POS:        pos,
-						Level:      wordLevel,
-						Detail:     aiDetail,
-						Language:   lang,
-						Source:     "ai_expansion_ai",
-						Confidence: "low",
-					})
-					if insertErr == nil {
-						verified++
-						continue
-					}
-				}
+				// Dictionary miss — might be AI-fabricated. Quarantine for user review.
 				s.DB.InsertWord(&db.Word{
 					Word: word, Language: lang, Source: "ai_expansion", Status: "pending_review",
 				})
@@ -349,7 +320,7 @@ func extractFieldFromDetail(detail, key string) string {
 	return ""
 }
 
-// mergeJSON merges two JSON objects. Values in b override values in a.
+// mergeJSON merges two JSON objects. a (dict) is authoritative, b (AI) fills only missing keys.
 func mergeJSON(a, b string) string {
 	if a == "" || a == "{}" {
 		if b == "" {
@@ -368,8 +339,11 @@ func mergeJSON(a, b string) string {
 	if err := json.Unmarshal([]byte(b), &mb); err != nil {
 		return a
 	}
+	// Dict (a) is authoritative — AI (b) only fills keys dict didn't provide
 	for k, v := range mb {
-		ma[k] = v
+		if _, exists := ma[k]; !exists {
+			ma[k] = v
+		}
 	}
 	result, err := json.Marshal(ma)
 	if err != nil {

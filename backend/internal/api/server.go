@@ -55,8 +55,34 @@ type Server struct {
 	bootstrapDone   bool
 	bootstrapDoneMu sync.RWMutex
 
+	// Prevents concurrent AI word expansion
+	expanding   bool
+	expandingMu sync.Mutex
+
 	// Session budget tracks time/type usage for the current day
 	sessionBudget sessionBudget
+}
+
+func (s *Server) tryStartExpanding() bool {
+	s.expandingMu.Lock()
+	defer s.expandingMu.Unlock()
+	if s.expanding {
+		return false
+	}
+	s.expanding = true
+	return true
+}
+
+func (s *Server) stopExpanding() {
+	s.expandingMu.Lock()
+	s.expanding = false
+	s.expandingMu.Unlock()
+}
+
+func (s *Server) isExpanding() bool {
+	s.expandingMu.Lock()
+	defer s.expandingMu.Unlock()
+	return s.expanding
 }
 
 func NewServer(mock bool, cfg *config.Config, database *db.Database) *Server {

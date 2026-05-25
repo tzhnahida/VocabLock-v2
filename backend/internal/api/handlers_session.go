@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/vocablock/v2/internal/ai"
@@ -57,18 +58,33 @@ func (s *Server) handleQuizSummarize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Auto-expand new words in background for the next session
+	// Auto-expand new words in background for the next session.
+	// Use tryStartExpanding so session/start knows to block.
 	if s.Config.App.AutoExpandWords && s.AI != nil {
-		nw, _, _, _, _ := s.DB.SessionCounts(lang)
+		nw, ng, rw, rg, _ := s.DB.SessionCounts(lang)
+		fmt.Fprintf(os.Stderr, "[expand] summarize check: nw=%d ng=%d rw=%d rg=%d\n", nw, ng, rw, rg)
 		if nw == 0 {
 			expandCount, extraCtx := s.planExpandParams(lang)
-			if expandCount > 0 {
-				go s.expandWords(context.Background(), lang, expandCount, extraCtx)
+			fmt.Fprintf(os.Stderr, "[expand] summarize: count=%d tryStart=%v\n", expandCount, s.tryStartExpanding())
+			if expandCount > 0 && s.tryStartExpanding() {
+				fmt.Fprintf(os.Stderr, "[expand] summarize goroutine START: count=%d extraCtx=%s\n", expandCount, extraCtx)
+				go func() {
+					defer s.stopExpanding()
+					v, p, err := s.expandWords(context.Background(), lang, expandCount, extraCtx)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "[expand] summarize goroutine ERROR: %v\n", err)
+					} else {
+						fmt.Fprintf(os.Stderr, "[expand] summarize goroutine DONE: %d verified + %d pending\n", v, p)
+					}
+				}()
+			} else {
+				fmt.Fprintf(os.Stderr, "[expand] summarize SKIP: count=%d tryStart=%v\n", expandCount, s.tryStartExpanding())
 			}
 		}
 		// Also expand grammar points if running low
 		_, gTotal, _ := s.DB.ListGrammarPoints(lang, 1, 0)
 		if gTotal < 5 {
+			fmt.Fprintf(os.Stderr, "[expand] summarize grammar: gTotal=%d, expanding 2\n", gTotal)
 			go s.expandGrammar(context.Background(), lang, 2)
 		}
 	}

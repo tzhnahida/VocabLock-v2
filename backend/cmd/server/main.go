@@ -124,8 +124,19 @@ func spawnFlutter(port int, token string) {
 		return
 	}
 	dir := filepath.Dir(exe)
-	flutterExe := filepath.Join(dir, "frontend", "build", "windows", "x64", "runner", "Release", "vocablock_ui.exe")
-	if _, err := os.Stat(flutterExe); os.IsNotExist(err) {
+	// Try both layouts: project-root and backend-directory
+	candidates := []string{
+		filepath.Join(dir, "backend", "frontend", "build", "windows", "x64", "runner", "Release", "vocablock_ui.exe"),
+		filepath.Join(dir, "frontend", "build", "windows", "x64", "runner", "Release", "vocablock_ui.exe"),
+	}
+	flutterExe := ""
+	for _, c := range candidates {
+		if _, err := os.Stat(c); err == nil {
+			flutterExe = c
+			break
+		}
+	}
+	if flutterExe == "" {
 		return
 	}
 

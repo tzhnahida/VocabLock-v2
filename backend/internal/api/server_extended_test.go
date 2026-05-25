@@ -42,7 +42,8 @@ func TestWordsPendingAccept(t *testing.T) {
 	s := newTestServer(t)
 	id, _ := s.DB.InsertWord(&db.Word{Word: "test", Language: "en", Status: "pending_review"})
 
-	rec, _ := newTestRequest(s, "POST", "/api/v1/words/pending-review/"+itoa64(id)+"/accept", "")
+	body := `{"reading":"テスト","meaning":"test","pos":"noun"}`
+	rec, _ := newTestRequest(s, "POST", "/api/v1/words/pending-review/"+itoa64(id)+"/accept", body)
 	if rec.Code != 200 {
 		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body.String())
 	}
@@ -50,6 +51,12 @@ func TestWordsPendingAccept(t *testing.T) {
 	w, _ := s.DB.GetWord(id)
 	if w.Status != "active" {
 		t.Errorf("status = %q, want active", w.Status)
+	}
+	if w.Reading != "テスト" {
+		t.Errorf("reading = %q, want テスト", w.Reading)
+	}
+	if w.Meaning != "test" {
+		t.Errorf("meaning = %q, want test", w.Meaning)
 	}
 }
 

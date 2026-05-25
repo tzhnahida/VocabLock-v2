@@ -9,7 +9,8 @@ system: |
   Already known grammar: {{.ExistingGrammar}}
 
   {{if .QueryResult}}Word availability check result: {{.QueryResult}}
-  These words ARE confirmed to exist. You can use them in sentences.
+  Only entries ending with "=yes" are confirmed to exist in the student's vocabulary.
+  Words ending with "=no" are NOT available — do not use them.
   Now make your final decision — grammar_points or empty list.
   {{end}}
 
