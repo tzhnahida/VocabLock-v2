@@ -7,11 +7,17 @@ import (
 
 // tierTypes maps SM-2 learning stages to appropriate question types.
 // Higher tier = more demanding question types.
+// Tier progression based on cognitive load:
+//
+//	tier 0: recognition + shadowing (no recall needed)
+//	tier 1: cued recall (partial hint)
+//	tier 2: free recall (no hint)
+//	tier 3: sentence-level production + comprehension
 var tierTypes = map[int][]QuestionType{
-	0: {TypeChoice},                                                              // new: recognition only
-	1: {TypeChoice, TypeFill},                                                    // early: cued recall
-	2: {TypeFill, TypePronounce},                                                 // mid: unaided recall
-	3: {TypePronounce, TypeSpelling, TypeListening, TypeReadingComp, TypeGrammar}, // mature: production
+	0: {TypeChoice, TypeReadWord},                                          // see it, pick it, say it
+	1: {TypeChoice, TypeFill, TypeReadWord},                                // fill the gap
+	2: {TypeFill, TypePronounce, TypeSpelling},                             // recall on your own
+	3: {TypePronounce, TypeSpelling, TypeListening, TypeGrammar, TypeReadSentence, TypeReadingComp}, // full mastery
 }
 
 // SelectQuestionType picks the best question type for a word based on its SM-2 state.
@@ -28,8 +34,8 @@ var tierTypes = map[int][]QuestionType{
 //
 // available is the list of question types enabled for this language (from config).
 // aiAvailable indicates whether AI-dependent types (listening/reading_comp/grammar) can be used.
-func SelectQuestionType(nextReviewAt *time.Time, ef float64, interval, reps int, available []QuestionType, aiAvailable bool) QuestionType {
-	candidates := selectCandidates(nextReviewAt, ef, interval, reps, available, aiAvailable)
+func SelectQuestionType(nextReviewAt *time.Time, ef float64, interval, reps int, available []QuestionType, aiAvailable, pronounceAvailable bool) QuestionType {
+	candidates := selectCandidates(nextReviewAt, ef, interval, reps, available, aiAvailable, pronounceAvailable)
 	return candidates[rand.Intn(len(candidates))]
 }
 
@@ -37,8 +43,8 @@ func SelectQuestionType(nextReviewAt *time.Time, ef float64, interval, reps int,
 // pick toward the given type weights (higher weight = more likely). Weights are
 // the plan's question_type_ratio percentages; types not in the map get a
 // default weight of 10.
-func SelectQuestionTypeWithWeights(nextReviewAt *time.Time, ef float64, interval, reps int, available []QuestionType, aiAvailable bool, weights map[string]int) QuestionType {
-	candidates := selectCandidates(nextReviewAt, ef, interval, reps, available, aiAvailable)
+func SelectQuestionTypeWithWeights(nextReviewAt *time.Time, ef float64, interval, reps int, available []QuestionType, aiAvailable, pronounceAvailable bool, weights map[string]int) QuestionType {
+	candidates := selectCandidates(nextReviewAt, ef, interval, reps, available, aiAvailable, pronounceAvailable)
 	if len(weights) == 0 || len(candidates) <= 1 {
 		if len(candidates) == 0 {
 			return TypeChoice
@@ -72,7 +78,7 @@ func SelectQuestionTypeWithWeights(nextReviewAt *time.Time, ef float64, interval
 	return candidates[len(candidates)-1]
 }
 
-func selectCandidates(nextReviewAt *time.Time, ef float64, interval, reps int, available []QuestionType, aiAvailable bool) []QuestionType {
+func selectCandidates(nextReviewAt *time.Time, ef float64, interval, reps int, available []QuestionType, aiAvailable, pronounceAvailable bool) []QuestionType {
 	tier := computeTier(nextReviewAt, interval, reps)
 	if ef < 1.5 && tier > 0 {
 		tier--
@@ -93,13 +99,16 @@ func selectCandidates(nextReviewAt *time.Time, ef float64, interval, reps int, a
 		if isAIType(qt) && !aiAvailable {
 			continue
 		}
+		if NeedsPronounce(qt) && !pronounceAvailable {
+			continue
+		}
 		candidates = append(candidates, qt)
 	}
 
 	// Fall back: if no candidates in current tier, try lower tiers
 	for t := tier - 1; t >= 0 && len(candidates) == 0; t-- {
 		for _, qt := range tierTypes[t] {
-			if availableSet[qt] && !(isAIType(qt) && !aiAvailable) {
+			if availableSet[qt] && !(isAIType(qt) && !aiAvailable) && !(NeedsPronounce(qt) && !pronounceAvailable) {
 				candidates = append(candidates, qt)
 			}
 		}
@@ -126,7 +135,17 @@ func computeTier(nextReviewAt *time.Time, interval, reps int) int {
 
 func isAIType(qt QuestionType) bool {
 	switch qt {
-	case TypeListening, TypeReadingComp, TypeGrammar:
+	case TypeListening, TypeReadingComp, TypeGrammar, TypeReadSentence:
+		return true
+	}
+	return false
+}
+
+// NeedsPronounce returns true if the question type requires a pronunciation
+// assessment provider. These types are excluded when no provider is configured.
+func NeedsPronounce(qt QuestionType) bool {
+	switch qt {
+	case TypeReadWord, TypeReadSentence:
 		return true
 	}
 	return false

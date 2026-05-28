@@ -9,7 +9,7 @@ func TestSelectQuestionType_NewWord(t *testing.T) {
 	// New word, never reviewed
 	qt := SelectQuestionType(nil, 2.5, 0, 0, []QuestionType{
 		TypeChoice, TypeFill, TypePronounce, TypeSpelling, TypeListening, TypeReadingComp, TypeGrammar,
-	}, true)
+	}, true, false)
 	if qt != TypeChoice {
 		t.Errorf("new word should get choice, got %s", qt)
 	}
@@ -23,7 +23,7 @@ func TestSelectQuestionType_EarlyStage(t *testing.T) {
 	// reps=0, interval=1 → tier 1: choice or fill
 	seen := make(map[QuestionType]int)
 	for i := 0; i < 50; i++ {
-		qt := SelectQuestionType(&next, 2.5, 1, 0, types, false)
+		qt := SelectQuestionType(&next, 2.5, 1, 0, types, false, false)
 		seen[qt]++
 	}
 
@@ -43,7 +43,7 @@ func TestSelectQuestionType_MidStage(t *testing.T) {
 	// reps=2, interval=5 → tier 2: fill or reading
 	seen := make(map[QuestionType]int)
 	for i := 0; i < 50; i++ {
-		qt := SelectQuestionType(&next, 2.5, 5, 2, types, false)
+		qt := SelectQuestionType(&next, 2.5, 5, 2, types, false, false)
 		seen[qt]++
 	}
 
@@ -60,7 +60,7 @@ func TestSelectQuestionType_MatureStage(t *testing.T) {
 	// reps=5, interval=30 → tier 3
 	seen := make(map[QuestionType]int)
 	for i := 0; i < 50; i++ {
-		qt := SelectQuestionType(&next, 2.5, 30, 5, types, true)
+		qt := SelectQuestionType(&next, 2.5, 30, 5, types, true, false)
 		seen[qt]++
 	}
 
@@ -77,7 +77,7 @@ func TestSelectQuestionType_StrugglingWord(t *testing.T) {
 	// EF=1.4 (< 1.5) should drop tier 2 → tier 1
 	seen := make(map[QuestionType]int)
 	for i := 0; i < 50; i++ {
-		qt := SelectQuestionType(&next, 1.4, 5, 2, types, false)
+		qt := SelectQuestionType(&next, 1.4, 5, 2, types, false, false)
 		seen[qt]++
 	}
 
@@ -93,7 +93,7 @@ func TestSelectQuestionType_NoAITypesWhenUnavailable(t *testing.T) {
 
 	// reps=5, interval=30 → tier 3, but AI unavailable
 	for i := 0; i < 50; i++ {
-		qt := SelectQuestionType(&next, 2.5, 30, 5, types, false)
+		qt := SelectQuestionType(&next, 2.5, 30, 5, types, false, false)
 		if qt == TypeListening || qt == TypeReadingComp || qt == TypeGrammar {
 			t.Errorf("AI type %s should not appear when AI unavailable", qt)
 		}
@@ -106,7 +106,7 @@ func TestSelectQuestionType_FallbackWhenNoCandidates(t *testing.T) {
 	// Only AI types available, but AI unavailable → falls back to choice
 	types := []QuestionType{TypeListening, TypeReadingComp, TypeGrammar}
 
-	qt := SelectQuestionType(&next, 2.5, 30, 5, types, false)
+	qt := SelectQuestionType(&next, 2.5, 30, 5, types, false, false)
 	if qt != TypeChoice {
 		t.Errorf("should fall back to choice when no candidates, got %s", qt)
 	}
@@ -121,7 +121,7 @@ func TestSelectQuestionType_RespectsAvailableTypes(t *testing.T) {
 
 	// Should fall back to choice (ultimate fallback)
 	for i := 0; i < 20; i++ {
-		qt := SelectQuestionType(&next, 2.5, 1, 0, types, false)
+		qt := SelectQuestionType(&next, 2.5, 1, 0, types, false, false)
 		if qt != TypeChoice {
 			t.Errorf("should fall back to choice when config excludes tier types, got %s", qt)
 		}

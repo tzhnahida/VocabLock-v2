@@ -15,6 +15,7 @@ import (
 	"github.com/vocablock/v2/internal/db"
 	"github.com/vocablock/v2/internal/dict"
 	"github.com/vocablock/v2/internal/engine"
+	"github.com/vocablock/v2/internal/pronounce"
 	"github.com/vocablock/v2/internal/tts"
 )
 
@@ -39,9 +40,10 @@ type Server struct {
 	DB     *db.Database
 
 	// Optional — nil means not configured, handlers fall back gracefully
-	AI         *ai.Client
-	TTSProvider *tts.Provider
-	DictProvider *dict.Provider
+	AI              *ai.Client
+	TTSProvider     *tts.Provider
+	DictProvider    *dict.Provider
+	PronounceProvider *pronounce.Provider
 
 	// Question cache for AI-generated questions (maps question_id → cachedQuestion)
 	questionCache   map[string]*cachedQuestion
@@ -142,7 +144,8 @@ type sessionBudget struct {
 	totalCount   int
 	typeWeights  map[string]int // cached from training plan's question_type_ratio
 	grammarFocus []string       // cached from training plan's grammar_focus
-	sessionDone  bool           // true once quiz/complete was called today
+	sessionDone    bool // true once quiz/complete was called today
+	sessionStarted bool // true once first READY was returned today
 }
 
 func (b *sessionBudget) markSessionDone() {
@@ -160,6 +163,23 @@ func (b *sessionBudget) isSessionDone() bool {
 		b.sessionDone = false
 	}
 	return b.sessionDone
+}
+
+func (b *sessionBudget) markSessionStarted() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.sessionStarted = true
+	b.date = time.Now().Format("2006-01-02")
+}
+
+func (b *sessionBudget) isSessionStarted() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	today := time.Now().Format("2006-01-02")
+	if b.date != today {
+		b.sessionStarted = false
+	}
+	return b.sessionStarted
 }
 
 func (b *sessionBudget) setTypeWeights(weights map[string]int) {
@@ -387,5 +407,10 @@ func (s *Server) isBootstrapDone() bool {
 	s.bootstrapDoneMu.RLock()
 	defer s.bootstrapDoneMu.RUnlock()
 	return s.bootstrapDone
+}
+
+// HasPronounce returns true if a pronunciation assessment provider is configured.
+func (s *Server) HasPronounce() bool {
+	return s.PronounceProvider != nil
 }
 

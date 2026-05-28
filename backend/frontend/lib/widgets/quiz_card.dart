@@ -74,6 +74,10 @@ class QuizCard extends StatelessWidget {
         return Colors.indigo;
       case QuestionType.grammar:
         return Colors.red;
+      case QuestionType.readWord:
+        return Colors.green;
+      case QuestionType.readSentence:
+        return Colors.teal;
     }
   }
 }

@@ -4,7 +4,7 @@ import '../models/word.dart';
 import '../theme/app_theme.dart';
 import '../widgets/word_detail_card.dart';
 
-class WordDetailPage extends StatelessWidget {
+class WordDetailPage extends StatefulWidget {
   final Word word;
   final List<WordFieldConfig>? fieldConfig;
   final Future<void> Function() onPlayWord;
@@ -19,6 +19,19 @@ class WordDetailPage extends StatelessWidget {
   });
 
   @override
+  State<WordDetailPage> createState() => _WordDetailPageState();
+}
+
+class _WordDetailPageState extends State<WordDetailPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.onPlayWord();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
@@ -27,15 +40,15 @@ class WordDetailPage extends StatelessWidget {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(word.word, style: TextStyle(fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+        title: Text(widget.word.word, style: TextStyle(fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
         actions: [
-          if (word.reading.isNotEmpty)
+          if (widget.word.reading.isNotEmpty)
             IconButton(
               icon: Icon(Icons.volume_up_outlined, color: AppTheme.primary),
-              onPressed: () => onPlayWord(),
+              onPressed: () => widget.onPlayWord(),
               tooltip: l10n.tooltipPlayAudio,
             ),
-          if (word.status == 'pending_review')
+          if (widget.word.status == 'pending_review')
             Container(
               margin: const EdgeInsets.only(right: 12),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -45,7 +58,7 @@ class WordDetailPage extends StatelessWidget {
               ),
               child: Text(l10n.statusPendingReview, style: TextStyle(fontSize: 11, color: Colors.orange.shade700)),
             ),
-          if (word.confidence == 'low')
+          if (widget.word.confidence == 'low')
             Container(
               margin: const EdgeInsets.only(right: 12),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -58,10 +71,10 @@ class WordDetailPage extends StatelessWidget {
         ],
       ),
       body: WordDetailCard(
-        word: word,
-        fieldConfig: fieldConfig,
-        onPlayWord: onPlayWord,
-        onPlayText: onPlayText,
+        word: widget.word,
+        fieldConfig: widget.fieldConfig,
+        onPlayWord: widget.onPlayWord,
+        onPlayText: widget.onPlayText,
       ),
     );
   }

@@ -52,8 +52,10 @@ var TimeWeights = map[string]int{
 	"pronounce":    1,
 	"spelling":     2,
 	"listening":    2,
-	"grammar":      5,
-	"reading_comp": 8,
+	"grammar":       5,
+	"reading_comp":  8,
+	"read_word":     2,
+	"read_sentence": 3,
 	// Assignment types
 	"sentence":     5,
 	"fill_passage": 5,

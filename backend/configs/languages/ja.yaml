@@ -17,6 +17,8 @@ question_types:
   - listening
   - reading_comp
   - grammar
+  - read_word
+  - read_sentence
 
 prompt_context:
   teacher_role: 日本語教師

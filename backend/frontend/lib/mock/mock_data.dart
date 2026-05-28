@@ -289,6 +289,10 @@ class MockData {
         return 'Read the passage and answer: ${w.word}';
       case QuestionType.grammar:
         return 'Choose the correct grammar for: ${w.word}';
+      case QuestionType.readWord:
+        return 'Read the word aloud: ${w.word}';
+      case QuestionType.readSentence:
+        return 'Read the sentence aloud: ${w.meaning}';
     }
   }
 

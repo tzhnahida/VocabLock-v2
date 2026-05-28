@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"time"
 
 	"github.com/vocablock/v2/internal/api/mock"
+	"github.com/vocablock/v2/internal/db"
 )
 
 func (s *Server) handleTTSWord(w http.ResponseWriter, r *http.Request) {
@@ -129,4 +131,27 @@ func (s *Server) handleTTSText(w http.ResponseWriter, r *http.Request) {
 		"cached": true,
 		"status": "ok",
 	})
+}
+
+// preWarmTTS pre-generates TTS audio for a word's pronunciation in a background
+// goroutine, so subsequent handleTTSWord calls serve instantly from cache.
+func (s *Server) preWarmTTS(word *db.Word) {
+	if s.TTSProvider == nil || word == nil {
+		return
+	}
+	voice := ""
+	if lc, ok := s.Config.Languages[s.Config.App.ActiveLang]; ok {
+		voice = lc.TTS.Voice
+	}
+	text := word.Word
+	if word.Reading != "" {
+		text = word.Reading
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if _, err := s.TTSProvider.Generate(ctx, voice, text); err != nil {
+			fmt.Fprintf(os.Stderr, "[tts/prewarm] %q: %v\n", text, err)
+		}
+	}()
 }

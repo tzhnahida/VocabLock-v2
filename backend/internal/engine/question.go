@@ -13,37 +13,47 @@ const (
 	TypeFill        QuestionType = "fill"
 	TypeSpelling    QuestionType = "spelling"
 	TypePronounce   QuestionType = "pronounce"     // recall the pronunciation (type kana/pinyin)
-	TypeListening   QuestionType = "listening"     // hear audio, answer
-	TypeReadingComp QuestionType = "reading_comp"  // read passage, answer questions
-	TypeGrammar     QuestionType = "grammar"
+	TypeListening    QuestionType = "listening"     // hear audio, answer
+	TypeReadingComp  QuestionType = "reading_comp"  // read passage, answer questions
+	TypeGrammar      QuestionType = "grammar"
+	TypeReadWord     QuestionType = "read_word"     // read a word aloud, scored by phoneme
+	TypeReadSentence QuestionType = "read_sentence" // read a sentence aloud, scored by match
 )
 
 // promptTemplates maps language code → question type → prompt prefix.
 // The "lang" key is the primary subtag of explanation_lang (e.g. "zh" from "zh-CN", "ko" from "ko").
 var promptTemplates = map[string]map[string]string{
 	"zh": {
-		"choice":    "选择正确释义: ",
-		"fill":      "填空: ",
-		"spelling":  "拼写单词: ",
-		"pronounce": "输入读音: ",
+		"choice":       "选择正确释义: ",
+		"fill":         "填空: ",
+		"spelling":     "拼写单词: ",
+		"pronounce":    "输入读音: ",
+		"read_word":    "朗读单词: ",
+		"read_sentence": "朗读句子: ",
 	},
 	"en": {
-		"choice":    "Select the correct meaning for: ",
-		"fill":      "Fill in the blank: ",
-		"spelling":  "Spell the word for: ",
-		"pronounce": "Enter the pronunciation of: ",
+		"choice":       "Select the correct meaning for: ",
+		"fill":         "Fill in the blank: ",
+		"spelling":     "Spell the word for: ",
+		"pronounce":    "Enter the pronunciation of: ",
+		"read_word":    "Read the word aloud: ",
+		"read_sentence": "Read the sentence aloud: ",
 	},
 	"ko": {
-		"choice":    "올바른 뜻을 고르세요: ",
-		"fill":      "빈칸 채우기: ",
-		"spelling":  "단어 철자 쓰기: ",
-		"pronounce": "발음 입력: ",
+		"choice":       "올바른 뜻을 고르세요: ",
+		"fill":         "빈칸 채우기: ",
+		"spelling":     "단어 철자 쓰기: ",
+		"pronounce":    "발음 입력: ",
+		"read_word":    "단어를 소리내어 읽으세요: ",
+		"read_sentence": "문장을 소리내어 읽으세요: ",
 	},
 	"ja": {
-		"choice":    "正しい意味を選んでください: ",
-		"fill":      "空欄を埋めてください: ",
-		"spelling":  "単語の綴りを入力: ",
-		"pronounce": "読み方を入力: ",
+		"choice":       "正しい意味を選んでください: ",
+		"fill":         "空欄を埋めてください: ",
+		"spelling":     "単語の綴りを入力: ",
+		"pronounce":    "読み方を入力: ",
+		"read_word":    "単語を声に出して読んでください: ",
+		"read_sentence": "文章を声に出して読んでください: ",
 	},
 }
 
@@ -138,6 +148,33 @@ func GeneratePronounce(word *WordInfo, explLang string) *Question {
 		SubjectID:   word.ID,
 		Prompt:      promptPrefix("pronounce", explLang) + word.Word,
 		Answer:      word.Reading,
+	}
+}
+
+// GenerateReadWord creates a "read aloud" question where the user
+// records themselves pronouncing the word. Answer is the reading (kana).
+func GenerateReadWord(word *WordInfo, explLang string) *Question {
+	return &Question{
+		ID:          genID("word", "read_word", word.ID),
+		Type:        TypeReadWord,
+		SubjectType: "word",
+		SubjectID:   word.ID,
+		Prompt:      promptPrefix("read_word", explLang) + word.Word,
+		Answer:      word.Reading,
+	}
+}
+
+// GenerateReadSentence creates a "read sentence aloud" question.
+// sentence is the text to read. Answer is the sentence itself.
+func GenerateReadSentence(sentence string, explLang string) *Question {
+	id := "rs" + itoa(int64(len(sentence))) + itoa(int64(len(sentence)%100))
+	return &Question{
+		ID:          id,
+		Type:        TypeReadSentence,
+		SubjectType: "sentence",
+		SubjectID:   0,
+		Prompt:      promptPrefix("read_sentence", explLang) + sentence,
+		Answer:      sentence,
 	}
 }
 

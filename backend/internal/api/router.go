@@ -58,6 +58,9 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET "+prefix+"/tts/word/{id}", s.handleTTSWord)
 	mux.HandleFunc("POST "+prefix+"/tts/text", s.handleTTSText)
 
+	// Pronounce
+	mux.HandleFunc("POST "+prefix+"/pronounce/assess", s.handlePronounceAssess)
+
 	// Stats
 	mux.HandleFunc("GET "+prefix+"/stats/heatmap", s.handleStatsHeatmap)
 	mux.HandleFunc("GET "+prefix+"/stats/streak", s.handleStatsStreak)

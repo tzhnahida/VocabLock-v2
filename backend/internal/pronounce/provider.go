@@ -1,0 +1,66 @@
+package pronounce
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os/exec"
+	"strings"
+
+	"github.com/vocablock/v2/internal/config"
+)
+
+// Result is the JSON output expected from a pronunciation assessment binary.
+type Result struct {
+	Score    float64         `json:"score"`
+	Phonemes []PhonemeScore  `json:"phonemes"`
+	Detail   string          `json:"detail,omitempty"`
+}
+
+// PhonemeScore is per-phoneme pronunciation quality.
+type PhonemeScore struct {
+	Phoneme string  `json:"phoneme"`
+	Score   float64 `json:"score"`
+}
+
+// Provider dispatches pronunciation assessment to an external binary.
+type Provider struct {
+	cfg  config.PronounceProvider
+	name string
+}
+
+// NewProvider creates a pronunciation assessment provider.
+func NewProvider(name string, cfg config.PronounceProvider) *Provider {
+	return &Provider{cfg: cfg, name: name}
+}
+
+// Assess runs the external binary to evaluate pronunciation of targetText
+// in the audio file at audioPath.
+func (p *Provider) Assess(ctx context.Context, audioPath, targetText string) (*Result, error) {
+	args := buildPronounceArgs(p.cfg.Args, audioPath, targetText)
+
+	cmd := exec.CommandContext(ctx, p.cfg.Binary, args...)
+
+	stdout, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("pronounce %s: %w", p.name, err)
+	}
+
+	var result Result
+	if err := json.Unmarshal(stdout, &result); err != nil {
+		return nil, fmt.Errorf("pronounce %s parse output: %w", p.name, err)
+	}
+
+	return &result, nil
+}
+
+func buildPronounceArgs(templates []string, audioPath, targetText string) []string {
+	args := make([]string, len(templates))
+	for i, tpl := range templates {
+		arg := tpl
+		arg = strings.ReplaceAll(arg, "{audio}", audioPath)
+		arg = strings.ReplaceAll(arg, "{text}", targetText)
+		args[i] = arg
+	}
+	return args
+}

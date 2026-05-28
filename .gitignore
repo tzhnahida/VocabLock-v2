@@ -28,6 +28,12 @@ build/bin/
 data/
 reports/
 
+# Pronounce test files (not main line)
+backend/pronounce-test/kit/julius.exe
+backend/pronounce-test/kit/model/
+backend/pronounce-test/*.wav
+tmp/
+
 # Wails v1 artifact (vestigial)
 frontend/dist/
 frontend/package.json.md5

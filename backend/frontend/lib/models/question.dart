@@ -5,7 +5,9 @@ enum QuestionType {
   reading,
   listening,
   readingComp,
-  grammar;
+  grammar,
+  readWord,
+  readSentence;
 
   static QuestionType fromString(String s) {
     switch (s) {
@@ -23,6 +25,10 @@ enum QuestionType {
         return QuestionType.readingComp;
       case 'grammar':
         return QuestionType.grammar;
+      case 'read_word':
+        return QuestionType.readWord;
+      case 'read_sentence':
+        return QuestionType.readSentence;
       default:
         return QuestionType.choice;
     }
@@ -53,10 +59,14 @@ enum QuestionType {
         return 'Reading Comp';
       case QuestionType.grammar:
         return 'Grammar';
+      case QuestionType.readWord:
+        return 'Read';
+      case QuestionType.readSentence:
+        return 'Speak';
     }
   }
 
-  bool get isAI => this == listening || this == readingComp || this == grammar;
+  bool get isAI => this == listening || this == readingComp || this == grammar || this == readSentence;
 
   /// Whether the answer IS the word itself — hide the word in the prompt for these types.
   bool get wordIsAnswer => this == fill || this == spelling;

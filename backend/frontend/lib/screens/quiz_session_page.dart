@@ -1,5 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:record/record.dart';
 import '../models/question.dart';
 import '../models/quiz_result.dart';
 import '../models/word.dart';
@@ -12,7 +15,7 @@ enum _Phase { overview, learning, quiz, complete }
 class QuizSessionPage extends StatefulWidget {
   final Future<Map<String, dynamic>?> Function() onSessionStart;
   final Future<Question?> Function() onNextQuestion;
-  final Future<SubmitResult?> Function({required String questionId, required String subjectType, required int subjectId, required String questionType, required String answer}) onSubmit;
+  final Future<SubmitResult?> Function({required String questionId, required String subjectType, required int subjectId, required String questionType, required String answer, String? audio}) onSubmit;
   final Future<List<Word>> Function() onGetStudyWords;
   final Future<List<GrammarPoint>> Function()? onGetStudyGrammar;
   final Future<SessionSummary?> Function()? onSummarize;
@@ -72,6 +75,13 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
   final _textController = TextEditingController();
   final _textFocus = FocusNode();
 
+  // Recording state (for read_word / read_sentence)
+  final _recorder = AudioRecorder();
+  bool _isRecording = false;
+  Uint8List? _recordedBytes;
+  List<PhonemeScore>? _phonemeScores;
+  int _recordingSeconds = 0;
+
   // Complete phase
   bool _summarizing = false;
   SessionSummary? _summary;
@@ -82,7 +92,90 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
     _textController.dispose();
     _textFocus.dispose();
     _pageCtrl.dispose();
+    _recorder.dispose();
     super.dispose();
+  }
+
+  // ——— Recording ———
+
+  Future<void> _startRecording() async {
+    if (!await _recorder.hasPermission()) return;
+    _recordedBytes = null;
+    _phonemeScores = null;
+    _recordingSeconds = 0;
+    final tmpDir = Directory.systemTemp;
+    final recordPath = '${tmpDir.path}/vocablock_read_${DateTime.now().millisecondsSinceEpoch}.wav';
+    await _recorder.start(
+      RecordConfig(
+        encoder: AudioEncoder.wav,
+        bitRate: 256000,
+        sampleRate: 16000,
+        numChannels: 1,
+      ),
+      path: recordPath,
+    );
+    setState(() => _isRecording = true);
+  }
+
+  Future<void> _stopRecording() async {
+    final path = await _recorder.stop();
+    if (path == null) return;
+    final file = File(path);
+    final bytes = await file.readAsBytes();
+    setState(() {
+      _isRecording = false;
+      _recordedBytes = bytes;
+    });
+  }
+
+  Future<void> _submitRecording() async {
+    if (_recordedBytes == null || _question == null || _submitting) return;
+    setState(() => _submitting = true);
+    final audio = base64Encode(_recordedBytes!);
+    final result = await widget.onSubmit(
+      questionId: _question!.id,
+      subjectType: _question!.subjectType,
+      subjectId: _question!.subjectId,
+      questionType: _question!.type.apiValue,
+      answer: '',
+      audio: audio,
+    );
+    if (!mounted) return;
+    _answered++;
+    if (result != null && result.correct) _correct++;
+    setState(() {
+      _result = result;
+      _phonemeScores = result?.phonemes;
+      _submitting = false;
+    });
+  }
+
+  void _retryRecording() {
+    setState(() {
+      _recordedBytes = null;
+      _phonemeScores = null;
+      _result = null;
+    });
+  }
+
+  Future<void> _skipReading() async {
+    if (_question == null || _submitting) return;
+    setState(() => _submitting = true);
+    final result = await widget.onSubmit(
+      questionId: _question!.id,
+      subjectType: _question!.subjectType,
+      subjectId: _question!.subjectId,
+      questionType: _question!.type.apiValue,
+      answer: '',
+      audio: '',  // empty audio = skip
+    );
+    if (!mounted) return;
+    _answered++;
+    if (result != null && result.correct) _correct++;
+    setState(() {
+      _result = result;
+      _submitting = false;
+    });
   }
 
   @override
@@ -128,6 +221,15 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
       } catch (_) {}
     }
     if (mounted) setState(() => _loadingStudy = false);
+
+    // Auto-play first word when study cards appear
+    if (mounted && _phase == _Phase.learning && _studyWords.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _studyWords.isNotEmpty) {
+          widget.onPlayWordAudio(_studyWords[0].id);
+        }
+      });
+    }
   }
 
   void _startLearning() {
@@ -164,7 +266,17 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
       _question = q;
       _loadingQuestion = false;
       _showWordPreview = q != null && q.showWordPreview;
+      // Reset recording state for new question
+      _recordedBytes = null;
+      _phonemeScores = null;
+      _isRecording = false;
     });
+
+    // Auto-play audio for choice questions so the user hears
+    // the correct pronunciation while picking the meaning.
+    if (q != null && q.type == QuestionType.choice && q.subjectType == 'word') {
+      widget.onPlayWordAudio(q.subjectId);
+    }
   }
 
   Future<void> _submit(String answer) async {
@@ -209,6 +321,121 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
       if (!mounted) return;
       setState(() => _summarizing = false);
     });
+  }
+
+  Widget _buildReadAloudUI(Question q) {
+    final word = q.subjectWord ?? q.prompt.replaceAll(RegExp(r'^[^:]+:\s*'), '');
+    final isReadWord = q.type == QuestionType.readWord;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        const SizedBox(height: 16),
+        Text(word, style: TextStyle(fontSize: 32, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+        if (isReadWord && q.subjectReading != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(q.subjectReading!, style: TextStyle(fontSize: 14, color: AppTheme.textHint)),
+          ),
+        const SizedBox(height: 24),
+        // Record button
+        if (_result == null && !_isRecording)
+          ElevatedButton.icon(
+            onPressed: _recordedBytes == null ? () => _startRecording() : null,
+            icon: Icon(_recordedBytes == null ? Icons.mic : Icons.check, size: 22),
+            label: Text(_recordedBytes == null ? '开始录音' : '已录制'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _recordedBytes == null ? Colors.red : Colors.green,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
+        // Recording indicator
+        if (_isRecording)
+          Column(
+            children: [
+              Icon(Icons.mic, size: 48, color: Colors.red),
+              const SizedBox(height: 8),
+              Text('正在录音...', style: TextStyle(fontSize: 14, color: AppTheme.textSecondary)),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: () => _stopRecording(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red, foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: const Text('停止录音'),
+              ),
+            ],
+          ),
+        // Phoneme score display
+        if (_phonemeScores != null && _phonemeScores!.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 16),
+            child: Wrap(
+              spacing: 8, runSpacing: 4,
+              children: _phonemeScores!.map((p) {
+                final passed = p.score >= 0.45;
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: passed ? Colors.green.withValues(alpha: 0.15) : Colors.red.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: passed ? Colors.green : Colors.red, width: 1.5),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(p.phoneme, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: passed ? Colors.green.shade700 : Colors.red.shade700)),
+                      Text('${(p.score * 100).round()}%', style: TextStyle(fontSize: 11, color: passed ? Colors.green.shade600 : Colors.red.shade600)),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        const SizedBox(height: 16),
+        // Action buttons
+        if (_result == null)
+          Column(
+            children: [
+              if (_recordedBytes != null)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    OutlinedButton(
+                      onPressed: _retryRecording,
+                      style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                      child: const Text('重录'),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: _submitting ? null : () => _submitRecording(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primary, foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: _submitting ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('提交'),
+                    ),
+                  ],
+                ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: _submitting ? null : () => _skipReading(),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    side: BorderSide(color: Colors.grey.shade400),
+                  ),
+                  child: Text('不会念，告诉我答案', style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
+                ),
+              ),
+            ],
+          ),
+      ],
+    );
   }
 
   Widget _buildWordPreview(Question q) {
@@ -403,7 +630,12 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
               child: PageView.builder(
                 controller: _pageCtrl,
                 itemCount: totalCards,
-                onPageChanged: (i) => setState(() => _currentPage = i),
+                onPageChanged: (i) {
+                        setState(() => _currentPage = i);
+                        if (i < _studyWords.length) {
+                          widget.onPlayWordAudio(_studyWords[i].id);
+                        }
+                      },
                 itemBuilder: (context, index) {
                   if (index < _studyWords.length) {
                     final w = _studyWords[index];
@@ -560,14 +792,32 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                     Text(q.prompt,
                         style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
                     const SizedBox(height: 24),
-                    if (q.options != null)
+                    if (q.options != null) ...[
                       ...q.options!.map((opt) => _OptionChip(
                             text: opt,
                             isSelected: _selectedAnswer == opt,
                             isCorrect: _selectedAnswer == opt ? _result?.correct : null,
                             enabled: _result == null,
                             onTap: () => _submit(opt),
-                          ))
+                          )),
+                      if (_result == null) ...[
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: TextButton(
+                            onPressed: () => _submit(''),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              side: BorderSide(color: Colors.grey.shade400),
+                            ),
+                            child: Text('我不知道，告诉我答案', style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
+                          ),
+                        ),
+                      ],
+                    ]
+                    else if (q.type == QuestionType.readWord || q.type == QuestionType.readSentence)
+                      _buildReadAloudUI(q)
                     else ...[
                       TextField(
                         controller: _textController,
@@ -583,7 +833,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                         style: TextStyle(fontSize: 16, color: AppTheme.textPrimary),
                       ),
                       const SizedBox(height: 12),
-                      if (_result == null)
+                      if (_result == null) ...[
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
@@ -598,6 +848,20 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                             child: Text('提交', style: TextStyle(fontSize: 16, color: AppTheme.textPrimary)),
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: TextButton(
+                            onPressed: () => _submit(''),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              side: BorderSide(color: Colors.grey.shade400),
+                            ),
+                            child: Text('我不知道，告诉我答案', style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
+                          ),
+                        ),
+                      ],
                     ],
                     if (_result != null) ...[
                       const SizedBox(height: 16),

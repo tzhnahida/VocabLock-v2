@@ -82,6 +82,20 @@ type DictProvider struct {
 	} `yaml:"health_check"`
 }
 
+// ——— Pronounce config ———
+
+type PronounceConfig struct {
+	Pronounce struct {
+		Providers map[string]PronounceProvider `yaml:"providers"`
+	} `yaml:"pronounce"`
+}
+
+type PronounceProvider struct {
+	Lang   string   `yaml:"lang"`
+	Binary string   `yaml:"binary"`
+	Args   []string `yaml:"args"`
+}
+
 // ——— Assignment config ———
 
 type AssignmentConfig struct {
@@ -106,6 +120,9 @@ type LanguageConfig struct {
 	Dict struct {
 		Provider string `yaml:"provider"`
 	} `yaml:"dict"`
+	Pronounce struct {
+		Provider string `yaml:"provider"`
+	} `yaml:"pronounce"`
 	QuestionTypes []string `yaml:"question_types"`
 	PromptContext struct {
 		TeacherRole       string            `yaml:"teacher_role"`
@@ -137,6 +154,7 @@ type Config struct {
 	App       AppConfig
 	TTS       TTSConfig
 	Dict      DictConfig
+	Pronounce PronounceConfig
 	Languages map[string]*LanguageConfig // key = language code
 }
 
@@ -190,6 +208,9 @@ func Load(configDir string) (*Config, error) {
 	if err := loadYAML(filepath.Join(configDir, "dict.yaml"), &cfg.Dict); err != nil {
 		return nil, err
 	}
+
+	// pronounce.yaml (optional — nil provider means not configured)
+	_ = loadYAML(filepath.Join(configDir, "pronounce.yaml"), &cfg.Pronounce)
 
 	// languages/*.yaml
 	langDir := filepath.Join(configDir, "languages")

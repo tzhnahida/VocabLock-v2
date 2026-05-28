@@ -2,10 +2,12 @@ package api
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -15,6 +17,7 @@ import (
 	"github.com/vocablock/v2/internal/db"
 	"github.com/vocablock/v2/internal/engine"
 	"github.com/vocablock/v2/internal/engine/judge"
+	"github.com/vocablock/v2/internal/pronounce"
 )
 
 // nonAITypes are question types that work without AI.
@@ -245,7 +248,7 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 
 			qType := engine.SelectQuestionTypeWithWeights(
 				word.NextReviewAt, word.EasinessFactor, word.Interval, word.Repetitions,
-				langQuestionTypes(lang, s.Config), s.AI != nil,
+				langQuestionTypes(lang, s.Config), s.AI != nil, s.HasPronounce(),
 				s.sessionBudget.getTypeWeights(),
 			)
 
@@ -269,6 +272,15 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 				q = engine.GenerateSpelling(info, explLang)
 			case engine.TypePronounce:
 				q = engine.GeneratePronounce(info, explLang)
+			case engine.TypeReadWord:
+				q = engine.GenerateReadWord(info, explLang)
+			case engine.TypeReadSentence:
+				q, err = s.aiGenerateQuestion(r.Context(), info, qType)
+				if err != nil {
+					q = engine.GenerateChoice(info, distractors, explLang)
+				} else {
+					s.cacheQuestion(q)
+				}
 			case engine.TypeListening, engine.TypeReadingComp, engine.TypeGrammar:
 				q, err = s.aiGenerateQuestion(r.Context(), info, qType)
 				if err != nil {
@@ -553,6 +565,177 @@ func (s *Server) handleQuizComplete(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]interface{}{
 		"completed":        true,
 		"daily_target_met": reviewed >= s.Config.App.DailyTarget,
+	})
+}
+
+// ——— read-aloud submit ———
+
+func (s *Server) handleReadAloudSubmit(w http.ResponseWriter, r *http.Request, qtype, stype string, sid int64, qid, audio string) {
+	if s.PronounceProvider == nil {
+		writeJSON(w, map[string]interface{}{
+			"correct":  false,
+			"feedback": "Pronunciation assessment not configured",
+			"source":   "no_provider",
+		})
+		return
+	}
+
+	// Determine target text (need even if skipping)
+	targetText := ""
+	if stype == "word" && s.DB != nil {
+		word, err := s.DB.GetWord(sid)
+		if err == nil && word != nil {
+			targetText = word.Reading
+			if targetText == "" {
+				targetText = word.Word
+			}
+		}
+	}
+	if targetText == "" {
+		cachedQ := s.getAndDelCachedQuestion(qid)
+		if cachedQ != nil {
+			targetText = cachedQ.Answer
+		}
+	}
+	if targetText == "" {
+		writeJSON(w, map[string]interface{}{
+			"correct":  false,
+			"feedback": "Could not determine target text",
+			"source":   "no_target",
+		})
+		return
+	}
+
+	// Empty audio = user skipped (doesn't know how to read)
+	if audio == "" {
+		s.writeReadAloudResult(w, stype, sid, qtype, false, 0, nil, targetText, "skipped")
+		return
+	}
+
+	// Decode audio
+	audioBytes, err := base64.StdEncoding.DecodeString(audio)
+	if err != nil {
+		writeJSON(w, map[string]interface{}{
+			"correct":  false,
+			"feedback": "Invalid audio data",
+			"source":   "bad_audio",
+		})
+		return
+	}
+
+	tmpDir := filepath.Join("data", "pronounce")
+	os.MkdirAll(tmpDir, 0755)
+	tmpFile, err := os.CreateTemp(tmpDir, "read_*.wav")
+	if err != nil {
+		writeJSON(w, map[string]interface{}{
+			"correct":  false,
+			"feedback": "Failed to create temp file",
+			"source":   "tmp_error",
+		})
+		return
+	}
+	tmpPath := tmpFile.Name()
+	defer os.Remove(tmpPath)
+	tmpFile.Write(audioBytes)
+	tmpFile.Close()
+
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+
+	result, err := s.PronounceProvider.Assess(ctx, tmpPath, targetText)
+	if err != nil {
+		writeJSON(w, map[string]interface{}{
+			"correct":  false,
+			"feedback": fmt.Sprintf("Assessment error: %v", err),
+			"source":   "assess_error",
+		})
+		return
+	}
+
+	// Score thresholds: 0.5 for word, 0.4 for sentence
+	threshold := 0.5
+	if qtype == "read_sentence" {
+		threshold = 0.4
+	}
+	correct := result.Score >= threshold
+	s.writeReadAloudResult(w, stype, sid, qtype, correct, result.Score, result.Phonemes, targetText, "pronounce")
+}
+
+// writeReadAloudResult records SM-2, review log, and returns the result JSON.
+func (s *Server) writeReadAloudResult(w http.ResponseWriter, stype string, sid int64, qtype string, correct bool, score float64, phonemes []pronounce.PhonemeScore, targetText, source string) {
+	quality := engine.QualityFromScore(score)
+	now := time.Now()
+
+	var nextReviewAt *time.Time
+	if stype == "word" && s.DB != nil {
+		word, err := s.DB.GetWord(sid)
+		if err == nil && word != nil {
+			sm2 := engine.SM2(word.EasinessFactor, word.Interval, word.Repetitions, quality, now, s.Config.App.Sm2MaxIntervalDays)
+			if sm2 != nil {
+				word.EasinessFactor = sm2.EasinessFactor
+				word.Interval = sm2.Interval
+				word.Repetitions = sm2.Repetitions
+				word.NextReviewAt = &sm2.NextReviewAt
+			}
+			word.LastReviewAt = &now
+			word.TotalAttempts++
+			if correct {
+				word.TotalCorrect++
+			}
+			s.DB.UpdateWord(word)
+			nextReviewAt = word.NextReviewAt
+		}
+	}
+
+	userAnswer := fmt.Sprintf("score=%.2f", score)
+	if source == "skipped" {
+		userAnswer = "skipped"
+	}
+
+	logEntry := &db.ReviewLog{
+		SubjectType:    stype,
+		SubjectID:      sid,
+		QuestionType:   qtype,
+		UserAnswer:     userAnswer,
+		ExpectedAnswer: targetText,
+		Correct:        correct,
+		Score:          score,
+		Source:         source,
+	}
+	if stype == "word" {
+		logEntry.WordID = sid
+	}
+	s.DB.InsertReviewLog(logEntry)
+
+	correctCount := 0
+	if correct {
+		correctCount = 1
+	}
+	s.DB.UpsertDailyStats(now.Format("2006-01-02"), 1, correctCount, 0)
+
+	feedback := fmt.Sprintf("正确答案: %s", targetText)
+	if score > 0 {
+		feedback = fmt.Sprintf("Score: %.0f%%", score*100)
+		if len(phonemes) > 0 {
+			parts := make([]string, len(phonemes))
+			for i, p := range phonemes {
+				mark := "+"
+				if p.Score < 0.45 {
+					mark = "-"
+				}
+				parts[i] = fmt.Sprintf("%s:%.0f%s", p.Phoneme, p.Score*100, mark)
+			}
+			feedback = strings.Join(parts, " ") + " | " + feedback
+		}
+	}
+
+	writeJSON(w, map[string]interface{}{
+		"correct":        correct,
+		"score":          score,
+		"phonemes":       phonemes,
+		"feedback":       feedback,
+		"source":         source,
+		"next_review_at": nextReviewAt,
 	})
 }
 

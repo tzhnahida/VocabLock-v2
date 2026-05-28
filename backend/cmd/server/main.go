@@ -15,6 +15,7 @@ import (
 	"github.com/vocablock/v2/internal/config"
 	"github.com/vocablock/v2/internal/db"
 	"github.com/vocablock/v2/internal/dict"
+	"github.com/vocablock/v2/internal/pronounce"
 	"github.com/vocablock/v2/internal/tts"
 )
 
@@ -88,6 +89,15 @@ func main() {
 		if ok {
 			srv.DictProvider = dict.NewProvider(lang.Dict.Provider, provCfg)
 			fmt.Printf("  Dict: %s\n", lang.Dict.Provider)
+		}
+	}
+
+	// Wire Pronounce provider (if configured for active language; optional)
+	if lang != nil && lang.Pronounce.Provider != "" && !cfg.App.MockMode {
+		provCfg, ok := cfg.Pronounce.Pronounce.Providers[lang.Pronounce.Provider]
+		if ok {
+			srv.PronounceProvider = pronounce.NewProvider(lang.Pronounce.Provider, provCfg)
+			fmt.Printf("  Pronounce: %s\n", lang.Pronounce.Provider)
 		}
 	}
 

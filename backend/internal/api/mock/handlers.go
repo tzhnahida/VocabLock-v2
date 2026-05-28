@@ -119,6 +119,12 @@ func HandleTTSText(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, `{"url":"/data/audio/mock.mp3","format":"mp3","cached":false,"status":"ok"}`)
 }
 
+// ——— Pronounce mock handler ———
+
+func HandlePronounceAssess(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, `{"status":"ok","score":0.87,"phonemes":[{"phoneme":"t","score":0.92},{"phoneme":"a","score":0.85},{"phoneme":"be","score":0.78},{"phoneme":"ru","score":0.91}]}`)
+}
+
 // ——— Stats mock handlers ———
 
 func HandleStatsHeatmap(w http.ResponseWriter, r *http.Request) {

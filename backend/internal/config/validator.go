@@ -5,7 +5,7 @@ import "fmt"
 var validQuestionTypes = map[string]bool{
 	"choice": true, "fill": true, "spelling": true, "pronounce": true,
 	"listening": true, "reading_comp": true, "grammar": true,
-	// Reserved: "speaking", "essay", "sentence", "translation", "fill_passage"
+	"read_word": true, "read_sentence": true,
 }
 
 func (c *Config) Validate() []error {

@@ -39,8 +39,8 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (_) => QuizSessionPage(
           onSessionStart: () => quizApi?.sessionStart(language: state.activeLangCode) ?? Future.value(null),
           onNextQuestion: () => state.getNextQuestion(),
-          onSubmit: ({required questionId, required subjectType, required subjectId, required questionType, required answer}) =>
-              state.submitAnswer(questionId: questionId, subjectType: subjectType, subjectId: subjectId, questionType: questionType, answer: answer),
+          onSubmit: ({required questionId, required subjectType, required subjectId, required questionType, required answer, audio}) =>
+              state.submitAnswer(questionId: questionId, subjectType: subjectType, subjectId: subjectId, questionType: questionType, answer: answer, audio: audio),
           onGetStudyWords: () => state.getStudyWords(),
           onGetStudyGrammar: () => state.getStudyGrammarPoints(),
           onPlayWordAudio: (wordId) async {
