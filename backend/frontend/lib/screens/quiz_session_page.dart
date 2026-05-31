@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -8,6 +9,7 @@ import '../models/quiz_result.dart';
 import '../models/word.dart';
 import '../models/session_summary.dart';
 import '../theme/app_theme.dart';
+import '../utils/audio_player.dart';
 import '../widgets/session_summary_view.dart';
 
 enum _Phase { overview, learning, quiz, complete }
@@ -53,6 +55,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
   int _reviewGrammar = 0;
   bool _dailyCompleted = false;
   bool _preparing = false;
+  Timer? _preparingTimer;
 
   // Learning phase
   List<Word> _studyWords = [];
@@ -79,9 +82,9 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
   final _recorder = AudioRecorder();
   bool _isRecording = false;
   Uint8List? _recordedBytes;
+  String? _recordedPath;
+  final _playbackPlayer = AppAudioPlayer();
   List<PhonemeScore>? _phonemeScores;
-  int _recordingSeconds = 0;
-
   // Complete phase
   bool _summarizing = false;
   SessionSummary? _summary;
@@ -89,10 +92,12 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
 
   @override
   void dispose() {
+    _preparingTimer?.cancel();
     _textController.dispose();
     _textFocus.dispose();
     _pageCtrl.dispose();
     _recorder.dispose();
+    _playbackPlayer.dispose();
     super.dispose();
   }
 
@@ -102,7 +107,6 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
     if (!await _recorder.hasPermission()) return;
     _recordedBytes = null;
     _phonemeScores = null;
-    _recordingSeconds = 0;
     final tmpDir = Directory.systemTemp;
     final recordPath = '${tmpDir.path}/vocablock_read_${DateTime.now().millisecondsSinceEpoch}.wav';
     await _recorder.start(
@@ -122,16 +126,25 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
     if (path == null) return;
     final file = File(path);
     final bytes = await file.readAsBytes();
+    debugPrint('[read-aloud] stopped recording path=$path bytes=${bytes.length}');
     setState(() {
       _isRecording = false;
       _recordedBytes = bytes;
+      _recordedPath = path;
     });
+  }
+
+  Future<void> _playRecording() async {
+    if (_recordedPath == null) return;
+    await _playbackPlayer.playFile(_recordedPath!);
   }
 
   Future<void> _submitRecording() async {
     if (_recordedBytes == null || _question == null || _submitting) return;
+    final bytes = _recordedBytes!;
+    debugPrint('[read-aloud] submitting qtype=${_question!.type.apiValue} bytes=${bytes.length} base64Len=${base64Encode(bytes).length}');
     setState(() => _submitting = true);
-    final audio = base64Encode(_recordedBytes!);
+    final audio = base64Encode(bytes);
     final result = await widget.onSubmit(
       questionId: _question!.id,
       subjectType: _question!.subjectType,
@@ -140,6 +153,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
       answer: '',
       audio: audio,
     );
+    debugPrint('[read-aloud] response correct=${result?.correct} score=${result?.score} phonemes=${result?.phonemes?.length}');
     if (!mounted) return;
     _answered++;
     if (result != null && result.correct) _correct++;
@@ -153,6 +167,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
   void _retryRecording() {
     setState(() {
       _recordedBytes = null;
+      _recordedPath = null;
       _phonemeScores = null;
       _result = null;
     });
@@ -160,6 +175,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
 
   Future<void> _skipReading() async {
     if (_question == null || _submitting) return;
+    debugPrint('[read-aloud] skip clicked qtype=${_question!.type.apiValue}');
     setState(() => _submitting = true);
     final result = await widget.onSubmit(
       questionId: _question!.id,
@@ -200,6 +216,14 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
           _dailyCompleted = counts['daily_completed'] == true;
           _preparing = counts['preparing'] == true;
         });
+        if (_preparing) {
+          _preparingTimer?.cancel();
+          _preparingTimer = Timer(const Duration(seconds: 3), () {
+            if (mounted) _loadOverview();
+          });
+        } else {
+          _preparingTimer?.cancel();
+        }
       }
     } catch (_) {}
     if (mounted) setState(() => _loadingOverview = false);
@@ -268,6 +292,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
       _showWordPreview = q != null && q.showWordPreview;
       // Reset recording state for new question
       _recordedBytes = null;
+      _recordedPath = null;
       _phonemeScores = null;
       _isRecording = false;
     });
@@ -368,31 +393,75 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
               ),
             ],
           ),
-        // Phoneme score display
-        if (_phonemeScores != null && _phonemeScores!.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 16),
-            child: Wrap(
-              spacing: 8, runSpacing: 4,
-              children: _phonemeScores!.map((p) {
-                final passed = p.score >= 0.45;
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: passed ? Colors.green.withValues(alpha: 0.15) : Colors.red.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: passed ? Colors.green : Colors.red, width: 1.5),
+        // Result feedback
+        if (_result != null) ...[
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: _result!.correct ? Colors.green.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _result!.correct ? Colors.green : Colors.orange, width: 1.5),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  _result!.correct ? 'PASS' : 'NEED WORK',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: _result!.correct ? Colors.green.shade700 : Colors.orange.shade700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '总分 ${(_result!.score * 100).round()}% (需 ≥ ${isReadWord ? 50 : 40}%)',
+                  style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
+                ),
+                if (_phonemeScores != null && _phonemeScores!.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 10, runSpacing: 8,
+                    children: _phonemeScores!.map((p) {
+                      final passed = p.score >= 0.45;
+                      return Container(
+                        width: 56,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: passed ? Colors.green.withValues(alpha: 0.12) : Colors.red.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: passed ? Colors.green : Colors.red, width: 2),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(p.phoneme, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: passed ? Colors.green.shade700 : Colors.red.shade700)),
+                            const SizedBox(height: 2),
+                            Text('${(p.score * 100).round()}%', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: passed ? Colors.green.shade600 : Colors.red.shade600)),
+                          ],
+                        ),
+                      );
+                    }).toList(),
                   ),
-                  child: Column(
-                    children: [
-                      Text(p.phoneme, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: passed ? Colors.green.shade700 : Colors.red.shade700)),
-                      Text('${(p.score * 100).round()}%', style: TextStyle(fontSize: 11, color: passed ? Colors.green.shade600 : Colors.red.shade600)),
-                    ],
-                  ),
-                );
-              }).toList(),
+                ],
+              ],
             ),
           ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                onPressed: _playRecording,
+                icon: const Icon(Icons.play_circle, size: 36),
+                color: AppTheme.primary,
+                tooltip: '试听',
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton(
+                onPressed: _retryRecording,
+                style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                child: const Text('重录'),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: 16),
         // Action buttons
         if (_result == null)
@@ -402,6 +471,13 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    IconButton(
+                      onPressed: _playRecording,
+                      icon: const Icon(Icons.play_circle, size: 36),
+                      color: AppTheme.primary,
+                      tooltip: '试听',
+                    ),
+                    const SizedBox(width: 8),
                     OutlinedButton(
                       onPressed: _retryRecording,
                       style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
@@ -497,10 +573,6 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
     }
 
     if (_preparing) {
-      // Auto-retry every 3 seconds until words are ready
-      Future.delayed(const Duration(seconds: 3), () {
-        if (mounted) _loadOverview();
-      });
       return SafeArea(
         child: Center(
           child: Column(

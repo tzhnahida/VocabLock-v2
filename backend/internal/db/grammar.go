@@ -164,6 +164,10 @@ func (d *Database) GrammarPointExists(language, title string) (bool, error) {
 }
 
 func (d *Database) DeleteGrammarPoint(id int64) error {
+	// Cascade: remove related review_log rows first
+	if _, err := d.DB.Exec(`DELETE FROM review_log WHERE subject_type='grammar' AND subject_id=?`, id); err != nil {
+		return fmt.Errorf("delete review_log for grammar point: %w", err)
+	}
 	_, err := d.DB.Exec(`DELETE FROM grammar_points WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("delete grammar point: %w", err)

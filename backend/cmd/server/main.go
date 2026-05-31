@@ -8,9 +8,9 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
-	"time"
 
-	"github.com/vocablock/v2/internal/ai"
+	"github.com/vocablock/v2/internal/log"
+
 	"github.com/vocablock/v2/internal/api"
 	"github.com/vocablock/v2/internal/config"
 	"github.com/vocablock/v2/internal/db"
@@ -26,7 +26,7 @@ func main() {
 	configDir := "configs"
 	cfg, err := config.Load(configDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "config error: %v\n", err)
+		log.Error("config", "%v", err)
 		os.Exit(1)
 	}
 
@@ -40,7 +40,7 @@ func main() {
 		var ok bool
 		lang, ok = cfg.Languages[cfg.App.ActiveLang]
 		if !ok && len(cfg.Languages) > 0 {
-			fmt.Fprintf(os.Stderr, "active language %q not configured\n", cfg.App.ActiveLang)
+			log.Error("config", "active language %q not configured", cfg.App.ActiveLang)
 			os.Exit(1)
 		}
 	}
@@ -49,7 +49,7 @@ func main() {
 	if !cfg.App.MockMode {
 		database, err = db.Open("data")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "database error: %v\n", err)
+			log.Error("db", "%v", err)
 			os.Exit(1)
 		}
 		defer database.Close()
@@ -59,15 +59,7 @@ func main() {
 	srv.ConfigDir = configDir
 
 	// Wire AI client (if configured)
-	if cfg.App.AI.APIKey != "" && !cfg.App.MockMode {
-		srv.AI = ai.NewClient(ai.Config{
-			BaseURL: cfg.App.AI.BaseURL,
-			APIKey:  cfg.App.AI.APIKey,
-			Model:   cfg.App.AI.Model,
-			Timeout: 120 * time.Second,
-		})
-		fmt.Println("  AI: configured")
-	}
+	srv.WireAI()
 
 	// Wire TTS provider (if configured for active language)
 	if lang != nil && lang.TTS.Provider != "" && !cfg.App.MockMode {
@@ -75,10 +67,10 @@ func main() {
 		if ok {
 			provider, err := tts.NewProvider(lang.TTS.Provider, provCfg, "data/audio")
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "tts init warning: %v\n", err)
+				log.Warn("tts", "init: %v", err)
 			} else {
 				srv.TTSProvider = provider
-				fmt.Printf("  TTS: %s (%s)\n", lang.TTS.Provider, lang.TTS.Voice)
+				log.Info("server", "tts: %s (%s)", lang.TTS.Provider, lang.TTS.Voice)
 			}
 		}
 	}
@@ -88,7 +80,7 @@ func main() {
 		provCfg, ok := cfg.Dict.Dict.Providers[lang.Dict.Provider]
 		if ok {
 			srv.DictProvider = dict.NewProvider(lang.Dict.Provider, provCfg)
-			fmt.Printf("  Dict: %s\n", lang.Dict.Provider)
+			log.Info("server", "dict: %s", lang.Dict.Provider)
 		}
 	}
 
@@ -97,12 +89,12 @@ func main() {
 		provCfg, ok := cfg.Pronounce.Pronounce.Providers[lang.Pronounce.Provider]
 		if ok {
 			srv.PronounceProvider = pronounce.NewProvider(lang.Pronounce.Provider, provCfg)
-			fmt.Printf("  Pronounce: %s\n", lang.Pronounce.Provider)
+			log.Info("server", "pronounce: %s", lang.Pronounce.Provider)
 		}
 	}
 
 	if err := srv.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "server start error: %v\n", err)
+		log.Error("server", "start: %v", err)
 		os.Exit(1)
 	}
 
@@ -112,19 +104,19 @@ func main() {
 	spawnFlutter(srv.Port, srv.Token)
 
 	if lang != nil {
-		fmt.Printf("VocabLock v2 — %s (%s)\n", lang.Lang.DisplayName, lang.Lang.NativeName)
+		log.Info("server", "VocabLock v2 — %s (%s)", lang.Lang.DisplayName, lang.Lang.NativeName)
 	} else {
-		fmt.Println("VocabLock v2 — first run")
+		log.Info("server", "VocabLock v2 — first run")
 	}
-	fmt.Printf("  HTTP: http://127.0.0.1:%d\n", srv.Port)
-	fmt.Printf("  Token: %s\n", srv.Token)
-	fmt.Printf("  Mock: %v\n", cfg.App.MockMode)
+	log.Info("server", "http://127.0.0.1:%d", srv.Port)
+	log.Info("server", "token: %s", srv.Token)
+	log.Info("server", "mock: %v", cfg.App.MockMode)
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	<-sig
 
-	fmt.Println("\nShutting down...")
+	log.Info("server", "Shutting down...")
 	srv.Shutdown()
 }
 
@@ -157,8 +149,8 @@ func spawnFlutter(port int, token string) {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "flutter spawn warning: %v\n", err)
+		log.Warn("server", "flutter spawn: %v", err)
 		return
 	}
-	fmt.Printf("  Flutter: pid=%d\n", cmd.Process.Pid)
+	log.Info("server", "flutter pid=%d", cmd.Process.Pid)
 }

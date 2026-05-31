@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/vocablock/v2/internal/config"
+	"github.com/vocablock/v2/internal/log"
 	"gopkg.in/yaml.v3"
 )
 
@@ -21,6 +24,9 @@ func (s *Server) handleConfigAI(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleConfigAIUpdate(w http.ResponseWriter, r *http.Request) {
+	s.configMu.Lock()
+	defer s.configMu.Unlock()
+
 	var req struct {
 		BaseURL string `json:"base_url"`
 		APIKey  string `json:"api_key"`
@@ -39,6 +45,7 @@ func (s *Server) handleConfigAIUpdate(w http.ResponseWriter, r *http.Request) {
 		s.Config.App.AI.Model = req.Model
 	}
 	s.Config.SaveAppConfig(s.ConfigDir)
+	s.WireAI()
 	writeJSON(w, map[string]interface{}{"updated": true})
 }
 
@@ -78,6 +85,9 @@ func (s *Server) handleConfigTTSGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleConfigTTSSave(w http.ResponseWriter, r *http.Request) {
+	s.configMu.Lock()
+	defer s.configMu.Unlock()
+
 	name := r.PathValue("name")
 	_, exists := s.Config.TTS.TTS.Providers[name]
 	isNew := name != "" && !exists
@@ -103,6 +113,9 @@ func (s *Server) handleConfigTTSSave(w http.ResponseWriter, r *http.Request) {
 	}
 	p := s.Config.TTS.TTS.Providers[name]
 	if req.Binary != "" {
+		if err := s.validateProviderBinary(req.Binary); err != nil {
+			writeError(w, 400, err.Error()); return
+		}
 		p.Binary = req.Binary
 	}
 	if req.Args != nil {
@@ -162,6 +175,9 @@ func (s *Server) handleConfigDictGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleConfigDictSave(w http.ResponseWriter, r *http.Request) {
+	s.configMu.Lock()
+	defer s.configMu.Unlock()
+
 	name := r.PathValue("name")
 	_, exists := s.Config.Dict.Dict.Providers[name]
 	isNew := name != "" && !exists
@@ -191,6 +207,9 @@ func (s *Server) handleConfigDictSave(w http.ResponseWriter, r *http.Request) {
 		p.Lang = req.Lang
 	}
 	if req.Binary != "" {
+		if err := s.validateProviderBinary(req.Binary); err != nil {
+			writeError(w, 400, err.Error()); return
+		}
 		p.Binary = req.Binary
 	}
 	if req.Args != nil {
@@ -237,6 +256,9 @@ func (s *Server) handleConfigLanguageGet(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *Server) handleConfigLanguageUpdate(w http.ResponseWriter, r *http.Request) {
+	s.configMu.Lock()
+	defer s.configMu.Unlock()
+
 	code := r.PathValue("code")
 	lc, ok := s.Config.Languages[code]
 	if !ok {
@@ -267,6 +289,61 @@ func (s *Server) handleConfigLanguageUpdate(w http.ResponseWriter, r *http.Reque
 	writeJSON(w, map[string]interface{}{"updated": true, "code": code})
 }
 
+// safeSystemBinaries lists interpreter binaries that may be resolved from PATH.
+// These are the backbone for dict/TTS/pronounce scripts.
+var safeSystemBinaries = map[string]bool{
+	"python":       true,
+	"python3":      true,
+	"python.exe":   true,
+	"powershell":   true,
+	"pwsh":         true,
+	"pwsh.exe":     true,
+}
+
+// projectRoot returns the backend directory (parent of ConfigDir).
+func (s *Server) projectRoot() string {
+	return filepath.Clean(filepath.Join(s.ConfigDir, ".."))
+}
+
+// validateProviderBinary checks that binary is safe to execute:
+// - It matches a known-safe interpreter name (python/powershell), OR
+// - It resolves to an existing file within the backend project directory
+func (s *Server) validateProviderBinary(binary string) error {
+	if binary == "" {
+		return nil
+	}
+	if safeSystemBinaries[binary] {
+		return nil
+	}
+
+	// Resolve the binary path.
+	resolved, err := exec.LookPath(binary)
+	if err != nil {
+		// Not on PATH; try as relative to project root.
+		if !filepath.IsAbs(binary) {
+			resolved = filepath.Join(s.projectRoot(), binary)
+		} else {
+			resolved = binary
+		}
+		resolved = filepath.Clean(resolved)
+	}
+	// Resolve any remaining relative components + make absolute.
+	absResolved, err := filepath.Abs(resolved)
+	if err != nil {
+		return fmt.Errorf("cannot resolve binary path %q: %w", binary, err)
+	}
+	if _, err := os.Stat(absResolved); err != nil {
+		return fmt.Errorf("binary not found: %s", binary)
+	}
+
+	absRoot, _ := filepath.Abs(s.projectRoot())
+	prefix := absRoot + string(filepath.Separator)
+	if !strings.HasPrefix(absResolved, prefix) {
+		return fmt.Errorf("binary %q is outside project directory — only project-local binaries or known interpreters (python/powershell) are allowed", binary)
+	}
+	return nil
+}
+
 // ——— save helpers ———
 
 func (s *Server) saveTTSConfig() {
@@ -288,7 +365,7 @@ func (s *Server) saveLanguageConfig(code string, lc *config.LanguageConfig) {
 func (s *Server) saveYAML(fpath string, v interface{}) {
 	data, err := yaml.Marshal(v)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "marshal yaml: %v\n", err)
+		log.Error("config", "marshal yaml: %v", err)
 		return
 	}
 	// Resolve relative paths against ConfigDir
@@ -296,7 +373,7 @@ func (s *Server) saveYAML(fpath string, v interface{}) {
 		fpath = filepath.Join(s.ConfigDir, fpath)
 	}
 	if err := os.WriteFile(fpath, data, 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "write yaml %s: %v\n", filepath.Base(fpath), err)
+		log.Error("config", "write yaml %s: %v", filepath.Base(fpath), err)
 	}
 }
 

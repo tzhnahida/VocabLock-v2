@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/vocablock/v2/internal/config"
+	"github.com/vocablock/v2/internal/log"
 )
 
 // Result is the JSON output expected from a pronunciation assessment binary.
@@ -37,6 +38,8 @@ func NewProvider(name string, cfg config.PronounceProvider) *Provider {
 // Assess runs the external binary to evaluate pronunciation of targetText
 // in the audio file at audioPath.
 func (p *Provider) Assess(ctx context.Context, audioPath, targetText string) (*Result, error) {
+	log.Debug("pronounce", "assess: provider=%s audio=%s", p.name, audioPath)
+
 	args := buildPronounceArgs(p.cfg.Args, audioPath, targetText)
 
 	cmd := exec.CommandContext(ctx, p.cfg.Binary, args...)
@@ -51,6 +54,7 @@ func (p *Provider) Assess(ctx context.Context, audioPath, targetText string) (*R
 		return nil, fmt.Errorf("pronounce %s parse output: %w", p.name, err)
 	}
 
+	log.Debug("pronounce", "assess result: score=%.2f", result.Score)
 	return &result, nil
 }
 

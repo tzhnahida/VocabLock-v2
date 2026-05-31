@@ -187,5 +187,13 @@ func (d *Database) migrate() error {
 		}
 	}
 
+	// Phase 8: add language column to daily_stats for per-language tracking
+	if _, err := d.DB.Exec(`ALTER TABLE daily_stats ADD COLUMN language TEXT NOT NULL DEFAULT ''`); err != nil {
+		if !strings.Contains(err.Error(), "duplicate column") {
+			return fmt.Errorf("add daily_stats language column: %w", err)
+		}
+	}
+	_, _ = d.DB.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_stats_date_lang ON daily_stats(date, language)`)
+
 	return nil
 }

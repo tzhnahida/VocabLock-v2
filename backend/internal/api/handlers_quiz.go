@@ -17,6 +17,7 @@ import (
 	"github.com/vocablock/v2/internal/db"
 	"github.com/vocablock/v2/internal/engine"
 	"github.com/vocablock/v2/internal/engine/judge"
+	"github.com/vocablock/v2/internal/log"
 	"github.com/vocablock/v2/internal/pronounce"
 )
 
@@ -118,12 +119,12 @@ nw, ng, rw, rg, err := s.DB.SessionCounts(lang)
 	}
 
 	totalAvailable := nw + ng + rw + rg
-	fmt.Fprintf(os.Stderr, "[session/start] counts: nw=%d ng=%d rw=%d rg=%d total=%d target=%d expanding=%v\n",
+	log.Debug("session", "counts: nw=%d ng=%d rw=%d rg=%d total=%d target=%d expanding=%v",
 		nw, ng, rw, rg, totalAvailable, s.Config.App.DailyTarget, s.isExpanding())
 
 	// If AI is still expanding and total available below daily target, keep blocking.
 	if s.isExpanding() && totalAvailable < s.Config.App.DailyTarget {
-		fmt.Fprintf(os.Stderr, "[session/start] BLOCK: expansion running, total=%d < target=%d\n", totalAvailable, s.Config.App.DailyTarget)
+		log.Debug("session", "BLOCK: expansion running, total=%d < target=%d", totalAvailable, s.Config.App.DailyTarget)
 		writeJSON(w, map[string]interface{}{
 			"new_words":       0,
 			"new_grammar":     0,
@@ -137,20 +138,20 @@ nw, ng, rw, rg, err := s.DB.SessionCounts(lang)
 	// If total available below daily target, trigger background expansion.
 	// Block until totalAvailable >= DailyTarget so the user has a full session ready.
 	if totalAvailable < s.Config.App.DailyTarget && s.AI != nil && s.tryStartExpanding() {
-		fmt.Fprintf(os.Stderr, "[session/start] TRIGGER expansion: total=%d < target=%d\n", totalAvailable, s.Config.App.DailyTarget)
+		log.Debug("session", "TRIGGER expansion: total=%d < target=%d", totalAvailable, s.Config.App.DailyTarget)
 		go func() {
 			defer s.stopExpanding()
 			expandCount, extraCtx := s.planExpandParams(lang)
-			fmt.Fprintf(os.Stderr, "[expand] session/start goroutine: count=%d extraCtx=%s\n", expandCount, extraCtx)
+			log.Debug("expand", "session/start goroutine: count=%d extraCtx=%s", expandCount, extraCtx)
 			v, p, err := s.expandWords(context.Background(), lang, expandCount, extraCtx)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "[expand] session/start ERROR: %v\n", err)
+				log.Error("expand", "session/start ERROR: %v", err)
 			} else {
-				fmt.Fprintf(os.Stderr, "[expand] session/start DONE: %d verified + %d pending\n", v, p)
+				log.Debug("expand", "session/start DONE: %d verified + %d pending", v, p)
 			}
 		}()
 		if totalAvailable < s.Config.App.DailyTarget {
-			fmt.Fprintf(os.Stderr, "[session/start] return preparing=true (total=%d < target=%d)\n", totalAvailable, s.Config.App.DailyTarget)
+			log.Debug("session", "return preparing=true (total=%d < target=%d)", totalAvailable, s.Config.App.DailyTarget)
 			writeJSON(w, map[string]interface{}{
 				"new_words":       0,
 				"new_grammar":     0,
@@ -165,7 +166,7 @@ nw, ng, rw, rg, err := s.DB.SessionCounts(lang)
 	// Cache plan's question type weights for this session
 	s.cachePlanWeights(lang)
 
-	fmt.Fprintf(os.Stderr, "[session/start] READY: nw=%d ng=%d rw=%d rg=%d\n", nw, ng, rw, rg)
+	log.Debug("session", "READY: nw=%d ng=%d rw=%d rg=%d", nw, ng, rw, rg)
 	writeJSON(w, map[string]interface{}{
 		"new_words":    nw,
 		"new_grammar":  ng,
@@ -184,6 +185,8 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	}
 
 	lang := s.Config.App.ActiveLang
+
+	log.Debug("quiz", "next question: lang=%s", lang)
 
 	// Resolve explanation language (e.g. "zh-CN", "ko", "en") for prompt i18n
 	explLang := "en"
@@ -226,6 +229,11 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	var currentWord *db.Word // captured for response enrichment
 
 	for q == nil {
+		// Both exhausted - nothing left to serve
+		if wi >= len(words) && gi >= len(grammarPoints) {
+			writeError(w, 409, "no reviewable items available")
+			return
+		}
 		// Pick the higher-priority item
 		pickWord := false
 		if gi >= len(grammarPoints) {
@@ -235,6 +243,9 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if pickWord {
+			if wi >= len(words) {
+				continue
+			}
 			word := words[wi]
 			wi++
 			currentWord = word
@@ -365,6 +376,14 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 	// Default subject_type for backward compat with old clients
 	if req.SubjectType == "" {
 		req.SubjectType = "word"
+	}
+
+	log.Debug("quiz", "submit: id=%s type=%s", req.QuestionID, req.QuestionType)
+
+	// Route read-aloud submissions to the dedicated handler
+	if qt := engine.QuestionType(req.QuestionType); qt == engine.TypeReadWord || qt == engine.TypeReadSentence {
+		s.handleReadAloudSubmit(w, r, req.QuestionType, req.SubjectType, req.SubjectID, req.QuestionID, req.Answer)
+		return
 	}
 
 	// Retrieve expected answer from cache (AI-generated questions)
@@ -506,7 +525,7 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 	if result.Correct {
 		correctCount = 1
 	}
-	s.DB.UpsertDailyStats(now.Format("2006-01-02"), 1, correctCount, 0)
+	s.DB.UpsertDailyStats(now.Format("2006-01-02"), s.Config.App.ActiveLang, 1, correctCount, 0)
 
 	var nextReviewAt *time.Time
 	if word != nil {
@@ -571,6 +590,7 @@ func (s *Server) handleQuizComplete(w http.ResponseWriter, r *http.Request) {
 // ——— read-aloud submit ———
 
 func (s *Server) handleReadAloudSubmit(w http.ResponseWriter, r *http.Request, qtype, stype string, sid int64, qid, audio string) {
+	log.Debug("quiz", "read-aloud submit: subjectType=%s subjectId=%d", stype, sid)
 	if s.PronounceProvider == nil {
 		writeJSON(w, map[string]interface{}{
 			"correct":  false,
@@ -636,7 +656,11 @@ func (s *Server) handleReadAloudSubmit(w http.ResponseWriter, r *http.Request, q
 	}
 	tmpPath := tmpFile.Name()
 	defer os.Remove(tmpPath)
-	tmpFile.Write(audioBytes)
+	if _, err := tmpFile.Write(audioBytes); err != nil {
+		tmpFile.Close()
+		writeError(w, 500, "write temp audio: "+err.Error())
+		return
+	}
 	tmpFile.Close()
 
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
@@ -711,7 +735,7 @@ func (s *Server) writeReadAloudResult(w http.ResponseWriter, stype string, sid i
 	if correct {
 		correctCount = 1
 	}
-	s.DB.UpsertDailyStats(now.Format("2006-01-02"), 1, correctCount, 0)
+	s.DB.UpsertDailyStats(now.Format("2006-01-02"), s.Config.App.ActiveLang, 1, correctCount, 0)
 
 	feedback := fmt.Sprintf("正确答案: %s", targetText)
 	if score > 0 {
@@ -766,7 +790,7 @@ func expectedAnswers(qType string, w *db.Word) []string {
 	switch engine.QuestionType(qType) {
 	case engine.TypeFill, engine.TypeSpelling:
 		return dedupNonEmpty(w.Word, w.Reading)
-	case engine.TypePronounce:
+	case engine.TypePronounce, engine.TypeReadWord, engine.TypeReadSentence:
 		return nonEmpty(w.Reading)
 	case engine.TypeListening:
 		return nonEmpty(w.Meaning)
@@ -915,23 +939,23 @@ func (s *Server) planExpandParams(lang string) (count int, extraCtx string) {
 			if gap > 0 {
 				count = gap
 			}
-			fmt.Fprintf(os.Stderr, "[expand] SessionCounts: nw=%d ng=%d rw=%d rg=%d total=%d gap=%d target=%d\n",
+			log.Debug("expand", "SessionCounts: nw=%d ng=%d rw=%d rg=%d total=%d gap=%d target=%d",
 				newWords, newGrammar, reviewWords, reviewGrammar, total, gap, s.Config.App.DailyTarget)
 		}
 	}
 	if count <= 0 {
 		count = s.Config.App.ExpandBatchSize
-		fmt.Fprintf(os.Stderr, "[expand] gap<=0, fallback=%d\n", count)
+		log.Debug("expand", "gap<=0, fallback=%d", count)
 	}
 	extraCtx = "general"
 
 	plan, err := s.DB.GetActivePlan(lang)
 	if err != nil || plan == nil {
-		fmt.Fprintf(os.Stderr, "[expand] no plan: count=%d extraCtx=%s\n", count, extraCtx)
+		log.Debug("expand", "no plan: count=%d extraCtx=%s", count, extraCtx)
 		return
 	}
 	if plan.Direction == "complete" || plan.Direction == "review-only" {
-		fmt.Fprintf(os.Stderr, "[expand] plan dir=%s, skip: count=%d\n", plan.Direction, count)
+		log.Debug("expand", "plan dir=%s, skip: count=%d", plan.Direction, count)
 		return
 	}
 
@@ -939,15 +963,15 @@ func (s *Server) planExpandParams(lang string) (count int, extraCtx string) {
 
 	tw := parsePlanTomorrow(plan.PlanJSON)
 	if tw == nil {
-		fmt.Fprintf(os.Stderr, "[expand] plan parse nil: count=%d extraCtx=%s\n", count, extraCtx)
+		log.Debug("expand", "plan parse nil: count=%d extraCtx=%s", count, extraCtx)
 		return
 	}
-	fmt.Fprintf(os.Stderr, "[expand] plan.word_count=%d gap=%d before=%d\n", tw.WordCount, gap, count)
+	log.Debug("expand", "plan.word_count=%d gap=%d before=%d", tw.WordCount, gap, count)
 	if tw.WordCount > 0 {
 		count = tw.WordCount
 		// Cap to actual gap: don't generate more than needed
 		if gap > 0 && count > gap {
-			fmt.Fprintf(os.Stderr, "[expand] CAP %d->%d (gap=%d)\n", tw.WordCount, gap, gap)
+			log.Debug("expand", "CAP %d->%d (gap=%d)", tw.WordCount, gap, gap)
 			count = gap
 		}
 	}
@@ -960,7 +984,7 @@ func (s *Server) planExpandParams(lang string) (count int, extraCtx string) {
 		merged := mergeTypeWeights(tw.QuestionTypeRatio, s.Config.App.MaxSlowTypeRatio)
 		s.sessionBudget.setTypeWeights(merged)
 	}
-	fmt.Fprintf(os.Stderr, "[expand] final: count=%d extraCtx=%s\n", count, extraCtx)
+	log.Debug("expand", "final: count=%d extraCtx=%s", count, extraCtx)
 	return
 }
 

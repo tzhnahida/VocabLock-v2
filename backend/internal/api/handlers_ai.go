@@ -2,13 +2,12 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/vocablock/v2/internal/ai"
 	"github.com/vocablock/v2/internal/api/mock"
+	"github.com/vocablock/v2/internal/log"
 )
 
 func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
@@ -24,6 +23,8 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, "invalid request body")
 		return
 	}
+
+	log.Debug("ai/chat", "request: len=%d history=%d", len(req.Message), len(req.History))
 
 	if s.AI == nil {
 		writeJSON(w, map[string]interface{}{
@@ -67,10 +68,10 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
 
-	fmt.Printf("  AI user: %.80s...\n", req.Message)
+	log.Debug("ai/chat", "user: %.80s...", req.Message)
 	reply, err := s.AI.Chat(ctx, allMsgs, pt.Temperature)
 	if err != nil {
-		fmt.Printf("  AI error: %v\n", err)
+		log.Error("ai/chat", "%v", err)
 		writeJSON(w, map[string]interface{}{
 			"reply": "AI暂时无法响应，请稍后重试。",
 			"model": "error",
@@ -78,7 +79,7 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	fmt.Printf("  AI reply: %.120s...\n", reply)
+	log.Debug("ai/chat", "reply: %.120s...", reply)
 
 	writeJSON(w, map[string]interface{}{
 		"reply": reply,
@@ -119,6 +120,8 @@ func (s *Server) handleAIProfileUpdate(w http.ResponseWriter, r *http.Request) {
 		lang = s.Config.App.ActiveLang
 	}
 
+	log.Debug("ai/profile", "set: lang=%s", lang)
+
 	direction := req.Direction
 	if direction == "" {
 		direction = "general"
@@ -126,7 +129,7 @@ func (s *Server) handleAIProfileUpdate(w http.ResponseWriter, r *http.Request) {
 
 	if s.DB != nil {
 		if _, err := s.DB.InsertTrainingPlan(lang, direction, 1.0, req.Profile); err != nil {
-			fmt.Fprintf(os.Stderr, "save profile plan: %v\n", err)
+			log.Error("ai/profile", "save plan: %v", err)
 		}
 	}
 

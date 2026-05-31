@@ -186,6 +186,10 @@ func (d *Database) UpdateWord(w *Word) error {
 }
 
 func (d *Database) DeleteWord(id int64) error {
+	// Cascade: remove related review_log rows first
+	if _, err := d.DB.Exec(`DELETE FROM review_log WHERE (subject_type='word' AND subject_id=?) OR word_id=?`, id, id); err != nil {
+		return fmt.Errorf("delete review_log for word: %w", err)
+	}
 	_, err := d.DB.Exec(`DELETE FROM words WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("delete word: %w", err)
@@ -332,4 +336,24 @@ func (d *Database) SetWordTags(id int64, tags string) error {
 		return fmt.Errorf("set word tags: %w", err)
 	}
 	return nil
+}
+
+// WordPOSCounts returns total word count and a map of POS -> count for
+// non-rejected words in the given language.
+func (d *Database) WordPOSCounts(language string) (total int, posMap map[string]int, err error) {
+	rows, err := d.DB.Query(`SELECT pos FROM words WHERE language = ? AND status != 'rejected' AND pos != ''`, language)
+	if err != nil {
+		return 0, nil, fmt.Errorf("word pos counts: %w", err)
+	}
+	defer rows.Close()
+	posMap = make(map[string]int)
+	for rows.Next() {
+		var pos string
+		if err := rows.Scan(&pos); err != nil {
+			return 0, nil, fmt.Errorf("scan pos: %w", err)
+		}
+		posMap[pos]++
+		total++
+	}
+	return total, posMap, nil
 }

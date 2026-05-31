@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/vocablock/v2/internal/ai"
 	"github.com/vocablock/v2/internal/db"
+	"github.com/vocablock/v2/internal/log"
 )
 
 // handleQuizSummarize triggers AI analysis of today's session.
@@ -62,29 +62,28 @@ func (s *Server) handleQuizSummarize(w http.ResponseWriter, r *http.Request) {
 	// Use tryStartExpanding so session/start knows to block.
 	if s.Config.App.AutoExpandWords && s.AI != nil {
 		nw, ng, rw, rg, _ := s.DB.SessionCounts(lang)
-		fmt.Fprintf(os.Stderr, "[expand] summarize check: nw=%d ng=%d rw=%d rg=%d\n", nw, ng, rw, rg)
+		log.Debug("expand", "summarize check: nw=%d ng=%d rw=%d rg=%d", nw, ng, rw, rg)
 		if nw == 0 {
 			expandCount, extraCtx := s.planExpandParams(lang)
-			fmt.Fprintf(os.Stderr, "[expand] summarize: count=%d tryStart=%v\n", expandCount, s.tryStartExpanding())
-			if expandCount > 0 && s.tryStartExpanding() {
-				fmt.Fprintf(os.Stderr, "[expand] summarize goroutine START: count=%d extraCtx=%s\n", expandCount, extraCtx)
+			started := expandCount > 0 && s.tryStartExpanding()
+			log.Debug("expand", "summarize: count=%d started=%v", expandCount, started)
+			if started {
+				log.Debug("expand", "summarize goroutine START: count=%d extraCtx=%s", expandCount, extraCtx)
 				go func() {
 					defer s.stopExpanding()
 					v, p, err := s.expandWords(context.Background(), lang, expandCount, extraCtx)
 					if err != nil {
-						fmt.Fprintf(os.Stderr, "[expand] summarize goroutine ERROR: %v\n", err)
+						log.Error("expand", "summarize goroutine ERROR: %v", err)
 					} else {
-						fmt.Fprintf(os.Stderr, "[expand] summarize goroutine DONE: %d verified + %d pending\n", v, p)
+						log.Debug("expand", "summarize goroutine DONE: %d verified + %d pending", v, p)
 					}
 				}()
-			} else {
-				fmt.Fprintf(os.Stderr, "[expand] summarize SKIP: count=%d tryStart=%v\n", expandCount, s.tryStartExpanding())
 			}
 		}
 		// Also expand grammar points if running low
 		_, gTotal, _ := s.DB.ListGrammarPoints(lang, 1, 0)
 		if gTotal < 5 {
-			fmt.Fprintf(os.Stderr, "[expand] summarize grammar: gTotal=%d, expanding 2\n", gTotal)
+			log.Debug("expand", "summarize grammar: gTotal=%d, expanding 2", gTotal)
 			go s.expandGrammar(context.Background(), lang, 2)
 		}
 	}

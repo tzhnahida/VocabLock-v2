@@ -22,6 +22,7 @@ build/bin/
 .env
 *.pem
 *.key
+backend/configs/app.yaml
 
 # Runtime data
 *.db

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/vocablock/v2/internal/api/mock"
+	"github.com/vocablock/v2/internal/log"
 )
 
 func (s *Server) handlePronounceAssess(w http.ResponseWriter, r *http.Request) {
@@ -45,9 +46,9 @@ func (s *Server) handlePronounceAssess(w http.ResponseWriter, r *http.Request) {
 	if targetText == "" && req.WordID > 0 && s.DB != nil {
 		word, err := s.DB.GetWord(req.WordID)
 		if err == nil && word != nil {
-			targetText = word.Reading
+			targetText = word.Word
 			if targetText == "" {
-				targetText = word.Word
+				targetText = word.Reading
 			}
 		}
 	}
@@ -83,6 +84,8 @@ func (s *Server) handlePronounceAssess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tmpFile.Close()
+
+	log.Debug("pronounce", "assess: text=%s bytes=%d", targetText, len(audioBytes))
 
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()

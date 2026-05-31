@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vocablock/v2/internal/log"
+
 	"github.com/vocablock/v2/internal/ai"
 	"github.com/vocablock/v2/internal/config"
 	"github.com/vocablock/v2/internal/db"
@@ -36,6 +38,7 @@ type Server struct {
 	Token  string
 	Mock      bool
 	Config    *config.Config
+	configMu  sync.RWMutex // guards Config field writes during concurrent bootstrap reads
 	ConfigDir string // path to configs/ directory
 	DB     *db.Database
 
@@ -73,6 +76,20 @@ func (s *Server) tryStartExpanding() bool {
 	}
 	s.expanding = true
 	return true
+}
+
+// WireAI initializes (or re-initializes) the AI client from current config.
+// Safe to call at startup and at runtime after config changes.
+func (s *Server) WireAI() {
+	if s.Config.App.AI.APIKey != "" && !s.Mock {
+		s.AI = ai.NewClient(ai.Config{
+			BaseURL: s.Config.App.AI.BaseURL,
+			APIKey:  s.Config.App.AI.APIKey,
+			Model:   s.Config.App.AI.Model,
+			Timeout: 120 * time.Second,
+		})
+		log.Info("server", "ai: configured")
+	}
 }
 
 func (s *Server) stopExpanding() {
@@ -122,7 +139,7 @@ func (s *Server) Start() error {
 
 	go func() {
 		if err := s.http.Serve(listener); err != nil && err != http.ErrServerClosed {
-			fmt.Printf("http server error: %v\n", err)
+			log.Error("server", "http serve: %v", err)
 		}
 	}()
 

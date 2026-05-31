@@ -11,6 +11,7 @@ import (
 	"github.com/vocablock/v2/internal/ai"
 	"github.com/vocablock/v2/internal/api/mock"
 	"github.com/vocablock/v2/internal/db"
+	"github.com/vocablock/v2/internal/log"
 )
 
 func (s *Server) handleWordsList(w http.ResponseWriter, r *http.Request) {
@@ -31,6 +32,8 @@ func (s *Server) handleWordsList(w http.ResponseWriter, r *http.Request) {
 		limit = 50
 	}
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+
+	log.Debug("words", "list: lang=%s limit=%d offset=%d", lang, limit, offset)
 
 	words, total, err := s.DB.ListWords(lang, limit, offset)
 	if err != nil {
@@ -105,6 +108,8 @@ func (s *Server) handleWordsCreate(w http.ResponseWriter, r *http.Request) {
 		req.Language = s.Config.App.ActiveLang
 	}
 
+	log.Debug("words", "create: word=%s lang=%s", req.Word, req.Language)
+
 	wrd := &db.Word{
 		Word:     req.Word,
 		Reading:  req.Reading,
@@ -117,6 +122,10 @@ func (s *Server) handleWordsCreate(w http.ResponseWriter, r *http.Request) {
 	id, err := s.DB.InsertWord(wrd)
 	if err != nil {
 		writeError(w, 500, "insert word: "+err.Error())
+		return
+	}
+	if id == 0 {
+		writeError(w, 409, "word already exists")
 		return
 	}
 
@@ -144,6 +153,8 @@ func (s *Server) handleWordsUpdate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, "invalid word id")
 		return
 	}
+
+	log.Debug("words", "update: id=%d", id)
 
 	word, err := s.DB.GetWord(id)
 	if err != nil {
@@ -201,6 +212,8 @@ func (s *Server) handleWordsDelete(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, "invalid word id")
 		return
 	}
+
+	log.Debug("words", "delete: id=%d", id)
 
 	if err := s.DB.DeleteWord(id); err != nil {
 		writeError(w, 500, "delete word: "+err.Error())
@@ -295,6 +308,7 @@ func (s *Server) handleWordsImport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	lang := s.Config.App.ActiveLang
+	log.Debug("words", "import: count=%d", len(words))
 	imported, skipped := 0, 0
 	for _, iw := range words {
 		if iw.Word == "" {
@@ -349,6 +363,8 @@ func (s *Server) handleWordsExpand(w http.ResponseWriter, r *http.Request) {
 	if req.Count <= 0 || req.Count > 20 {
 		req.Count = 5
 	}
+
+	log.Debug("words", "expand: count=%d", req.Count)
 
 	// Build context from recently mastered words
 	recentContext := ""
@@ -635,12 +651,17 @@ func (s *Server) handleWordsTags(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, "invalid word id"); return
 	}
 	var req struct {
-		Tags string `json:"tags"`
+		Tags []string `json:"tags"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeError(w, 400, "invalid request body"); return
 	}
-	if err := s.DB.SetWordTags(id, req.Tags); err != nil {
+	tagsJSON, err := json.Marshal(req.Tags)
+	if err != nil {
+		writeError(w, 500, "marshal tags: "+err.Error())
+		return
+	}
+	if err := s.DB.SetWordTags(id, string(tagsJSON)); err != nil {
 		writeError(w, 500, "set tags: "+err.Error())
 		return
 	}

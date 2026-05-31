@@ -81,7 +81,7 @@ func TestWordsTags(t *testing.T) {
 	s := newTestServer(t)
 	id, _ := s.DB.InsertWord(&db.Word{Word: "test", Language: "en"})
 
-	rec, _ := newTestRequest(s, "PUT", "/api/v1/words/"+itoa64(id)+"/tags", `{"tags":"[\"jlpt-n5\",\"verb\"]"}"`)
+	rec, _ := newTestRequest(s, "PUT", "/api/v1/words/"+itoa64(id)+"/tags", `{"tags":["jlpt-n5","verb"]}`)
 	if rec.Code != 200 {
 		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body.String())
 	}

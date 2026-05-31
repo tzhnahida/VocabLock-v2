@@ -26,13 +26,20 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _activeTool = -1;
+  late final AppAudioPlayer _player = AppAudioPlayer();
+
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
+  }
 
   void _showQuiz(AppState state) {
     final quizApi = state.quizApi;
     final ttsApi = state.ttsApi;
     final baseUrl = state.baseUrl ?? 'http://127.0.0.1:8080';
     final token = state.token ?? '';
-    final player = AppAudioPlayer();
+    final player = _player;
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -148,7 +155,7 @@ class _HomeScreenState extends State<HomeScreen> {
           final url = result['url'] as String? ?? '';
           if (url.isEmpty) return;
           final fullUrl = '$baseUrl$url${url.contains('?') ? '&' : '?'}token=$token';
-          await AppAudioPlayer().playUrl(fullUrl);
+          await _player.playUrl(fullUrl);
         },
         onPlayTextAudio: (text) async {
           if (state.ttsApi == null || text.isEmpty) return;
@@ -158,7 +165,7 @@ class _HomeScreenState extends State<HomeScreen> {
           final url = result['url'] as String? ?? '';
           if (url.isEmpty) return;
           final fullUrl = '$baseUrl$url${url.contains('?') ? '&' : '?'}token=$token';
-          await AppAudioPlayer().playUrl(fullUrl);
+          await _player.playUrl(fullUrl);
         },
       );
       case 2: return AudioPanel(key: ValueKey('audio_$lang'), state: state);

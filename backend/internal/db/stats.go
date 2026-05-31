@@ -5,27 +5,27 @@ import (
 	"time"
 )
 
-func (d *Database) UpsertDailyStats(date string, reviewed, correct, timeSec int) error {
+func (d *Database) UpsertDailyStats(date, language string, reviewed, correct, timeSec int) error {
 	_, err := d.DB.Exec(`
-		INSERT INTO daily_stats (date, words_reviewed, words_correct, time_spent_sec)
-		VALUES (?, ?, ?, ?)
-		ON CONFLICT(date) DO UPDATE SET
+		INSERT INTO daily_stats (date, language, words_reviewed, words_correct, time_spent_sec)
+		VALUES (?, ?, ?, ?, ?)
+		ON CONFLICT(date, language) DO UPDATE SET
 			words_reviewed = words_reviewed + ?,
 			words_correct = words_correct + ?,
 			time_spent_sec = time_spent_sec + ?
-	`, date, reviewed, correct, timeSec, reviewed, correct, timeSec)
+	`, date, language, reviewed, correct, timeSec, reviewed, correct, timeSec)
 	if err != nil {
 		return fmt.Errorf("upsert daily stats: %w", err)
 	}
 	return nil
 }
 
-func (d *Database) GetStreak() (int, error) {
+func (d *Database) GetStreak(language string) (int, error) {
 	rows, err := d.DB.Query(`
 		SELECT date FROM daily_stats
-		WHERE words_reviewed > 0
+		WHERE words_reviewed > 0 AND language = ?
 		ORDER BY date DESC
-	`)
+	`, language)
 	if err != nil {
 		return 0, fmt.Errorf("get streak: %w", err)
 	}
@@ -53,12 +53,12 @@ func (d *Database) GetStreak() (int, error) {
 	return streak, nil
 }
 
-func (d *Database) GetHeatmap(days int) (map[string]int, error) {
+func (d *Database) GetHeatmap(days int, language string) (map[string]int, error) {
 	rows, err := d.DB.Query(`
 		SELECT date, words_reviewed FROM daily_stats
-		WHERE date >= date('now','localtime', ?)
+		WHERE date >= date('now','localtime', ?) AND language = ?
 		ORDER BY date ASC
-	`, fmt.Sprintf("-%d days", days))
+	`, fmt.Sprintf("-%d days", days), language)
 	if err != nil {
 		return nil, fmt.Errorf("get heatmap: %w", err)
 	}

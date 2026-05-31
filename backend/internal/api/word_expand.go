@@ -11,6 +11,7 @@ import (
 	"github.com/vocablock/v2/internal/ai"
 	"github.com/vocablock/v2/internal/db"
 	"github.com/vocablock/v2/internal/dict"
+	"github.com/vocablock/v2/internal/log"
 )
 
 const maxExpandRounds = 3
@@ -24,6 +25,7 @@ type expandResponse struct {
 // expandWords generates new words via AI, with dedup feedback loop and dict verification.
 // Returns (verified, pending, error).
 func (s *Server) expandWords(ctx context.Context, lang string, count int, extraContext string) (verified, pending int, err error) {
+	log.Debug("expand", "start: lang=%s count=%d extra=%s", lang, count, extraContext)
 	if s.AI == nil {
 		return 0, 0, fmt.Errorf("AI not configured")
 	}
@@ -191,6 +193,7 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 				pending++
 			}
 		}
+		log.Debug("expand", "done: %d verified + %d pending", verified, pending)
 		return verified, pending, nil
 	}
 
@@ -354,6 +357,7 @@ func mergeJSON(a, b string) string {
 
 // expandGrammar generates new grammar points via AI, following the same pattern as expandWords.
 func (s *Server) expandGrammar(ctx context.Context, lang string, count int) (inserted int, err error) {
+	log.Debug("expand", "grammar start: lang=%s count=%d", lang, count)
 	if s.AI == nil || s.DB == nil {
 		return 0, fmt.Errorf("AI or DB not configured")
 	}
@@ -526,16 +530,41 @@ func tryBaseForm(word string) string {
 }
 
 // buildVocabSummary returns a categorized summary of the student's vocabulary.
-// Groups words by POS with counts and representative samples (not full list).
+// Groups words by POS with exact counts from DB and representative samples (not full list).
 func (s *Server) buildVocabSummary(lang string) string {
-	// Fetch with randomized offset so we don't always sample the same words
-	words, total, _ := s.DB.ListWords(lang, 999, 0)
-	if total == 0 {
-		return "(no vocabulary yet)"
+	// Get exact word count and POS distribution from DB
+	exactTotal, posCounts, err := s.DB.WordPOSCounts(lang)
+	if err != nil || exactTotal == 0 {
+		// Fallback: check if any words exist at all
+		if _, total, _ := s.DB.ListWords(lang, 1, 0); total == 0 {
+			return "(no vocabulary yet)"
+		}
 	}
 
-	// Count ALL by category (exact) + collect for random samples
-	var nCount, vCount, aCount, eCount, oCount int
+	// Categorize exact POS counts into groups
+	categorizeCount := func() (n, v, a, e, o int) {
+		for pos, count := range posCounts {
+			switch {
+			case strings.Contains(pos, "名") || strings.Contains(pos, "noun") || strings.Contains(pos, "名词"):
+				n += count
+			case strings.Contains(pos, "动") || strings.Contains(pos, "verb") || strings.Contains(pos, "自動") || strings.Contains(pos, "他動"):
+				v += count
+			case strings.Contains(pos, "形容") || strings.Contains(pos, "adj"):
+				a += count
+			case strings.Contains(pos, "惯用") || strings.Contains(pos, "熟語") || strings.Contains(pos, "感"):
+				e += count
+			default:
+				o += count
+			}
+		}
+		return
+	}
+	nCount, vCount, aCount, eCount, oCount := categorizeCount()
+	total := exactTotal
+
+	// Fetch up to 999 words as a sample pool for representative examples
+	words, _, _ := s.DB.ListWords(lang, 999, 0)
+
 	nouns := make([]string, 0)
 	verbs := make([]string, 0)
 	adjs := make([]string, 0)
@@ -550,15 +579,15 @@ func (s *Server) buildVocabSummary(lang string) string {
 		p := w.POS
 		switch {
 		case strings.Contains(p, "名") || strings.Contains(p, "noun") || strings.Contains(p, "名词"):
-			nCount++; nouns = append(nouns, entry)
+			nouns = append(nouns, entry)
 		case strings.Contains(p, "动") || strings.Contains(p, "verb") || strings.Contains(p, "自動") || strings.Contains(p, "他動"):
-			vCount++; verbs = append(verbs, entry)
+			verbs = append(verbs, entry)
 		case strings.Contains(p, "形容") || strings.Contains(p, "adj"):
-			aCount++; adjs = append(adjs, entry)
+			adjs = append(adjs, entry)
 		case strings.Contains(p, "惯用") || strings.Contains(p, "熟語") || strings.Contains(p, "感"):
-			eCount++; phrases = append(phrases, entry)
+			phrases = append(phrases, entry)
 		default:
-			oCount++; other = append(other, entry)
+			other = append(other, entry)
 		}
 	}
 

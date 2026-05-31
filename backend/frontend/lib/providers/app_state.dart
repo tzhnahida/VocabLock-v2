@@ -177,14 +177,28 @@ class AppState extends ChangeNotifier {
 
     // Update backend config and load real data
     if (!useMock && _configApi != null) {
+      // Save AI config FIRST if API key was provided during onboarding,
+      // so that subsequent AI-backed calls can use the new credentials.
+      if (apiKey != null && apiKey.isNotEmpty) {
+        try {
+          await _configApi.updateAIConfig(
+            apiKey: apiKey,
+            model: model,
+            baseUrl: baseUrl,
+          );
+        } catch (e) {
+          debugPrint('[onboarding] AI config update failed: $e');
+        }
+      }
+
       try {
         await _configApi.updateConfig(activeLang: learnLang, dailyTarget: dailyTarget, theme: themeMode == ThemeMode.dark ? 'vs-dark' : 'light');
-      } catch (_) {}
+      } catch (e) { debugPrint('[onboarding] updateConfig failed: $e'); }
       // Save emergency password
       if (password != null && password.isNotEmpty) {
         try {
           await _configApi.setPassword(password);
-        } catch (_) {}
+        } catch (e) { debugPrint('[onboarding] setPassword failed: $e'); }
       }
       // Save AI profile if generated during interview
       if (profileText != null && profileText.isNotEmpty && _aiApi != null) {
@@ -195,13 +209,24 @@ class AppState extends ChangeNotifier {
             'direction': direction ?? 'general',
             'profile': profileText,
           });
-        } catch (_) {}
+        } catch (e) { debugPrint('[onboarding] updateProfile failed: $e'); }
       }
       if (direction != null && direction.isNotEmpty && _quizApi != null) {
         try {
           await _quizApi.updateDirection(direction);
-        } catch (_) {}
+        } catch (e) { debugPrint('[onboarding] updateDirection failed: $e'); }
       }
+
+      // Re-check AI availability after potentially sending the API key
+      if (_aiApi != null) {
+        try {
+          final profile = await _aiApi.getProfile();
+          _aiConfigured = profile['configured'] == true;
+        } catch (e) {
+          debugPrint('[onboarding] AI profile check after config update failed: $e');
+        }
+      }
+
       await _loadApiDashboard();
     } else {
       _mockInitialized = true;
@@ -292,6 +317,19 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Map<String, double> _buildBubbles(TodayStats? stats, QuizProgress? progress) {
+    final result = <String, double>{};
+    if (stats != null && stats.reviewed > 0) {
+      result['Accuracy'] = stats.accuracy;
+      result['Correct'] = stats.correct.toDouble();
+    }
+    if (progress != null) {
+      result['Remaining'] = progress.remaining.toDouble();
+      result['Target'] = progress.dailyTarget.toDouble();
+    }
+    return result;
+  }
+
   Future<void> _loadApiData() async {
     final configApi = _configApi;
     if (configApi == null) return;
@@ -371,7 +409,7 @@ class AppState extends ChangeNotifier {
       _todayStats = await quizApi.getTodayStats(language: lang);
       _heatmap = await statsApi.getHeatmap(language: lang);
       _recentMistakes = (await wordsApi.list(language: lang, limit: 20)).words;
-      _bubbleStats = {};
+      _bubbleStats = _buildBubbles(_todayStats, _progress);
       _dailyCompleted = _progress != null && _progress!.remaining <= 0;
       _serverReachable = true;
     } catch (_) {

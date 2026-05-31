@@ -70,7 +70,7 @@ const SlowTypeThreshold = 0.25
 // IsSlowType returns true if the type is time-heavy.
 func IsSlowType(t string) bool {
 	switch t {
-	case "grammar", "reading_comp", "essay":
+	case "grammar", "reading_comp", "essay", "listening":
 		return true
 	}
 	return false

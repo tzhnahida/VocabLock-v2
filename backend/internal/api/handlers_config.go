@@ -1,12 +1,11 @@
 package api
 
 import (
-	"fmt"
 	"net/http"
-	"os"
 
 	"github.com/vocablock/v2/internal/api/mock"
 	"github.com/vocablock/v2/internal/config"
+	"github.com/vocablock/v2/internal/log"
 )
 
 func (s *Server) handleConfigGet(w http.ResponseWriter, r *http.Request) {
@@ -94,6 +93,9 @@ func (s *Server) handleConfigGetKey(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleConfigUpdate(w http.ResponseWriter, r *http.Request) {
+	s.configMu.Lock()
+	defer s.configMu.Unlock()
+
 	var req map[string]interface{}
 	if err := readJSON(r, &req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -191,7 +193,7 @@ func (s *Server) handleConfigUpdate(w http.ResponseWriter, r *http.Request) {
 	// Persist changes to app.yaml (skip in mock mode to avoid touching real config)
 	if !s.Mock {
 		if err := s.Config.SaveAppConfig(s.ConfigDir); err != nil {
-			fmt.Fprintf(os.Stderr, "save config: %v\n", err)
+			log.Error("config", "save: %v", err)
 		}
 	}
 

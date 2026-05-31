@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/vocablock/v2/internal/db"
+	"github.com/vocablock/v2/internal/log"
 )
 
 // seedWord represents a word in a seed JSON file.
@@ -75,10 +76,13 @@ func (s *Server) EnsureBootstrap(lang string) {
 		return
 	}
 
+	log.Info("bootstrap", "start: lang=%s", lang)
+
 	// Check word count.
 	_, total, err := s.DB.ListWords(lang, 1, 0)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "bootstrap: list words: %v\n", err)
+		log.Error("bootstrap", "list words: %v", err)
+		s.markBootstrapDone()
 		return
 	}
 
@@ -89,33 +93,42 @@ func (s *Server) EnsureBootstrap(lang string) {
 			if expandCount <= 0 {
 				expandCount = s.Config.App.DailyTarget
 			}
-			fmt.Fprintf(os.Stderr, "bootstrap: generating initial words via AI for %s\n", lang)
-			go func() {
-				verified, pending, err := s.expandWords(context.Background(), lang, expandCount, extraCtx)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "bootstrap: AI expansion failed: %v\n", err)
-					loadSeedWords(s, lang)
-				} else {
-					fmt.Fprintf(os.Stderr, "bootstrap: AI generated %d verified + %d pending words\n", verified, pending)
-				}
-				gc, gErr := s.expandGrammar(context.Background(), lang, 3)
-				if gErr != nil {
-					fmt.Fprintf(os.Stderr, "bootstrap: grammar expansion failed: %v\n", gErr)
-				} else {
-					fmt.Fprintf(os.Stderr, "bootstrap: AI generated %d grammar points\n", gc)
-				}
+			log.Debug("bootstrap", "generating initial words via AI for %s", lang)
+			if !s.tryStartExpanding() {
+				log.Debug("bootstrap", "another expansion already running, marking done")
 				s.markBootstrapDone()
-			}()
+			} else {
+				go func() {
+					defer s.stopExpanding()
+					verified, pending, err := s.expandWords(context.Background(), lang, expandCount, extraCtx)
+					if err != nil {
+						log.Error("bootstrap", "AI expansion failed: %v", err)
+						loadSeedWords(s, lang)
+					} else {
+						log.Debug("bootstrap", "AI generated %d verified + %d pending words", verified, pending)
+					}
+					gc, gErr := s.expandGrammar(context.Background(), lang, 3)
+					if gErr != nil {
+						log.Error("bootstrap", "grammar expansion failed: %v", gErr)
+					} else {
+						log.Debug("bootstrap", "AI generated %d grammar points", gc)
+					}
+					log.Info("bootstrap", "done: lang=%s words=%d grammar=%d", lang, verified+pending, gc)
+					s.markBootstrapDone()
+				}()
+			}
 		} else {
 			n, err := loadSeedWords(s, lang)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "bootstrap: load seed words: %v\n", err)
+				log.Error("bootstrap", "load seed words: %v", err)
 			} else if n > 0 {
-				fmt.Fprintf(os.Stderr, "bootstrap: loaded %d seed words for %s\n", n, lang)
+				log.Debug("bootstrap", "loaded %d seed words for %s", n, lang)
 			}
+			log.Info("bootstrap", "done: lang=%s words=%d grammar=0", lang, n)
 			s.markBootstrapDone()
 		}
 	} else {
+		log.Info("bootstrap", "done: lang=%s words=%d grammar=0", lang, total)
 		s.markBootstrapDone()
 	}
 
@@ -163,6 +176,6 @@ func (s *Server) fillMissingDetails(lang string) {
 		time.Sleep(500 * time.Millisecond)
 	}
 	if filled > 0 {
-		fmt.Fprintf(os.Stderr, "bootstrap: filled detail for %d words in %s\n", filled, lang)
+		log.Debug("bootstrap", "filled detail for %d words in %s", filled, lang)
 	}
 }

@@ -45,6 +45,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   int _roundCount = 0;
   static const _minRounds = 3;
   final _chatCtrl = TextEditingController();
+  final _modelCtrl = TextEditingController();
+  final _baseUrlCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
 
   // Step 5: Learning
@@ -64,8 +66,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _modelCtrl.text = _model;
+    _baseUrlCtrl.text = _baseUrl;
+  }
+
+  @override
   void dispose() {
     _chatCtrl.dispose();
+    _modelCtrl.dispose();
+    _baseUrlCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
   }
@@ -406,10 +417,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       ),
       const SizedBox(height: 16),
       _Label('模型', 'Model'),
-      TextField(style: TextStyle(color: AppTheme.textPrimary, fontSize: 14), decoration: _inputDec('deepseek-v4-pro'), controller: TextEditingController(text: _model), onChanged: (v) => _model = v),
+      TextField(style: TextStyle(color: AppTheme.textPrimary, fontSize: 14), decoration: _inputDec('deepseek-v4-pro'), controller: _modelCtrl, onChanged: (v) => _model = v),
       const SizedBox(height: 16),
       _Label('API 地址', 'API Base URL'),
-      TextField(style: TextStyle(color: AppTheme.textPrimary, fontSize: 14), decoration: _inputDec('https://api.deepseek.com'), controller: TextEditingController(text: _baseUrl), onChanged: (v) => _baseUrl = v),
+      TextField(style: TextStyle(color: AppTheme.textPrimary, fontSize: 14), decoration: _inputDec('https://api.deepseek.com'), controller: _baseUrlCtrl, onChanged: (v) => _baseUrl = v),
       const SizedBox(height: 20),
       Row(children: [
         Expanded(

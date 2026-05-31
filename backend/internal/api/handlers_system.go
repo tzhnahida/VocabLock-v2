@@ -5,9 +5,11 @@ import (
 	"os"
 
 	"github.com/vocablock/v2/internal/api/mock"
+	"github.com/vocablock/v2/internal/log"
 )
 
 func (s *Server) handleSystemStatus(w http.ResponseWriter, r *http.Request) {
+	log.Debug("system", "status")
 	writeJSON(w, map[string]interface{}{
 		"status":      "running",
 		"locked":      false,
@@ -16,6 +18,7 @@ func (s *Server) handleSystemStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSystemLock(w http.ResponseWriter, r *http.Request) {
+	log.Debug("system", "lock")
 	if s.Mock {
 		mock.HandleSystemLock(w, r); return
 	}
@@ -26,6 +29,7 @@ func (s *Server) handleSystemLock(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSystemUnlock(w http.ResponseWriter, r *http.Request) {
+	log.Debug("system", "unlock")
 	if s.Mock {
 		mock.HandleSystemUnlock(w, r); return
 	}

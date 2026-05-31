@@ -25,7 +25,6 @@ class _ConfigPanelState extends State<ConfigPanel> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 1, vsync: this);
     _loadApp();
   }
 
@@ -44,6 +43,7 @@ class _ConfigPanelState extends State<ConfigPanel> with SingleTickerProviderStat
     // Build tabs: 通用 + each language
     final langs = (_appConfig['languages'] as List<dynamic>?)?.cast<String>() ?? [];
     _tabCtrl = TabController(length: 1 + langs.length, vsync: this);
+    _loadAI(); // eagerly load so the general tab never shows spinner
     if (mounted) setState(() => _loading = false);
   }
 

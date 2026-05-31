@@ -1,10 +1,11 @@
 package api
 
 import (
-	"log"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/vocablock/v2/internal/log"
 )
 
 type responseWriter struct {
@@ -29,7 +30,7 @@ func recoveryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				log.Printf("panic recovered: %v", err)
+				log.Error("http", "panic recovered: %v", err)
 				http.Error(w, `{"error":"internal server error"}`, http.StatusInternalServerError)
 			}
 		}()
@@ -42,7 +43,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 		start := time.Now()
 		rw := &responseWriter{ResponseWriter: w, status: 200}
 		next.ServeHTTP(rw, r)
-		log.Printf("%s %s %d %s", r.Method, r.URL.Path, rw.status, time.Since(start))
+		log.Debug("http", "%s %s %d %s", r.Method, r.URL.Path, rw.status, time.Since(start))
 	})
 }
 

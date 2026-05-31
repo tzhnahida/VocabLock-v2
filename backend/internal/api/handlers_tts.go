@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"time"
 
 	"github.com/vocablock/v2/internal/api/mock"
 	"github.com/vocablock/v2/internal/db"
+	"github.com/vocablock/v2/internal/log"
 )
 
 func (s *Server) handleTTSWord(w http.ResponseWriter, r *http.Request) {
@@ -56,6 +56,8 @@ func (s *Server) handleTTSWord(w http.ResponseWriter, r *http.Request) {
 	if word.Reading != "" {
 		text = word.Reading
 	}
+
+	log.Debug("tts", "word audio: id=%d", id)
 
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
@@ -110,6 +112,8 @@ func (s *Server) handleTTSText(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	log.Debug("tts", "text audio: len=%d", len(req.Text))
+
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 
@@ -151,7 +155,7 @@ func (s *Server) preWarmTTS(word *db.Word) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		if _, err := s.TTSProvider.Generate(ctx, voice, text); err != nil {
-			fmt.Fprintf(os.Stderr, "[tts/prewarm] %q: %v\n", text, err)
+			log.Warn("tts", "prewarm %q: %v", text, err)
 		}
 	}()
 }

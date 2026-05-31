@@ -38,6 +38,10 @@ enum QuestionType {
     switch (this) {
       case QuestionType.readingComp:
         return 'reading_comp';
+      case QuestionType.readWord:
+        return 'read_word';
+      case QuestionType.readSentence:
+        return 'read_sentence';
       default:
         return name;
     }

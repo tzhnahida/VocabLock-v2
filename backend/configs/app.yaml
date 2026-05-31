@@ -24,5 +24,5 @@ max_slow_type_ratio: 0
 sm2_max_interval_days: 180
 ai:
     base_url: https://api.deepseek.com
-    api_key: sk-f9653fbc55af4d12b9a9337db8c2af1b
+    api_key: ""  # set via VOCABLOCK_AI_KEY env var, never commit real keys
     model: deepseek-chat

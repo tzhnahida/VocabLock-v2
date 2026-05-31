@@ -3,8 +3,8 @@ package engine
 import "testing"
 
 func TestIsSlowType(t *testing.T) {
-	slow := []string{"grammar", "reading_comp", "essay"}
-	fast := []string{"choice", "fill", "pronounce", "spelling", "listening", "sentence", "translation", "diary"}
+	slow := []string{"grammar", "reading_comp", "essay", "listening"}
+	fast := []string{"choice", "fill", "pronounce", "spelling", "sentence", "translation", "diary"}
 
 	for _, s := range slow {
 		if !IsSlowType(s) {

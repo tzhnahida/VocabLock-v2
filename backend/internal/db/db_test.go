@@ -369,16 +369,16 @@ func TestGetWordsByIDsEmpty(t *testing.T) {
 func TestUpsertDailyStats(t *testing.T) {
 	d := openTestDB(t)
 
-	if err := d.UpsertDailyStats("2026-01-01", 5, 4, 120); err != nil {
+	if err := d.UpsertDailyStats("2026-01-01", "en", 5, 4, 120); err != nil {
 		t.Fatalf("UpsertDailyStats: %v", err)
 	}
 
 	// Upsert same date — should accumulate
-	if err := d.UpsertDailyStats("2026-01-01", 3, 2, 60); err != nil {
+	if err := d.UpsertDailyStats("2026-01-01", "en", 3, 2, 60); err != nil {
 		t.Fatalf("UpsertDailyStats again: %v", err)
 	}
 
-	heatmap, err := d.GetHeatmap(365)
+	heatmap, err := d.GetHeatmap(365, "en")
 	if err != nil {
 		t.Fatalf("GetHeatmap: %v", err)
 	}
@@ -391,11 +391,11 @@ func TestGetStreak(t *testing.T) {
 	d := openTestDB(t)
 
 	// Insert consecutive days
-	d.UpsertDailyStats("2026-01-03", 1, 1, 10)
-	d.UpsertDailyStats("2026-01-02", 1, 1, 10)
-	d.UpsertDailyStats("2026-01-01", 1, 1, 10)
+	d.UpsertDailyStats("2026-01-03", "en", 1, 1, 10)
+	d.UpsertDailyStats("2026-01-02", "en", 1, 1, 10)
+	d.UpsertDailyStats("2026-01-01", "en", 1, 1, 10)
 
-	streak, err := d.GetStreak()
+	streak, err := d.GetStreak("en")
 	if err != nil {
 		t.Fatalf("GetStreak: %v", err)
 	}
@@ -408,7 +408,7 @@ func TestGetStreak(t *testing.T) {
 func TestGetStreakEmpty(t *testing.T) {
 	d := openTestDB(t)
 
-	streak, err := d.GetStreak()
+	streak, err := d.GetStreak("en")
 	if err != nil {
 		t.Fatalf("GetStreak: %v", err)
 	}

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/vocablock/v2/internal/config"
+	"github.com/vocablock/v2/internal/log"
 )
 
 type LookupResult struct {
@@ -31,6 +32,8 @@ func NewProvider(name string, cfg config.DictProvider) *Provider {
 }
 
 func (p *Provider) Lookup(ctx context.Context, word string) (*LookupResult, error) {
+	log.Debug("dict", "lookup: provider=%s word=%s", p.name, word)
+
 	args := buildDictArgs(p.cfg.Args, word)
 
 	cmd := exec.CommandContext(ctx, p.cfg.Binary, args...)
@@ -50,6 +53,7 @@ func (p *Provider) Lookup(ctx context.Context, word string) (*LookupResult, erro
 		return nil, fmt.Errorf("dict %s parse output: %w", p.name, err)
 	}
 
+	log.Debug("dict", "lookup result: found=%v", result.Found)
 	return &result, nil
 }
 

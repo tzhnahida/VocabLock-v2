@@ -10,6 +10,9 @@ tts:
 dict:
   provider: jmdict
 
+pronounce:
+  provider: julius
+
 question_types:
   - choice
   - fill

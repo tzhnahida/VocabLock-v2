@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/vocablock/v2/internal/api/mock"
+	"github.com/vocablock/v2/internal/log"
 )
 
 func (s *Server) handleStatsHeatmap(w http.ResponseWriter, r *http.Request) {
@@ -16,6 +17,9 @@ func (s *Server) handleStatsHeatmap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	lang := s.Config.App.ActiveLang
+	log.Debug("stats", "heatmap: lang=%s", lang)
+
 	days := 90
 	if d := r.URL.Query().Get("days"); d != "" {
 		if parsed, err := strconv.Atoi(d); err == nil && parsed > 0 && parsed <= 365 {
@@ -23,7 +27,7 @@ func (s *Server) handleStatsHeatmap(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	heatmap, err := s.DB.GetHeatmap(days)
+	heatmap, err := s.DB.GetHeatmap(days, lang)
 	if err != nil {
 		writeError(w, 500, "get heatmap: "+err.Error())
 		return
@@ -41,7 +45,7 @@ func (s *Server) handleStatsStreak(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	streak, err := s.DB.GetStreak()
+	streak, err := s.DB.GetStreak(s.Config.App.ActiveLang)
 	if err != nil {
 		writeError(w, 500, "get streak: "+err.Error())
 		return

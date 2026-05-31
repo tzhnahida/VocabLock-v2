@@ -18,7 +18,7 @@ class DashboardPanel extends StatelessWidget {
     final progress = state.progress;
     final bubbleStats = state.bubbleStats;
     final mistakes = state.recentMistakes;
-    final barHeights = List.generate(14, (_) => Random().nextDouble() * 0.8 + 0.2);
+    final barHeights = List.generate(14, (i) => Random(i * 31 + DateTime.now().day).nextDouble() * 0.7 + 0.3);
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: width * 0.04, vertical: 28),

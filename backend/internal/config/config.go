@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/vocablock/v2/internal/log"
 	"gopkg.in/yaml.v3"
 )
 
@@ -237,7 +238,7 @@ func Load(configDir string) (*Config, error) {
 		if _, ok := cfg.Languages[cfg.App.ActiveLang]; !ok {
 			if lc := TryLoadTemplate(configDir, cfg.App.ActiveLang); lc != nil {
 				cfg.Languages[cfg.App.ActiveLang] = lc
-				fmt.Fprintf(os.Stderr, "recovered active language %q from template\n", cfg.App.ActiveLang)
+				log.Warn("config", "recovered active language %q from template", cfg.App.ActiveLang)
 			}
 		}
 	}
@@ -245,7 +246,7 @@ func Load(configDir string) (*Config, error) {
 	// Validation
 	if errs := cfg.Validate(); len(errs) > 0 {
 		for _, e := range errs {
-			fmt.Fprintf(os.Stderr, "config error: %v\n", e)
+			log.Warn("config", "config error: %v", e)
 		}
 		return nil, fmt.Errorf("%d config validation error(s)", len(errs))
 	}
@@ -263,7 +264,7 @@ func TryLoadTemplate(configDir, code string) *LanguageConfig {
 	activeDir := filepath.Join(configDir, "languages")
 	os.MkdirAll(activeDir, 0755)
 	if err := os.WriteFile(filepath.Join(activeDir, code+".yaml"), data, 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "recover language %q: %v\n", code, err)
+		log.Debug("config", "recover language %q: %v", code, err)
 		return nil
 	}
 	var lc LanguageConfig
