@@ -26,7 +26,7 @@ type expandResponse struct {
 // Returns (verified, pending, error).
 func (s *Server) expandWords(ctx context.Context, lang string, count int, extraContext string) (verified, pending int, err error) {
 	log.Debug("expand", "start: lang=%s count=%d extra=%s", lang, count, extraContext)
-	if s.AI == nil {
+	if s.AI() == nil {
 		return 0, 0, fmt.Errorf("AI not configured")
 	}
 	if count <= 0 {
@@ -74,6 +74,7 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 				pw.Confidence = "high"
 				s.DB.UpdateWord(pw)
 				verified++
+				s.preWarmTTS(pw)
 				continue
 			}
 			// Dict still miss — stay pending for user review
@@ -103,7 +104,7 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 		}
 
 		timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
-		response, aiErr := s.AI.Chat(timeoutCtx, messages, pt.Temperature)
+		response, aiErr := s.AI().Chat(timeoutCtx, messages, pt.Temperature)
 		cancel()
 		if aiErr != nil {
 			return 0, 0, fmt.Errorf("AI chat: %w", aiErr)
@@ -171,7 +172,7 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 				// Dict detail base + AI gap-fill (dict keys take priority)
 				detail := mergeJSON(dictEntry.Detail, aiDetail)
 
-				_, insertErr := s.DB.InsertWord(&db.Word{
+				newWord := &db.Word{
 					Word:       word,
 					Reading:    reading,
 					Meaning:    meaning,
@@ -181,9 +182,11 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 					Language:   lang,
 					Source:     "ai_expansion_dict",
 					Confidence: "high",
-				})
+				}
+				_, insertErr := s.DB.InsertWord(newWord)
 				if insertErr == nil {
 					verified++
+					s.preWarmTTS(newWord)
 				}
 			} else {
 				// Dictionary miss — might be AI-fabricated. Quarantine for user review.
@@ -265,7 +268,7 @@ func (s *Server) lookupDict(ctx context.Context, word string) *dict.LookupResult
 // generateDetail fills missing extension fields via AI.
 // Takes dict-provided data and returns a JSON string with additional linguistic detail.
 func (s *Server) generateDetail(ctx context.Context, word, reading, meaning, pos, level, lang string) string {
-	if s.AI == nil {
+	if s.AI() == nil {
 		return ""
 	}
 
@@ -293,7 +296,7 @@ func (s *Server) generateDetail(ctx context.Context, word, reading, meaning, pos
 	aiCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	response, err := s.AI.Chat(aiCtx, messages, pt.Temperature)
+	response, err := s.AI().Chat(aiCtx, messages, pt.Temperature)
 	if err != nil {
 		return ""
 	}
@@ -358,7 +361,7 @@ func mergeJSON(a, b string) string {
 // expandGrammar generates new grammar points via AI, following the same pattern as expandWords.
 func (s *Server) expandGrammar(ctx context.Context, lang string, count int) (inserted int, err error) {
 	log.Debug("expand", "grammar start: lang=%s count=%d", lang, count)
-	if s.AI == nil || s.DB == nil {
+	if s.AI() == nil || s.DB == nil {
 		return 0, fmt.Errorf("AI or DB not configured")
 	}
 	if count <= 0 || count > 5 {
@@ -406,7 +409,7 @@ func (s *Server) expandGrammar(ctx context.Context, lang string, count int) (ins
 		}
 
 		timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-		response, aiErr := s.AI.Chat(timeoutCtx, messages, pt.Temperature)
+		response, aiErr := s.AI().Chat(timeoutCtx, messages, pt.Temperature)
 		cancel()
 		if aiErr != nil {
 			return 0, fmt.Errorf("AI chat: %w", aiErr)
@@ -487,7 +490,7 @@ func (s *Server) expandGrammar(ctx context.Context, lang string, count int) (ins
 				VocabSummary:    vocabSummary,
 			})
 			aiCtx, c2 := context.WithTimeout(ctx, 30*time.Second)
-			resp, err := s.AI.Chat(aiCtx, dm, dt.Temperature)
+			resp, err := s.AI().Chat(aiCtx, dm, dt.Temperature)
 			c2()
 			if err == nil {
 				detailJSON := extractJSON(resp)

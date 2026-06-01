@@ -82,7 +82,7 @@ nw, ng, rw, rg, err := s.DB.SessionCounts(lang)
 	}
 
 	// If bootstrap hasn't finished, block — show preparing
-	if !s.isBootstrapDone() && s.AI != nil {
+	if !s.isBootstrapDone() && s.AI() != nil {
 		writeJSON(w, map[string]interface{}{
 			"new_words":       0,
 			"new_grammar":     0,
@@ -93,20 +93,40 @@ nw, ng, rw, rg, err := s.DB.SessionCounts(lang)
 		return
 	}
 
-	// If a session was already completed today, learning is done
+	// If a session was already completed today, allow re-entry with whatever
+	// review items are still due — just don't trigger new AI expansion.
 	if s.sessionBudget.isSessionDone() {
+		totalAvailable := nw + ng + rw + rg
+		if totalAvailable == 0 {
+			writeJSON(w, map[string]interface{}{
+				"new_words":       0,
+				"new_grammar":     0,
+				"review_words":    0,
+				"review_grammar":  0,
+				"daily_completed": true,
+			})
+			return
+		}
+		// Still has reviewable items — allow the session without expansion.
+		log.Debug("session", "post-target session: nw=%d ng=%d rw=%d rg=%d", nw, ng, rw, rg)
 		writeJSON(w, map[string]interface{}{
-			"new_words":       0,
-			"new_grammar":     0,
-			"review_words":    0,
-			"review_grammar":  0,
-			"daily_completed": true,
+			"new_words":       nw,
+			"new_grammar":     ng,
+			"review_words":    rw,
+			"review_grammar":  rg,
+			"daily_completed": false,
 		})
 		return
 	}
 
-	// Check if daily target already met — today's learning is done
-	reviewed, _, _ := s.DB.GetTodayStats(lang)
+	// Check if daily target already met — today's learning is done.
+	// Use unique subjects (not total attempts) so repeated answers on the
+	// same word don't prematurely mark the session as complete.
+	reviewed, err := s.DB.GetUniqueSubjectsReviewed(lang)
+	if err != nil {
+		log.Warn("quiz", "get unique subjects for session start: %v", err)
+		reviewed = 0
+	}
 	if reviewed >= s.Config.App.DailyTarget {
 		writeJSON(w, map[string]interface{}{
 			"new_words":       0,
@@ -119,12 +139,23 @@ nw, ng, rw, rg, err := s.DB.SessionCounts(lang)
 	}
 
 	totalAvailable := nw + ng + rw + rg
-	log.Debug("session", "counts: nw=%d ng=%d rw=%d rg=%d total=%d target=%d expanding=%v",
-		nw, ng, rw, rg, totalAvailable, s.Config.App.DailyTarget, s.isExpanding())
 
-	// If AI is still expanding and total available below daily target, keep blocking.
-	if s.isExpanding() && totalAvailable < s.Config.App.DailyTarget {
-		log.Debug("session", "BLOCK: expansion running, total=%d < target=%d", totalAvailable, s.Config.App.DailyTarget)
+	// ── Expansion guard ──────────────────────────────────────────
+	// CRITICAL: read isExpanding() ONCE and use the captured value for
+	// both the log and the blocking decision. The old code called
+	// isExpanding() twice — once for the debug log and once for the
+	// condition — creating a TOCTOU window where the expansion goroutine
+	// could finish between calls, causing the server to return READY
+	// while totalAvailable was still below DailyTarget.
+	//
+	// User requirement: "AI没出完单词和题目不许进入"
+	// → ALWAYS block when expansion is running, regardless of counts.
+	expanding := s.isExpanding()
+	log.Debug("session", "counts: nw=%d ng=%d rw=%d rg=%d total=%d target=%d expanding=%v",
+		nw, ng, rw, rg, totalAvailable, s.Config.App.DailyTarget, expanding)
+
+	if expanding {
+		log.Debug("session", "BLOCK: expansion running")
 		writeJSON(w, map[string]interface{}{
 			"new_words":       0,
 			"new_grammar":     0,
@@ -135,38 +166,100 @@ nw, ng, rw, rg, err := s.DB.SessionCounts(lang)
 		return
 	}
 
-	// If total available below daily target, trigger background expansion.
-	// Block until totalAvailable >= DailyTarget so the user has a full session ready.
-	if totalAvailable < s.Config.App.DailyTarget && s.AI != nil && s.tryStartExpanding() {
-		log.Debug("session", "TRIGGER expansion: total=%d < target=%d", totalAvailable, s.Config.App.DailyTarget)
-		go func() {
-			defer s.stopExpanding()
-			expandCount, extraCtx := s.planExpandParams(lang)
-			log.Debug("expand", "session/start goroutine: count=%d extraCtx=%s", expandCount, extraCtx)
-			v, p, err := s.expandWords(context.Background(), lang, expandCount, extraCtx)
-			if err != nil {
-				log.Error("expand", "session/start ERROR: %v", err)
-			} else {
-				log.Debug("expand", "session/start DONE: %d verified + %d pending", v, p)
-			}
-		}()
-		if totalAvailable < s.Config.App.DailyTarget {
-			log.Debug("session", "return preparing=true (total=%d < target=%d)", totalAvailable, s.Config.App.DailyTarget)
-			writeJSON(w, map[string]interface{}{
-				"new_words":       0,
-				"new_grammar":     0,
-				"review_words":    0,
-				"review_grammar":  0,
-				"preparing":       true,
-			})
-			return
+	// Not expanding. If total below target AND no reviews done today,
+	// trigger expansion. Skip expansion when the user is re-entering
+	// after already completing some questions — don't generate new
+	// words for a session that's already in progress.
+	if totalAvailable < s.Config.App.DailyTarget && s.AI() != nil && reviewed == 0 {
+		if s.tryStartExpanding() {
+			log.Debug("session", "TRIGGER expansion: total=%d < target=%d", totalAvailable, s.Config.App.DailyTarget)
+			go func() {
+				defer s.stopExpanding()
+				expandCount, extraCtx := s.planExpandParams(lang)
+				log.Debug("expand", "session/start goroutine: count=%d extraCtx=%s", expandCount, extraCtx)
+				v, p, err := s.expandWords(context.Background(), lang, expandCount, extraCtx)
+				if err != nil {
+					log.Error("expand", "session/start ERROR: %v", err)
+				} else {
+					log.Debug("expand", "session/start DONE: %d verified + %d pending", v, p)
+				}
+			}()
 		}
+		// Block regardless — either we started expanding (block until done)
+		// or someone else did (block until they finish).
+		log.Debug("session", "return preparing=true (total=%d < target=%d)", totalAvailable, s.Config.App.DailyTarget)
+		writeJSON(w, map[string]interface{}{
+			"new_words":       0,
+			"new_grammar":     0,
+			"review_words":    0,
+			"review_grammar":  0,
+			"preparing":       true,
+		})
+		return
 	}
 
 	// Cache plan's question type weights for this session
 	s.cachePlanWeights(lang)
 
+	// Final safety net: re-query counts to catch races where words were
+	// deleted or expansion completed but didn't add enough unique words.
+	// Only applies to the first session of the day (reviewed == 0).
+	if totalAvailable < s.Config.App.DailyTarget {
+		nw2, ng2, rw2, rg2, _ := s.DB.SessionCounts(lang)
+		fresh := nw2 + ng2 + rw2 + rg2
+		if fresh >= s.Config.App.DailyTarget {
+			log.Debug("session", "READY (refreshed): nw=%d ng=%d rw=%d rg=%d", nw2, ng2, rw2, rg2)
+			writeJSON(w, map[string]interface{}{
+				"new_words":    nw2,
+				"new_grammar":  ng2,
+				"review_words": rw2,
+				"review_grammar": rg2,
+			})
+			return
+		}
+		// Try one more expansion only if first session.
+		if reviewed == 0 && s.AI() != nil && s.tryStartExpanding() {
+			go func() {
+				defer s.stopExpanding()
+				expandCount, extraCtx := s.planExpandParams(lang)
+				v, p, err := s.expandWords(context.Background(), lang, expandCount, extraCtx)
+				if err != nil {
+					log.Error("expand", "final retry ERROR: %v", err)
+				} else {
+					log.Debug("expand", "final retry DONE: %d verified + %d pending", v, p)
+				}
+			}()
+		}
+		// If already reviewed today, just return what's available.
+		if reviewed > 0 {
+			log.Debug("session", "re-entry with available: nw=%d ng=%d rw=%d rg=%d", nw, ng, rw, rg)
+			writeJSON(w, map[string]interface{}{
+				"new_words":    nw,
+				"new_grammar":  ng,
+				"review_words": rw,
+				"review_grammar": rg,
+			})
+			return
+		}
+		log.Debug("session", "BLOCK (final): total=%d fresh=%d < target=%d", totalAvailable, fresh, s.Config.App.DailyTarget)
+		writeJSON(w, map[string]interface{}{
+			"new_words":       0,
+			"new_grammar":     0,
+			"review_words":    0,
+			"review_grammar":  0,
+			"preparing":       true,
+		})
+		return
+	}
+
 	log.Debug("session", "READY: nw=%d ng=%d rw=%d rg=%d", nw, ng, rw, rg)
+
+	// Pre-warm TTS for new study words in background so audio is
+	// cached before the user reaches the learning screen.
+	if nw > 0 && s.TTSProvider != nil {
+		go s.preWarmNewWords(lang, nw)
+	}
+
 	writeJSON(w, map[string]interface{}{
 		"new_words":    nw,
 		"new_grammar":  ng,
@@ -209,15 +302,19 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	// Prioritize grammar points matching the plan's grammar_focus
 	prioritizeGrammarByPlan(grammarPoints, s.sessionBudget.getGrammarFocus())
 
-	if len(words) == 0 && len(grammarPoints) == 0 {
-		// No items to review — return completed, don't expand here.
-		// Word expansion happens after summarize (end of session).
+	// Grammar points require AI — if unavailable, drop them early so the loop
+	// doesn't silently skip them one-by-one.
+	grammarUnavailable := false
+	if s.AI() == nil && len(grammarPoints) > 0 {
+		grammarPoints = nil
+		grammarUnavailable = true
 	}
 
 	if len(words) == 0 && len(grammarPoints) == 0 {
 		writeJSON(w, map[string]interface{}{
-			"completed": true,
-			"message":   "No items to review",
+			"completed":           true,
+			"message":             "No items to review",
+			"grammar_unavailable": grammarUnavailable,
 		})
 		return
 	}
@@ -259,7 +356,7 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 
 			qType := engine.SelectQuestionTypeWithWeights(
 				word.NextReviewAt, word.EasinessFactor, word.Interval, word.Repetitions,
-				langQuestionTypes(lang, s.Config), s.AI != nil, s.HasPronounce(),
+				langQuestionTypes(lang, s.Config), s.AI() != nil, s.HasPronounce(),
 				s.sessionBudget.getTypeWeights(),
 			)
 
@@ -306,9 +403,6 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 			gp := grammarPoints[gi]
 			gi++
 
-			if s.AI == nil {
-				continue
-			}
 			q, err = s.aiGenerateGrammarQuestion(r.Context(), gp)
 			if err != nil {
 				continue
@@ -367,6 +461,7 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 		SubjectID    int64  `json:"subject_id"`
 		QuestionType string `json:"question_type"`
 		Answer       string `json:"answer"`
+		Audio        string `json:"audio,omitempty"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -378,11 +473,11 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 		req.SubjectType = "word"
 	}
 
-	log.Debug("quiz", "submit: id=%s type=%s", req.QuestionID, req.QuestionType)
+	log.Debug("quiz", "submit: id=%s type=%s audioLen=%d", req.QuestionID, req.QuestionType, len(req.Audio))
 
 	// Route read-aloud submissions to the dedicated handler
 	if qt := engine.QuestionType(req.QuestionType); qt == engine.TypeReadWord || qt == engine.TypeReadSentence {
-		s.handleReadAloudSubmit(w, r, req.QuestionType, req.SubjectType, req.SubjectID, req.QuestionID, req.Answer)
+		s.handleReadAloudSubmit(w, r, req.QuestionType, req.SubjectType, req.SubjectID, req.QuestionID, req.Audio)
 		return
 	}
 
@@ -412,7 +507,23 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if primaryExpected == "" {
-			// Cache miss -- return friendly error instead of HTTP 400
+			// Cache miss -- advance SM-2 so this grammar point doesn't
+			// immediately reappear, then return a friendly error.
+			nowG := time.Now()
+			gReps := grammar.Repetitions
+			if gReps == 0 {
+				gReps = 1
+			}
+			sm2g := engine.SM2(grammar.EasinessFactor, grammar.Interval, gReps, 0, nowG, 0)
+			if sm2g != nil {
+				grammar.EasinessFactor = sm2g.EasinessFactor
+				grammar.Interval = sm2g.Interval
+				grammar.Repetitions = sm2g.Repetitions
+				grammar.NextReviewAt = &sm2g.NextReviewAt
+			}
+			grammar.LastReviewAt = &nowG
+			grammar.TotalAttempts++
+			s.DB.UpdateGrammarPoint(grammar)
 			writeJSON(w, map[string]interface{}{
 				"correct":  false,
 				"feedback": "Question expired, please get a new one",
@@ -435,6 +546,18 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 		if primaryExpected == "" {
 			expected = expectedAnswers(req.QuestionType, word)
 			if len(expected) == 0 {
+				// Advance SM-2 so this word doesn't immediately reappear.
+				nowW := time.Now()
+				sm2w := engine.SM2(word.EasinessFactor, word.Interval, word.Repetitions, 0, nowW, s.Config.App.Sm2MaxIntervalDays)
+				if sm2w != nil {
+					word.EasinessFactor = sm2w.EasinessFactor
+					word.Interval = sm2w.Interval
+					word.Repetitions = sm2w.Repetitions
+					word.NextReviewAt = &sm2w.NextReviewAt
+				}
+				word.LastReviewAt = &nowW
+				word.TotalAttempts++
+				s.DB.UpdateWord(word)
 				writeJSON(w, map[string]interface{}{
 					"correct":  false,
 					"feedback": "Word data incomplete, please try another word",
@@ -446,7 +569,7 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 		} else {
 			expected = []string{primaryExpected}
 		}
-		if s.AI != nil {
+		if s.AI() != nil {
 			aiCallback = s.makeAIJudge(req.QuestionType, word)
 		}
 	}
@@ -576,22 +699,58 @@ func (s *Server) handleQuizComplete(w http.ResponseWriter, r *http.Request) {
 		mock.HandleQuizComplete(w, r); return
 	}
 
-	s.sessionBudget.markSessionDone()
-
 	lang := s.Config.App.ActiveLang
-	reviewed, _, _ := s.DB.GetTodayStats(lang)
+	reviewed, err := s.DB.GetUniqueSubjectsReviewed(lang)
+	if err != nil {
+		log.Warn("quiz", "get unique subjects for complete: %v", err)
+		reviewed = 0
+	}
+
+	targetMet := reviewed >= s.Config.App.DailyTarget
+	if targetMet {
+		s.sessionBudget.markSessionDone()
+	}
 
 	writeJSON(w, map[string]interface{}{
-		"completed":        true,
-		"daily_target_met": reviewed >= s.Config.App.DailyTarget,
+		"completed":        targetMet,
+		"daily_target_met": targetMet,
+		"reviewed":         reviewed,
+		"daily_target":     s.Config.App.DailyTarget,
 	})
 }
 
 // ——— read-aloud submit ———
 
+// recordReadAloudFallback updates SM-2 with quality=0 when pronunciation
+// assessment could not be performed (no provider, no target text, assessment
+// error, etc.). This prevents the word from repeating indefinitely in quiz
+// when the assessment path fails.
+func (s *Server) recordReadAloudFallback(stype string, sid int64) {
+	if stype != "word" || s.DB == nil {
+		return
+	}
+	word, err := s.DB.GetWord(sid)
+	if err != nil || word == nil {
+		return
+	}
+	quality := 0
+	now := time.Now()
+	sm2 := engine.SM2(word.EasinessFactor, word.Interval, word.Repetitions, quality, now, s.Config.App.Sm2MaxIntervalDays)
+	if sm2 != nil {
+		word.EasinessFactor = sm2.EasinessFactor
+		word.Interval = sm2.Interval
+		word.Repetitions = sm2.Repetitions
+		word.NextReviewAt = &sm2.NextReviewAt
+	}
+	word.LastReviewAt = &now
+	word.TotalAttempts++
+	s.DB.UpdateWord(word)
+}
+
 func (s *Server) handleReadAloudSubmit(w http.ResponseWriter, r *http.Request, qtype, stype string, sid int64, qid, audio string) {
 	log.Debug("quiz", "read-aloud submit: subjectType=%s subjectId=%d", stype, sid)
 	if s.PronounceProvider == nil {
+		s.recordReadAloudFallback(stype, sid)
 		writeJSON(w, map[string]interface{}{
 			"correct":  false,
 			"feedback": "Pronunciation assessment not configured",
@@ -618,6 +777,7 @@ func (s *Server) handleReadAloudSubmit(w http.ResponseWriter, r *http.Request, q
 		}
 	}
 	if targetText == "" {
+		s.recordReadAloudFallback(stype, sid)
 		writeJSON(w, map[string]interface{}{
 			"correct":  false,
 			"feedback": "Could not determine target text",
@@ -635,6 +795,7 @@ func (s *Server) handleReadAloudSubmit(w http.ResponseWriter, r *http.Request, q
 	// Decode audio
 	audioBytes, err := base64.StdEncoding.DecodeString(audio)
 	if err != nil {
+		s.recordReadAloudFallback(stype, sid)
 		writeJSON(w, map[string]interface{}{
 			"correct":  false,
 			"feedback": "Invalid audio data",
@@ -647,6 +808,7 @@ func (s *Server) handleReadAloudSubmit(w http.ResponseWriter, r *http.Request, q
 	os.MkdirAll(tmpDir, 0755)
 	tmpFile, err := os.CreateTemp(tmpDir, "read_*.wav")
 	if err != nil {
+		s.recordReadAloudFallback(stype, sid)
 		writeJSON(w, map[string]interface{}{
 			"correct":  false,
 			"feedback": "Failed to create temp file",
@@ -668,6 +830,7 @@ func (s *Server) handleReadAloudSubmit(w http.ResponseWriter, r *http.Request, q
 
 	result, err := s.PronounceProvider.Assess(ctx, tmpPath, targetText)
 	if err != nil {
+		s.recordReadAloudFallback(stype, sid)
 		writeJSON(w, map[string]interface{}{
 			"correct":  false,
 			"feedback": fmt.Sprintf("Assessment error: %v", err),
@@ -706,7 +869,9 @@ func (s *Server) writeReadAloudResult(w http.ResponseWriter, stype string, sid i
 			if correct {
 				word.TotalCorrect++
 			}
-			s.DB.UpdateWord(word)
+			if err := s.DB.UpdateWord(word); err != nil {
+				log.Warn("quiz", "update word after read-aloud (id=%d): %v", word.ID, err)
+			}
 			nextReviewAt = word.NextReviewAt
 		}
 	}
@@ -830,7 +995,7 @@ func strictnessForType(qType string) judge.Strictness {
 
 func (s *Server) makeAIJudge(qType string, word *db.Word) func(user, expected string) (*judge.Result, error) {
 	return func(userAnswer, expectedAnswer string) (*judge.Result, error) {
-		if s.AI == nil {
+		if s.AI() == nil {
 			return nil, nil
 		}
 
@@ -860,7 +1025,7 @@ func (s *Server) makeAIJudge(qType string, word *db.Word) func(user, expected st
 		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 		defer cancel()
 
-		response, err := s.AI.Chat(ctx, messages, pt.Temperature)
+		response, err := s.AI().Chat(ctx, messages, pt.Temperature)
 		if err != nil {
 			return nil, err
 		}

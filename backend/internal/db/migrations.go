@@ -6,6 +6,11 @@ import (
 )
 
 func (d *Database) migrate() error {
+	// Enable WAL mode for better concurrent read performance
+	if _, err := d.DB.Exec(`PRAGMA journal_mode=WAL;`); err != nil {
+		return fmt.Errorf("enable WAL: %w", err)
+	}
+
 	_, err := d.DB.Exec(`
 		CREATE TABLE IF NOT EXISTS words (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -194,6 +199,30 @@ func (d *Database) migrate() error {
 		}
 	}
 	_, _ = d.DB.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_stats_date_lang ON daily_stats(date, language)`)
+
+	// Phase 9: strip trailing pitch-accent digits from readings.
+	// Japanese dicts often return "おかね0" — the number is a pitch accent marker.
+	rows, err := d.DB.Query(`SELECT id, reading FROM words WHERE reading GLOB '*[0-9]'`)
+	if err == nil {
+		type fix struct {
+			id      int64
+			reading string
+		}
+		var fixes []fix
+		for rows.Next() {
+			var f fix
+			if err := rows.Scan(&f.id, &f.reading); err == nil {
+				fixes = append(fixes, f)
+			}
+		}
+		rows.Close()
+		for _, f := range fixes {
+			clean := strings.TrimRight(f.reading, "0123456789")
+			if clean != f.reading {
+				d.DB.Exec(`UPDATE words SET reading = ? WHERE id = ?`, clean, f.id)
+			}
+		}
+	}
 
 	return nil
 }

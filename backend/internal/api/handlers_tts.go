@@ -57,7 +57,27 @@ func (s *Server) handleTTSWord(w http.ResponseWriter, r *http.Request) {
 		text = word.Reading
 	}
 
-	log.Debug("tts", "word audio: id=%d", id)
+	// Deduplicate concurrent requests for the same word.
+	// When auto-play + page-change + manual-play all trigger TTS for the same
+	// word simultaneously, only the first request does the actual generation;
+	// subsequent requests wait for it and serve the cached result.
+	dedupKey := fmt.Sprintf("word:%d:%s:%s", id, voice, text)
+	done, isNew := s.ttsDedupOrStart(dedupKey)
+	if !isNew {
+		// Another request is already generating — wait for it.
+		select {
+		case <-done:
+		case <-r.Context().Done():
+			return
+		}
+	}
+	defer func() {
+		if isNew {
+			s.ttsDedupDone(dedupKey)
+		}
+	}()
+
+	log.Debug("tts", "word audio: id=%d isNew=%v", id, isNew)
 
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
@@ -158,4 +178,49 @@ func (s *Server) preWarmTTS(word *db.Word) {
 			log.Warn("tts", "prewarm %q: %v", text, err)
 		}
 	}()
+}
+
+// preWarmNewWords pre-generates TTS audio for up to `count` new study words
+// for the given language. Called in background from session start.
+func (s *Server) preWarmNewWords(lang string, count int) {
+	if s.TTSProvider == nil || s.DB == nil || count <= 0 {
+		return
+	}
+	words, err := s.DB.GetReviewWords(lang, count)
+	if err != nil {
+		log.Warn("tts", "prewarm batch query: %v", err)
+		return
+	}
+	for _, w := range words {
+		// Only pre-warm truly new words (not yet reviewed)
+		if w.NextReviewAt == nil {
+			s.preWarmTTS(w)
+		}
+	}
+}
+
+// ttsDedupOrStart checks if a TTS generation for the given key is already in
+// flight. If so, returns the existing done channel and isNew=false. If not,
+// registers a new entry and returns isNew=true. The caller MUST call
+// ttsDedupDone(key) when generation completes (only when isNew=true).
+func (s *Server) ttsDedupOrStart(key string) (chan struct{}, bool) {
+	s.ttsInFlightMu.Lock()
+	defer s.ttsInFlightMu.Unlock()
+	if ch, ok := s.ttsInFlight[key]; ok {
+		return ch, false
+	}
+	ch := make(chan struct{})
+	s.ttsInFlight[key] = ch
+	return ch, true
+}
+
+// ttsDedupDone signals that a TTS generation completed and removes it from the
+// in-flight map. Must only be called by the goroutine that got isNew=true.
+func (s *Server) ttsDedupDone(key string) {
+	s.ttsInFlightMu.Lock()
+	if ch, ok := s.ttsInFlight[key]; ok {
+		close(ch)
+		delete(s.ttsInFlight, key)
+	}
+	s.ttsInFlightMu.Unlock()
 }

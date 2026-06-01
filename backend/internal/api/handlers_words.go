@@ -45,6 +45,17 @@ func (s *Server) handleWordsList(w http.ResponseWriter, r *http.Request) {
 		words = []*db.Word{}
 	}
 
+	// Pre-warm TTS in background for new words (next_review_at IS NULL).
+	// This feeds the frontend's getStudyWords() — by the time the user
+	// reaches the learning screen, audio is cached.
+	if s.TTSProvider != nil {
+		for _, w := range words {
+			if w.NextReviewAt == nil {
+				s.preWarmTTS(w)
+			}
+		}
+	}
+
 	writeJSON(w, map[string]interface{}{
 		"words": words,
 		"total": total,
@@ -339,7 +350,7 @@ func (s *Server) handleWordsExpand(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 500, "database not available")
 		return
 	}
-	if s.AI == nil {
+	if s.AI() == nil {
 		writeJSON(w, map[string]interface{}{
 			"verified":       []interface{}{},
 			"pending_review": []interface{}{},
@@ -414,7 +425,7 @@ func (s *Server) handleWordsExpand(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
 
-	response, err := s.AI.Chat(ctx, messages, pt.Temperature)
+	response, err := s.AI().Chat(ctx, messages, pt.Temperature)
 	if err != nil {
 		writeJSON(w, map[string]interface{}{
 			"verified":       []interface{}{},

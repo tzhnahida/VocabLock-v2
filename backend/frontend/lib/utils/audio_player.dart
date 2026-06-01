@@ -14,6 +14,7 @@ class AppAudioPlayer {
         '\$p.Open([uri]"$url"); ' +
         '\$p.Play(); ' +
         'while(\$p.Position.Ticks -eq 0) { Start-Sleep -Milliseconds 100 }; ' +
+        'while(\$p.NaturalDuration.TimeSpan.TotalSeconds -eq 0) { Start-Sleep -Milliseconds 100 }; ' +
         '\$total = \$p.NaturalDuration.TimeSpan.TotalSeconds; ' +
         'while(\$p.Position.TotalSeconds -lt \$total - 0.1) { Start-Sleep -Milliseconds 200 }; ' +
         '\$p.Close()',
@@ -35,6 +36,7 @@ class AppAudioPlayer {
         '\$p.Open([uri]"file:///$path"); ' +
         '\$p.Play(); ' +
         'while(\$p.Position.Ticks -eq 0) { Start-Sleep -Milliseconds 100 }; ' +
+        'while(\$p.NaturalDuration.TimeSpan.TotalSeconds -eq 0) { Start-Sleep -Milliseconds 100 }; ' +
         '\$total = \$p.NaturalDuration.TimeSpan.TotalSeconds; ' +
         'while(\$p.Position.TotalSeconds -lt \$total - 0.1) { Start-Sleep -Milliseconds 200 }; ' +
         '\$p.Close()',

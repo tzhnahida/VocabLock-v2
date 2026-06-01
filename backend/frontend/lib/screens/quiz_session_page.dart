@@ -263,8 +263,8 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
     }
     final hasNew = _newWords + _newGrammar > 0;
     if (hasNew) {
-      _loadStudyWords();
       setState(() => _phase = _Phase.learning);
+      _loadStudyWords();
     } else {
       setState(() { _phase = _Phase.quiz; _loadingQuestion = true; });
       _loadQuestion();
@@ -1085,23 +1085,20 @@ class _StudyCard extends StatelessWidget {
     required this.onPlayText,
   });
 
-  // Layout categories for smart field placement
-  static const _badgeKeys = {'pos', 'level', 'syllable_count', 'register', 'pitch_accent'};
+  // Layout categories for smart field placement (language-neutral).
+  static const _badgeKeys = {'pos', 'level', 'syllable_count', 'register'};
   static const _exampleKeys = {'example_sentence'};
   static const _playableFields = {'word', 'morphology', 'collocation', 'example_sentence'};
   static const _fallbackFieldOrder = [
     'meaning', 'pos', 'level', 'syllable_count',
     'morphology', 'syntax', 'collocation', 'register',
     'etymology', 'example_sentence',
-    'pitch_accent', 'conjugation_class', 'case_government',
-    'orthographic_variants', 'keigo_level',
   ];
+  // Fallback labels only used when fieldConfig from language config is unavailable.
   static const _fallbackLabels = {
-    'meaning': '核心释义', 'pos': '词性', 'level': '等级', 'syllable_count': '音拍数',
-    'morphology': '形态变化', 'syntax': '句法功能', 'collocation': '常用搭配', 'register': '语体/语域',
-    'etymology': '词源/构词', 'example_sentence': '例句',
-    'pitch_accent': '高低アクセント', 'conjugation_class': '活用类型', 'case_government': '格支配',
-    'orthographic_variants': '表記揺れ', 'keigo_level': '敬語階層',
+    'meaning': '释义', 'pos': '词性', 'level': '等级', 'syllable_count': '音节数',
+    'morphology': '形态', 'syntax': '句法', 'collocation': '搭配', 'register': '语体',
+    'etymology': '词源', 'example_sentence': '例句',
   };
 
   @override

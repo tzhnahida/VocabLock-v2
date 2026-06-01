@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/vocablock/v2/internal/log"
@@ -43,7 +44,7 @@ type Server struct {
 	DB     *db.Database
 
 	// Optional — nil means not configured, handlers fall back gracefully
-	AI              *ai.Client
+	aiValue         atomic.Value // *ai.Client, safe for concurrent access
 	TTSProvider     *tts.Provider
 	DictProvider    *dict.Provider
 	PronounceProvider *pronounce.Provider
@@ -64,6 +65,11 @@ type Server struct {
 	expanding   bool
 	expandingMu sync.Mutex
 
+	// Deduplicates concurrent TTS generation requests.
+	// Key: cacheKey (MD5 of provider:voice:text), Value: chan struct{} closed when done.
+	ttsInFlight   map[string]chan struct{}
+	ttsInFlightMu sync.Mutex
+
 	// Session budget tracks time/type usage for the current day
 	sessionBudget sessionBudget
 }
@@ -78,18 +84,88 @@ func (s *Server) tryStartExpanding() bool {
 	return true
 }
 
+// AI returns the current AI client (nil if not configured).
+// Safe for concurrent access from any goroutine.
+func (s *Server) AI() *ai.Client {
+	v := s.aiValue.Load()
+	if v == nil {
+		return nil
+	}
+	return v.(*ai.Client)
+}
+
 // WireAI initializes (or re-initializes) the AI client from current config.
 // Safe to call at startup and at runtime after config changes.
 func (s *Server) WireAI() {
 	if s.Config.App.AI.APIKey != "" && !s.Mock {
-		s.AI = ai.NewClient(ai.Config{
+		client := ai.NewClient(ai.Config{
 			BaseURL: s.Config.App.AI.BaseURL,
 			APIKey:  s.Config.App.AI.APIKey,
 			Model:   s.Config.App.AI.Model,
 			Timeout: 120 * time.Second,
 		})
+		s.aiValue.Store(client)
 		log.Info("server", "ai: configured")
+	} else {
+		s.aiValue.Store((*ai.Client)(nil))
+		log.Debug("server", "ai: disabled")
 	}
+}
+
+// WireTTS initializes (or re-initializes) the TTS provider from the active language config.
+// Safe to call at startup and after active_lang changes.
+func (s *Server) WireTTS() {
+	s.TTSProvider = nil
+	lang := s.Config.App.ActiveLang
+	lc, ok := s.Config.Languages[lang]
+	if !ok || lc.TTS.Provider == "" || s.Mock {
+		return
+	}
+	provCfg, ok := s.Config.TTS.TTS.Providers[lc.TTS.Provider]
+	if !ok {
+		return
+	}
+	provider, err := tts.NewProvider(lc.TTS.Provider, provCfg, "data/audio")
+	if err != nil {
+		log.Warn("tts", "wire: %v", err)
+		return
+	}
+	s.TTSProvider = provider
+	log.Info("server", "tts: %s (%s)", lc.TTS.Provider, lc.TTS.Voice)
+}
+
+// WireDict initializes (or re-initializes) the dictionary provider from the active language config.
+// Safe to call at startup and after active_lang changes.
+func (s *Server) WireDict() {
+	s.DictProvider = nil
+	lang := s.Config.App.ActiveLang
+	lc, ok := s.Config.Languages[lang]
+	if !ok || lc.Dict.Provider == "" || s.Mock {
+		return
+	}
+	provCfg, ok := s.Config.Dict.Dict.Providers[lc.Dict.Provider]
+	if !ok {
+		return
+	}
+	s.DictProvider = dict.NewProvider(lc.Dict.Provider, provCfg)
+	log.Info("server", "dict: %s", lc.Dict.Provider)
+}
+
+// WirePronounce initializes (or re-initializes) the pronounce provider from the active language config.
+// Safe to call at startup and after active_lang changes.
+func (s *Server) WirePronounce() {
+	s.PronounceProvider = nil
+	lang := s.Config.App.ActiveLang
+	lc, ok := s.Config.Languages[lang]
+	if !ok || lc.Pronounce.Provider == "" || s.Mock {
+		return
+	}
+	provCfg, ok := s.Config.Pronounce.Pronounce.Providers[lc.Pronounce.Provider]
+	if !ok {
+		return
+	}
+	s.PronounceProvider = pronounce.NewProvider(lc.Pronounce.Provider, provCfg)
+	log.Info("server", "pronounce: %s", lc.Pronounce.Provider)
 }
 
 func (s *Server) stopExpanding() {
@@ -106,7 +182,9 @@ func (s *Server) isExpanding() bool {
 
 func NewServer(mock bool, cfg *config.Config, database *db.Database) *Server {
 	token := make([]byte, 16)
-	rand.Read(token)
+	if _, err := rand.Read(token); err != nil {
+		panic(fmt.Sprintf("crypto/rand.Read failed: %v", err))
+	}
 
 	s := &Server{
 		Token:         hex.EncodeToString(token),
@@ -115,6 +193,7 @@ func NewServer(mock bool, cfg *config.Config, database *db.Database) *Server {
 		DB:            database,
 		questionCache: make(map[string]*cachedQuestion),
 		servedWordIDs: make(map[int64]time.Time),
+		ttsInFlight:   make(map[string]chan struct{}),
 	}
 	s.startCacheCleanup()
 	return s
@@ -163,6 +242,17 @@ type sessionBudget struct {
 	grammarFocus []string       // cached from training plan's grammar_focus
 	sessionDone    bool // true once quiz/complete was called today
 	sessionStarted bool // true once first READY was returned today
+}
+
+func (b *sessionBudget) reset() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.date = ""
+	b.timeUsed = 0
+	b.slowCount = 0
+	b.totalCount = 0
+	b.sessionDone = false
+	b.sessionStarted = false
 }
 
 func (b *sessionBudget) markSessionDone() {
@@ -417,6 +507,12 @@ func (s *Server) wasRecentlyServed(wordID int64) bool {
 func (s *Server) markBootstrapDone() {
 	s.bootstrapDoneMu.Lock()
 	s.bootstrapDone = true
+	s.bootstrapDoneMu.Unlock()
+}
+
+func (s *Server) markBootstrapNotDone() {
+	s.bootstrapDoneMu.Lock()
+	s.bootstrapDone = false
 	s.bootstrapDoneMu.Unlock()
 }
 

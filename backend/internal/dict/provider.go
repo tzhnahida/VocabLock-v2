@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"github.com/vocablock/v2/internal/config"
@@ -53,6 +54,10 @@ func (p *Provider) Lookup(ctx context.Context, word string) (*LookupResult, erro
 		return nil, fmt.Errorf("dict %s parse output: %w", p.name, err)
 	}
 
+	// Normalize: strip trailing pitch-accent numbers from reading.
+	// Japanese dictionaries often return "おかね0" or "はし1".
+	result.Reading = stripTrailingDigits(result.Reading)
+
 	log.Debug("dict", "lookup result: found=%v", result.Found)
 	return &result, nil
 }
@@ -82,4 +87,12 @@ func buildDictArgs(templates []string, word string) []string {
 		args[i] = strings.ReplaceAll(tpl, "{word}", word)
 	}
 	return args
+}
+
+// stripTrailingDigits removes trailing digit characters from a reading string.
+// Japanese dictionaries often append pitch-accent numbers, e.g. "おかね0" → "おかね".
+var trailingDigitsRE = regexp.MustCompile(`\d+$`)
+
+func stripTrailingDigits(s string) string {
+	return trailingDigitsRE.ReplaceAllString(s, "")
 }
