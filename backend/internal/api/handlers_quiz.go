@@ -281,6 +281,25 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 
 	log.Debug("quiz", "next question: lang=%s", lang)
 
+	// ── Daily target cap ──────────────────────────────────────
+	// Stop serving questions once the user has reviewed enough unique
+	// subjects today. Without this check the session could serve 80+
+	// questions when SM-2 accumulates many due items on the same day.
+	reviewed, err := s.DB.GetUniqueSubjectsReviewed(lang)
+	if err != nil {
+		log.Warn("quiz", "get unique subjects for next: %v", err)
+	} else if reviewed >= s.Config.App.DailyTarget {
+		log.Debug("quiz", "daily target met: reviewed=%d >= target=%d", reviewed, s.Config.App.DailyTarget)
+		writeJSON(w, map[string]interface{}{
+			"completed":        true,
+			"message":          "Daily target met",
+			"reviewed":         reviewed,
+			"daily_target":     s.Config.App.DailyTarget,
+			"daily_target_met": true,
+		})
+		return
+	}
+
 	// Resolve explanation language (e.g. "zh-CN", "ko", "en") for prompt i18n
 	explLang := "en"
 	if lc, ok := s.Config.Languages[lang]; ok && lc.PromptContext.ExplanationLang != "" {
@@ -721,10 +740,11 @@ func (s *Server) handleQuizComplete(w http.ResponseWriter, r *http.Request) {
 
 // ——— read-aloud submit ———
 
-// recordReadAloudFallback updates SM-2 with quality=0 when pronunciation
+// recordReadAloudFallback updates SM-2 with quality=2 when pronunciation
 // assessment could not be performed (no provider, no target text, assessment
-// error, etc.). This prevents the word from repeating indefinitely in quiz
-// when the assessment path fails.
+// error, etc.). Quality 2 is still "incorrect" in SM-2 (interval=1, reps=0),
+// but EF degrades by only 0.32 instead of 0.8, avoiding harsh penalty for
+// system errors while still flagging the word for re-review.
 func (s *Server) recordReadAloudFallback(stype string, sid int64) {
 	if stype != "word" || s.DB == nil {
 		return
@@ -733,7 +753,7 @@ func (s *Server) recordReadAloudFallback(stype string, sid int64) {
 	if err != nil || word == nil {
 		return
 	}
-	quality := 0
+	quality := 2
 	now := time.Now()
 	sm2 := engine.SM2(word.EasinessFactor, word.Interval, word.Repetitions, quality, now, s.Config.App.Sm2MaxIntervalDays)
 	if sm2 != nil {

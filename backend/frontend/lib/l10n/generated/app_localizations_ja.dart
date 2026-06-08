@@ -141,21 +141,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get fieldExampleSentence => '例文';
 
   @override
-  String get fieldPitchAccent => '高低アクセント';
-
-  @override
-  String get fieldConjugationClass => '活用型';
-
-  @override
-  String get fieldCaseGovernment => '格支配';
-
-  @override
-  String get fieldOrthographicVariants => '表記揺れ';
-
-  @override
-  String get fieldKeigoLevel => '敬語階層';
-
-  @override
   String get statusPendingReview => '要確認';
 
   @override
@@ -219,6 +204,122 @@ class AppLocalizationsJa extends AppLocalizations {
   String get quizDailyTargetMet => '今日の目標達成';
 
   @override
+  String get quizDismiss => '戻る';
+
+  @override
+  String get quizDontKnow => 'わからない、答えを教えて';
+
+  @override
+  String get recordingStart => '録音開始';
+
+  @override
+  String get recordingDone => '録音完了';
+
+  @override
+  String get recordingInProgress => '録音中...';
+
+  @override
+  String get recordingStop => '録音停止';
+
+  @override
+  String get recordingRetry => '再録音';
+
+  @override
+  String get recordingDontKnow => '読めない、答えを教えて';
+
+  @override
+  String get quizTypeAnswer => '答えを入力...';
+
+  @override
+  String get aiPreparingContent => 'AIが学習コンテンツを準備中...';
+
+  @override
+  String get aiPreparingPleaseWait => '初回生成には10-20秒かかることがあります';
+
+  @override
+  String get aiAnalyzing => 'AIが学習データを分析中...';
+
+  @override
+  String get viewAISummary => 'AI学習サマリーを見る';
+
+  @override
+  String get quizCompletedToday => '今日の学習完了！';
+
+  @override
+  String quizAccuracy(Object pct) {
+    return '正解率: $pct%';
+  }
+
+  @override
+  String quizCorrectCount(Object correct, Object answered) {
+    return '$correct/$answered 正解';
+  }
+
+  @override
+  String quizQuestionProgress(Object answered, Object correct, Object pct) {
+    return '$answered問 · $correct ✓ · $pct%';
+  }
+
+  @override
+  String quizTotalEstimate(Object total, Object minutes) {
+    return '計 $total 問 · 約 $minutes 分';
+  }
+
+  @override
+  String get quizBeginLearning => '学習開始';
+
+  @override
+  String get quizNoContentReturn => 'コンテンツなし、戻る';
+
+  @override
+  String get quizDailyTitle => '今日の学習';
+
+  @override
+  String get quizSM2Subtitle => 'SM-2スマート復習 + AIキュレーション';
+
+  @override
+  String get quizLearnNewContent => '新しい内容を学ぶ';
+
+  @override
+  String quizBeginWithCount(Object count) {
+    return '問題開始 ($count 問)';
+  }
+
+  @override
+  String get quizCongrats => 'おめでとう！';
+
+  @override
+  String get quizKeepGoing => '頑張りましょう！';
+
+  @override
+  String get quizCompletedDone => '完了';
+
+  @override
+  String get quizAppBarTitle => '学習';
+
+  @override
+  String get readAloudPass => '合格';
+
+  @override
+  String get readAloudNeedWork => '要改善';
+
+  @override
+  String readAloudScoreLabel(Object score, Object threshold) {
+    return 'スコア $score% (必要 ≥ $threshold%)';
+  }
+
+  @override
+  String get readAloudListenFirst => 'まず聞いてから答えてください';
+
+  @override
+  String get fieldMeaning => '意味';
+
+  @override
+  String cardPageOf(Object current, Object total) {
+    return '$current / $total';
+  }
+
+  @override
   String get labelLanguage => '言語';
 
   @override
@@ -271,4 +372,59 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get labelNoLevel => 'レベルなし';
+
+  @override
+  String get tabGeneral => '一般';
+
+  @override
+  String get labelEnabled => '有効';
+
+  @override
+  String get labelMinIntervalMinutes => '最小間隔(分)';
+
+  @override
+  String get labelMaxIntervalMinutes => '最大間隔(分)';
+
+  @override
+  String get labelCadenceDays => 'N日ごと';
+
+  @override
+  String get labelCadenceCount => '1回の問題数';
+
+  @override
+  String get labelAIRecommend => 'AIおすすめ';
+
+  @override
+  String get labelModel => 'モデル';
+
+  @override
+  String get labelAddress => 'アドレス';
+
+  @override
+  String get labelStatus => '状態';
+
+  @override
+  String get hintRefreshTTS => 'タップしてTTS設定を読み込み';
+
+  @override
+  String get hintRefreshDict => 'タップして辞書設定を読み込み';
+
+  @override
+  String get labelSettings => '設定';
+
+  @override
+  String get labelRetry => 'リトライ';
+
+  @override
+  String statusRemaining(Object count) {
+    return '残り $count 問';
+  }
+
+  @override
+  String get statusDailyComplete => '今日のタスク完了';
+
+  @override
+  String statusWordsReady(Object count) {
+    return '$count 語が準備完了、学習を開始できます';
+  }
 }

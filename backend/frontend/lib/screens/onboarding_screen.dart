@@ -15,9 +15,10 @@ class OnboardingScreen extends StatefulWidget {
     String? password,
   }) onComplete;
   final Future<String> Function(String message, List<({String role, String content})> history)? onAiChat;
+  final Future<Map<String, dynamic>> Function(String code)? onGetLangConfig;
   final bool aiConfigured;
 
-  const OnboardingScreen({super.key, required this.onComplete, this.onAiChat, this.aiConfigured = false});
+  const OnboardingScreen({super.key, required this.onComplete, this.onAiChat, this.aiConfigured = false, this.onGetLangConfig});
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -51,6 +52,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   // Step 5: Learning
   String _learnLang = 'zh';
+  Map<String, dynamic>? _langConfig;
+  bool _loadingLangConfig = false;
   int _dailyTarget = 20;
   String _password = '';
   String _profileText = '';
@@ -70,6 +73,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.initState();
     _modelCtrl.text = _model;
     _baseUrlCtrl.text = _baseUrl;
+    _fetchLangConfig(_learnLang);
+  }
+
+  Future<void> _fetchLangConfig(String code) async {
+    if (widget.onGetLangConfig == null) return;
+    setState(() => _loadingLangConfig = true);
+    try {
+      final cfg = await widget.onGetLangConfig!(code);
+      if (mounted) setState(() => _langConfig = cfg);
+    } catch (_) {}
+    if (mounted) setState(() => _loadingLangConfig = false);
   }
 
   @override
@@ -115,24 +129,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     AppTheme.setThemeMode(mode);
   }
 
-  String _voiceForLang(String code) {
-    switch (code) {
-      case 'zh': return 'zh-CN-XiaoxiaoNeural (edge-tts)';
-      case 'ja': return 'ja-JP-NanamiNeural (edge-tts)';
-      case 'en': return 'en-US-JennyNeural (edge-tts)';
-      case 'ko': return 'ko-KR-SunHiNeural (edge-tts)';
-      default: return '未配置';
-    }
+  String _voiceForLang(dynamic lc) {
+    if (lc == null || lc is! Map) return '未配置';
+    final provider = (lc['tts_provider'] ?? '').toString();
+    final voice = (lc['tts_voice'] ?? '').toString();
+    if (provider.isEmpty) return '未配置';
+    return '$voice ($provider)';
   }
 
-  String _dictForLang(String code) {
-    switch (code) {
-      case 'zh': return 'cedict (中文字典)';
-      case 'ja': return 'jmdict (日文字典)';
-      case 'en': return 'webster (英文字典)';
-      case 'ko': return '未配置';
-      default: return '未配置';
-    }
+  String _dictForLang(dynamic lc) {
+    if (lc == null || lc is! Map) return '未配置';
+    final provider = (lc['dict_provider'] ?? '').toString();
+    if (provider.isEmpty) return '未配置';
+    return provider;
   }
 
   Future<void> _testConnection() async {
@@ -527,10 +536,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       _Label('学习语言', 'Language to study'),
       const SizedBox(height: 12),
       ..._learnLanguages.map((e) => _SelectTile(
-        label: '${e.$2}  ${e.$3}', isActive: e.$1 == _learnLang, onTap: () => setState(() => _learnLang = e.$1),
+        label: '${e.$2}  ${e.$3}', isActive: e.$1 == _learnLang, onTap: () { setState(() => _learnLang = e.$1); _fetchLangConfig(e.$1); },
       )),
       const SizedBox(height: 20),
-      _TtsDictInfo(lang: _learnLang, voice: _voiceForLang(_learnLang), dict: _dictForLang(_learnLang)),
+      _TtsDictInfo(lang: _learnLang, voice: _voiceForLang(_langConfig), dict: _dictForLang(_langConfig)),
       const SizedBox(height: 24),
       _Label('每日目标', 'Daily Target'),
       Text('正确率 ≥ 80% 方可解锁', style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
@@ -705,9 +714,9 @@ class _TtsDictInfo extends StatelessWidget {
             const SizedBox(width: 8),
             Text('语音合成 (TTS)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
             const Spacer(),
-            Icon(Icons.check_circle, size: 14, color: Colors.green),
+            Icon(voice == '未配置' ? Icons.warning_amber : Icons.check_circle, size: 14, color: voice == '未配置' ? Colors.orange : Colors.green),
             const SizedBox(width: 4),
-            Text('已连接', style: TextStyle(fontSize: 11, color: Colors.green)),
+            Text(voice == '未配置' ? '未连接' : '已连接', style: TextStyle(fontSize: 11, color: voice == '未配置' ? Colors.orange : Colors.green)),
           ]),
           Padding(
             padding: const EdgeInsets.only(left: 24, top: 4),

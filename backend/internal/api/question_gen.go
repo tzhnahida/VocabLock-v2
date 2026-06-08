@@ -15,7 +15,7 @@ import (
 // Returns nil, error on failure (caller should fall back to a vocabulary question).
 // aiGenerateGrammarQuestion calls the AI to generate a question for a grammar point.
 func (s *Server) aiGenerateGrammarQuestion(ctx context.Context, gp *db.GrammarPoint) (*engine.Question, error) {
-	if s.AI == nil {
+	if s.AI() == nil {
 		return nil, fmt.Errorf("AI not configured")
 	}
 
@@ -51,7 +51,7 @@ func (s *Server) aiGenerateGrammarQuestion(ctx context.Context, gp *db.GrammarPo
 	timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	response, err := s.AI.Chat(timeoutCtx, messages, pt.Temperature)
+	response, err := s.AI().Chat(timeoutCtx, messages, pt.Temperature)
 	if err != nil {
 		return nil, fmt.Errorf("AI chat: %w", err)
 	}
@@ -86,7 +86,7 @@ func (s *Server) aiGenerateGrammarQuestion(ctx context.Context, gp *db.GrammarPo
 }
 
 func (s *Server) aiGenerateQuestion(ctx context.Context, word *engine.WordInfo, qType engine.QuestionType) (*engine.Question, error) {
-	if s.AI == nil {
+	if s.AI() == nil {
 		return nil, fmt.Errorf("AI not configured")
 	}
 
@@ -120,7 +120,7 @@ func (s *Server) aiGenerateQuestion(ctx context.Context, word *engine.WordInfo, 
 	timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	response, err := s.AI.Chat(timeoutCtx, messages, pt.Temperature)
+	response, err := s.AI().Chat(timeoutCtx, messages, pt.Temperature)
 	if err != nil {
 		return nil, fmt.Errorf("AI chat: %w", err)
 	}

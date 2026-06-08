@@ -11,6 +11,7 @@ import '../models/session_summary.dart';
 import '../theme/app_theme.dart';
 import '../utils/audio_player.dart';
 import '../widgets/session_summary_view.dart';
+import '../l10n/generated/app_localizations.dart';
 
 enum _Phase { overview, learning, quiz, complete }
 
@@ -349,6 +350,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
   }
 
   Widget _buildReadAloudUI(Question q) {
+    final l10n = AppLocalizations.of(context)!;
     final word = q.subjectWord ?? q.prompt.replaceAll(RegExp(r'^[^:]+:\s*'), '');
     final isReadWord = q.type == QuestionType.readWord;
     return Column(
@@ -367,7 +369,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
           ElevatedButton.icon(
             onPressed: _recordedBytes == null ? () => _startRecording() : null,
             icon: Icon(_recordedBytes == null ? Icons.mic : Icons.check, size: 22),
-            label: Text(_recordedBytes == null ? '开始录音' : '已录制'),
+            label: Text(_recordedBytes == null ? l10n.recordingStart : l10n.recordingDone),
             style: ElevatedButton.styleFrom(
               backgroundColor: _recordedBytes == null ? Colors.red : Colors.green,
               foregroundColor: Colors.white,
@@ -381,7 +383,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
             children: [
               Icon(Icons.mic, size: 48, color: Colors.red),
               const SizedBox(height: 8),
-              Text('正在录音...', style: TextStyle(fontSize: 14, color: AppTheme.textSecondary)),
+              Text(l10n.recordingInProgress, style: TextStyle(fontSize: 14, color: AppTheme.textSecondary)),
               const SizedBox(height: 12),
               ElevatedButton(
                 onPressed: () => _stopRecording(),
@@ -389,7 +391,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                   backgroundColor: Colors.red, foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
-                child: const Text('停止录音'),
+                child: Text(l10n.recordingStop),
               ),
             ],
           ),
@@ -407,12 +409,12 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
             child: Column(
               children: [
                 Text(
-                  _result!.correct ? 'PASS' : 'NEED WORK',
+                  _result!.correct ? l10n.readAloudPass : l10n.readAloudNeedWork,
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: _result!.correct ? Colors.green.shade700 : Colors.orange.shade700),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '总分 ${(_result!.score * 100).round()}% (需 ≥ ${isReadWord ? 50 : 40}%)',
+                  l10n.readAloudScoreLabel((_result!.score * 100).round(), isReadWord ? 50 : 40),
                   style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
                 ),
                 if (_phonemeScores != null && _phonemeScores!.isNotEmpty) ...[
@@ -451,13 +453,13 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                 onPressed: _playRecording,
                 icon: const Icon(Icons.play_circle, size: 36),
                 color: AppTheme.primary,
-                tooltip: '试听',
+                tooltip: l10n.tooltipPlayAudio,
               ),
               const SizedBox(width: 8),
               OutlinedButton(
                 onPressed: _retryRecording,
                 style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-                child: const Text('重录'),
+                child: Text(l10n.recordingRetry),
               ),
             ],
           ),
@@ -475,13 +477,13 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                       onPressed: _playRecording,
                       icon: const Icon(Icons.play_circle, size: 36),
                       color: AppTheme.primary,
-                      tooltip: '试听',
+                      tooltip: l10n.tooltipPlayAudio,
                     ),
                     const SizedBox(width: 8),
                     OutlinedButton(
                       onPressed: _retryRecording,
                       style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-                      child: const Text('重录'),
+                      child: Text(l10n.recordingRetry),
                     ),
                     const SizedBox(width: 12),
                     ElevatedButton(
@@ -491,7 +493,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                         padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
-                      child: _submitting ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('提交'),
+                      child: _submitting ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : Text(l10n.quizSubmit),
                     ),
                   ],
                 ),
@@ -505,7 +507,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     side: BorderSide(color: Colors.grey.shade400),
                   ),
-                  child: Text('不会念，告诉我答案', style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
+                  child: Text(l10n.recordingDontKnow, style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
                 ),
               ),
             ],
@@ -515,6 +517,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
   }
 
   Widget _buildWordPreview(Question q) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(20),
@@ -536,7 +539,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
             children: [
               _PlayButton(onTap: () => widget.onPlayWordAudio(q.subjectId)),
               const SizedBox(width: 12),
-              Text('先听读，再作答', style: TextStyle(fontSize: 13, color: AppTheme.textHint)),
+              Text(l10n.readAloudListenFirst, style: TextStyle(fontSize: 13, color: AppTheme.textHint)),
             ],
           ),
         ],
@@ -550,7 +553,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
       backgroundColor: AppTheme.bgColor,
       appBar: AppBar(
         backgroundColor: AppTheme.cardBg,
-        title: Text('Quiz', style: TextStyle(color: AppTheme.textPrimary)),
+        title: Text(AppLocalizations.of(context)!.quizAppBarTitle, style: TextStyle(color: AppTheme.textPrimary)),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
@@ -568,6 +571,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
   // ─── Overview ────────────────────────────────────────────
 
   Widget _buildOverview() {
+    final l10n = AppLocalizations.of(context)!;
     if (_loadingOverview) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -580,9 +584,9 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
             children: [
               const SizedBox(width: 48, height: 48, child: CircularProgressIndicator(strokeWidth: 3)),
               const SizedBox(height: 24),
-              Text('AI 正在准备学习内容...', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+              Text(l10n.aiPreparingContent, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
               const SizedBox(height: 8),
-              Text('请稍候，首次生成可能需要 10-20 秒', style: TextStyle(fontSize: 14, color: AppTheme.textHint)),
+              Text(l10n.aiPreparingPleaseWait, style: TextStyle(fontSize: 14, color: AppTheme.textHint)),
             ],
           ),
         ),
@@ -597,7 +601,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
             children: [
               Icon(Icons.check_circle, size: 64, color: AppTheme.primary),
               const SizedBox(height: 16),
-              Text('今日学习已完成', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+              Text(l10n.statusDailyComplete, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _dismiss,
@@ -606,7 +610,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                   padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
-                child: Text('返回', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+                child: Text(l10n.quizDismiss, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
               ),
             ],
           ),
@@ -627,17 +631,17 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
             children: [
               Icon(Icons.auto_stories, size: 64, color: AppTheme.primary),
               const SizedBox(height: 24),
-              Text('今日学习', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+              Text(l10n.quizDailyTitle, style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
               const SizedBox(height: 8),
-              Text('SM-2 智能复习 + AI 策展新内容',
+              Text(l10n.quizSM2Subtitle,
                   style: TextStyle(fontSize: 14, color: AppTheme.textHint)),
               const SizedBox(height: 40),
-              _CountRow(label: '新单词', count: _newWords, icon: Icons.add_circle, color: Colors.green),
-              _CountRow(label: '新语法', count: _newGrammar, icon: Icons.add_circle, color: Colors.green),
-              _CountRow(label: '复习单词', count: _reviewWords, icon: Icons.refresh, color: AppTheme.primary),
-              _CountRow(label: '复习语法', count: _reviewGrammar, icon: Icons.refresh, color: AppTheme.primary),
+              _CountRow(label: l10n.quizNewWords, count: _newWords, icon: Icons.add_circle, color: Colors.green),
+              _CountRow(label: l10n.quizNewGrammar, count: _newGrammar, icon: Icons.add_circle, color: Colors.green),
+              _CountRow(label: l10n.quizReviewWords, count: _reviewWords, icon: Icons.refresh, color: AppTheme.primary),
+              _CountRow(label: l10n.quizReviewGrammar, count: _reviewGrammar, icon: Icons.refresh, color: AppTheme.primary),
               const Divider(height: 32),
-              Text('共 $total 题 · 预估 ${(total * 1.5).ceil()} 分钟',
+              Text(l10n.quizTotalEstimate(total, (total * 1.5).ceil()),
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
               const SizedBox(height: 32),
               SizedBox(
@@ -649,7 +653,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
-                  child: Text(total > 0 ? '开始学习' : '暂无内容，返回',
+                  child: Text(total > 0 ? l10n.quizBeginLearning : l10n.quizNoContentReturn,
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
                 ),
               ),
@@ -663,6 +667,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
   // ─── Learning ────────────────────────────────────────────
 
   Widget _buildLearning() {
+    final l10n = AppLocalizations.of(context)!;
     if (_loadingStudy) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -685,15 +690,15 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('学习新内容', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
-                    Text('${_currentPage + 1} / $totalCards',
+                    Text(l10n.quizLearnNewContent, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                    Text(l10n.cardPageOf(_currentPage + 1, totalCards),
                         style: TextStyle(fontSize: 13, color: AppTheme.textHint)),
                   ],
                 ),
                 const Spacer(),
                 TextButton(
                   onPressed: _startQuiz,
-                  child: const Text('跳过'),
+                  child: Text(l10n.quizSkip),
                 ),
               ],
             ),
@@ -757,7 +762,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
-                child: Text('开始答题 (${_studyWords.length + _studyGrammar.length + _reviewWords + _reviewGrammar} 题)',
+                child: Text(l10n.quizBeginWithCount(_studyWords.length + _studyGrammar.length + _reviewWords + _reviewGrammar),
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
               ),
             ),
@@ -770,6 +775,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
   // ─── Quiz ────────────────────────────────────────────────
 
   Widget _buildQuiz() {
+    final l10n = AppLocalizations.of(context)!;
     if (_loadingQuestion) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -780,9 +786,9 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
           children: [
             Icon(Icons.check_circle, size: 64, color: AppTheme.primary),
             const SizedBox(height: 16),
-            Text('今日学习完成！', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+            Text(l10n.quizCompletedToday, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
             const SizedBox(height: 8),
-            Text('已完成 $_answered 题 · 正确 $_correct 题',
+            Text(l10n.quizCorrectCount(_correct, _answered),
                 style: TextStyle(fontSize: 14, color: AppTheme.textHint)),
             const SizedBox(height: 32),
             SizedBox(
@@ -794,7 +800,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
-                child: Text('完成', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+                child: Text(l10n.quizDismiss, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
               ),
             ),
           ],
@@ -836,7 +842,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                           color: q.subjectType == 'grammar' ? Colors.red.shade400 : Colors.blue.shade400)),
                 ),
                 const Spacer(),
-                Text('$_answered 题 · $_correct ✓ · $pct%',
+                Text(l10n.quizQuestionProgress(_answered, _correct, pct),
                     style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
               ],
             ),
@@ -883,7 +889,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                               side: BorderSide(color: Colors.grey.shade400),
                             ),
-                            child: Text('我不知道，告诉我答案', style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
+                            child: Text(AppLocalizations.of(context)!.quizDontKnow, style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
                           ),
                         ),
                       ],
@@ -897,7 +903,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                         enabled: _result == null,
                         onSubmitted: _result == null ? (v) { if (v.trim().isNotEmpty) _submit(v.trim()); } : null,
                         decoration: InputDecoration(
-                          hintText: '输入你的答案...',
+                          hintText: AppLocalizations.of(context)!.quizTypeAnswer,
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                           filled: true,
                           fillColor: AppTheme.cardBg,
@@ -917,7 +923,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                             ),
-                            child: Text('提交', style: TextStyle(fontSize: 16, color: AppTheme.textPrimary)),
+                            child: Text(l10n.quizSubmit, style: TextStyle(fontSize: 16, color: AppTheme.textPrimary)),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -930,7 +936,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                               side: BorderSide(color: Colors.grey.shade400),
                             ),
-                            child: Text('我不知道，告诉我答案', style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
+                            child: Text(AppLocalizations.of(context)!.quizDontKnow, style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
                           ),
                         ),
                       ],
@@ -972,7 +978,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
-                  child: Text('下一题', style: TextStyle(fontSize: 16, color: AppTheme.textPrimary)),
+                  child: Text(l10n.quizNext, style: TextStyle(fontSize: 16, color: AppTheme.textPrimary)),
                 ),
               ),
             ],
@@ -985,6 +991,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
   // ─── Complete ────────────────────────────────────────────
 
   Widget _buildComplete() {
+    final l10n = AppLocalizations.of(context)!;
     if (_showSummary) {
       return SessionSummaryView(
         summary: _summary,
@@ -1005,19 +1012,19 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
               Text(pct >= 80 ? '\u{1F389}' : '\u{1F4AA}',
                   style: TextStyle(fontSize: 64, color: AppTheme.textPrimary)),
               const SizedBox(height: 16),
-              Text(pct >= 80 ? '恭喜完成今日学习！' : '继续加油！',
+              Text(pct >= 80 ? l10n.quizCongrats : l10n.quizKeepGoing,
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppTheme.primary)),
               const SizedBox(height: 8),
-              Text('正确率: $pct%', style: TextStyle(fontSize: 18, color: AppTheme.textPrimary)),
+              Text(l10n.quizAccuracy(pct), style: TextStyle(fontSize: 18, color: AppTheme.textPrimary)),
               const SizedBox(height: 16),
-              Text('正确 $_correct / $_answered 题', style: TextStyle(fontSize: 14, color: AppTheme.textHint)),
+              Text(l10n.quizCorrectCount(_correct, _answered), style: TextStyle(fontSize: 14, color: AppTheme.textHint)),
               const SizedBox(height: 24),
               if (_summarizing)
                 Column(
                   children: [
                     const CircularProgressIndicator(),
                     const SizedBox(height: 12),
-                    Text('AI 正在分析你的学习数据...', style: TextStyle(color: AppTheme.textSecondary)),
+                    Text(l10n.aiAnalyzing, style: TextStyle(color: AppTheme.textSecondary)),
                   ],
                 )
               else ...[
@@ -1025,7 +1032,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                   OutlinedButton.icon(
                     onPressed: _requestSummary,
                     icon: const Icon(Icons.auto_awesome, size: 18),
-                    label: const Text('查看 AI 学习总结'),
+                    label: Text(l10n.viewAISummary),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppTheme.primary,
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -1035,7 +1042,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                 const SizedBox(height: 12),
                 TextButton(
                   onPressed: _dismiss,
-                  child: Text('完成', style: TextStyle(fontSize: 14, color: AppTheme.textHint)),
+                  child: Text(l10n.quizCompletedDone, style: TextStyle(fontSize: 14, color: AppTheme.textHint)),
                 ),
               ],
             ],
@@ -1065,7 +1072,7 @@ class _CountRow extends StatelessWidget {
           Icon(icon, size: 20, color: color),
           const SizedBox(width: 12),
           Expanded(child: Text(label, style: TextStyle(fontSize: 15, color: AppTheme.textPrimary))),
-          Text('$count 题', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: color)),
+          Text('$count', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: color)),
         ],
       ),
     );
@@ -1094,11 +1101,18 @@ class _StudyCard extends StatelessWidget {
     'morphology', 'syntax', 'collocation', 'register',
     'etymology', 'example_sentence',
   ];
-  // Fallback labels only used when fieldConfig from language config is unavailable.
-  static const _fallbackLabels = {
-    'meaning': '释义', 'pos': '词性', 'level': '等级', 'syllable_count': '音节数',
-    'morphology': '形态', 'syntax': '句法', 'collocation': '搭配', 'register': '语体',
-    'etymology': '词源', 'example_sentence': '例句',
+  // Returns fallback labels using localized strings, only used when fieldConfig is unavailable.
+  static Map<String, String> _buildFallbackLabels(AppLocalizations l10n) => {
+    'meaning': l10n.fieldMeaning,
+    'pos': l10n.fieldPos,
+    'level': l10n.fieldLevel,
+    'syllable_count': l10n.fieldSyllableCount,
+    'morphology': l10n.fieldMorphology,
+    'syntax': l10n.fieldSyntax,
+    'collocation': l10n.fieldCollocation,
+    'register': l10n.fieldRegister,
+    'etymology': l10n.fieldEtymology,
+    'example_sentence': l10n.fieldExampleSentence,
   };
 
   @override
@@ -1121,8 +1135,9 @@ class _StudyCard extends StatelessWidget {
         }
       }
     } else {
+      final l10n = AppLocalizations.of(context)!;
       fieldOrder = _fallbackFieldOrder;
-      labels = _fallbackLabels;
+      labels = _buildFallbackLabels(l10n);
     }
 
     // Categorize available fields

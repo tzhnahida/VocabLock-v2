@@ -49,12 +49,6 @@
   "fieldRegister": "使用域",
   "fieldEtymology": "語源",
   "fieldExampleSentence": "例文",
-  "fieldPitchAccent": "高低アクセント",
-  "fieldConjugationClass": "活用型",
-  "fieldCaseGovernment": "格支配",
-  "fieldOrthographicVariants": "表記揺れ",
-  "fieldKeigoLevel": "敬語階層",
-
   "statusPendingReview": "要確認",
   "statusAIFilled": "AI生成",
   "tooltipPlayAudio": "発音を再生",
@@ -78,6 +72,81 @@
   "quizReviewGrammar": "復習文法",
   "quizNoItems": "復習項目がありません",
   "quizDailyTargetMet": "今日の目標達成",
+  "quizDismiss": "戻る",
+  "quizDontKnow": "わからない、答えを教えて",
+  "recordingStart": "録音開始",
+  "recordingDone": "録音完了",
+  "recordingInProgress": "録音中...",
+  "recordingStop": "録音停止",
+  "recordingRetry": "再録音",
+  "recordingDontKnow": "読めない、答えを教えて",
+  "quizTypeAnswer": "答えを入力...",
+  "aiPreparingContent": "AIが学習コンテンツを準備中...",
+  "aiPreparingPleaseWait": "初回生成には10-20秒かかることがあります",
+  "aiAnalyzing": "AIが学習データを分析中...",
+  "viewAISummary": "AI学習サマリーを見る",
+  "quizCompletedToday": "今日の学習完了！",
+  "quizAccuracy": "正解率: {pct}%",
+  "@quizAccuracy": {
+    "placeholders": {
+      "pct": {}
+    }
+  },
+  "quizCorrectCount": "{correct}/{answered} 正解",
+  "@quizCorrectCount": {
+    "placeholders": {
+      "correct": {},
+      "answered": {}
+    }
+  },
+  "quizQuestionProgress": "{answered}問 · {correct} ✓ · {pct}%",
+  "@quizQuestionProgress": {
+    "placeholders": {
+      "answered": {},
+      "correct": {},
+      "pct": {}
+    }
+  },
+  "quizTotalEstimate": "計 {total} 問 · 約 {minutes} 分",
+  "@quizTotalEstimate": {
+    "placeholders": {
+      "total": {},
+      "minutes": {}
+    }
+  },
+  "quizBeginLearning": "学習開始",
+  "quizNoContentReturn": "コンテンツなし、戻る",
+  "quizDailyTitle": "今日の学習",
+  "quizSM2Subtitle": "SM-2スマート復習 + AIキュレーション",
+  "quizLearnNewContent": "新しい内容を学ぶ",
+  "quizBeginWithCount": "問題開始 ({count} 問)",
+  "@quizBeginWithCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "quizCongrats": "おめでとう！",
+  "quizKeepGoing": "頑張りましょう！",
+  "quizCompletedDone": "完了",
+  "quizAppBarTitle": "学習",
+  "readAloudPass": "合格",
+  "readAloudNeedWork": "要改善",
+  "readAloudScoreLabel": "スコア {score}% (必要 ≥ {threshold}%)",
+  "@readAloudScoreLabel": {
+    "placeholders": {
+      "score": {},
+      "threshold": {}
+    }
+  },
+  "readAloudListenFirst": "まず聞いてから答えてください",
+  "fieldMeaning": "意味",
+  "cardPageOf": "{current} / {total}",
+  "@cardPageOf": {
+    "placeholders": {
+      "current": {},
+      "total": {}
+    }
+  },
 
   "labelLanguage": "言語",
   "labelCurrentLanguage": "現在の言語",
@@ -96,5 +165,33 @@
   "labelEnabledTypes": "有効なタイプ",
   "labelVoices": "音声",
   "labelWithLevel": "レベル付き",
-  "labelNoLevel": "レベルなし"
+  "labelNoLevel": "レベルなし",
+
+  "tabGeneral": "一般",
+  "labelEnabled": "有効",
+  "labelMinIntervalMinutes": "最小間隔(分)",
+  "labelMaxIntervalMinutes": "最大間隔(分)",
+  "labelCadenceDays": "N日ごと",
+  "labelCadenceCount": "1回の問題数",
+  "labelAIRecommend": "AIおすすめ",
+  "labelModel": "モデル",
+  "labelAddress": "アドレス",
+  "labelStatus": "状態",
+  "hintRefreshTTS": "タップしてTTS設定を読み込み",
+  "hintRefreshDict": "タップして辞書設定を読み込み",
+  "labelSettings": "設定",
+  "labelRetry": "リトライ",
+  "statusRemaining": "残り {count} 問",
+  "@statusRemaining": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "statusDailyComplete": "今日のタスク完了",
+  "statusWordsReady": "{count} 語が準備完了、学習を開始できます",
+  "@statusWordsReady": {
+    "placeholders": {
+      "count": {}
+    }
+  }
 }

@@ -162,9 +162,9 @@ type Config struct {
 func Load(configDir string) (*Config, error) {
 	cfg := &Config{
 		App: AppConfig{
-			ActiveLang:          "en",
-				InterfaceLang:       "zh-CN",
-			DailyTarget:         20,
+			ActiveLang:     "",
+			InterfaceLang:  "",
+			DailyTarget:    20,
 			MinAccuracy:         0.8,
 			PassiveEnabled:      true,
 			PassiveMinInterval:  25,
@@ -184,10 +184,8 @@ func Load(configDir string) (*Config, error) {
 	}
 	cfg.App.Server.Host = "127.0.0.1"
 
-	// app.yaml
-	if err := loadYAML(filepath.Join(configDir, "app.yaml"), &cfg.App); err != nil {
-		return nil, err
-	}
+	// app.yaml (optional — defaults above are sufficient for auto-test mode)
+	_ = loadYAML(filepath.Join(configDir, "app.yaml"), &cfg.App)
 
 	// Env var overrides (keeps secrets out of committed yaml)
 	if v := os.Getenv("VOCABLOCK_AI_KEY"); v != "" {
@@ -200,15 +198,11 @@ func Load(configDir string) (*Config, error) {
 		cfg.App.AI.Model = v
 	}
 
-	// tts.yaml
-	if err := loadYAML(filepath.Join(configDir, "tts.yaml"), &cfg.TTS); err != nil {
-		return nil, err
-	}
+	// tts.yaml (optional — community-provided TTS binary)
+	_ = loadYAML(filepath.Join(configDir, "tts.yaml"), &cfg.TTS)
 
-	// dict.yaml
-	if err := loadYAML(filepath.Join(configDir, "dict.yaml"), &cfg.Dict); err != nil {
-		return nil, err
-	}
+	// dict.yaml (optional — community-provided dictionary binary)
+	_ = loadYAML(filepath.Join(configDir, "dict.yaml"), &cfg.Dict)
 
 	// pronounce.yaml (optional — nil provider means not configured)
 	_ = loadYAML(filepath.Join(configDir, "pronounce.yaml"), &cfg.Pronounce)
@@ -254,17 +248,12 @@ func Load(configDir string) (*Config, error) {
 	return cfg, nil
 }
 
-func TryLoadTemplate(configDir, code string) *LanguageConfig {
+// ReadTemplate reads a _languages template without side effects.
+// Returns nil if the file doesn't exist. Does NOT copy to languages/.
+func ReadTemplate(configDir, code string) *LanguageConfig {
 	templatePath := filepath.Join(configDir, "_languages", code+".yaml")
 	data, err := os.ReadFile(templatePath)
 	if err != nil {
-		return nil
-	}
-	// Copy to active languages/
-	activeDir := filepath.Join(configDir, "languages")
-	os.MkdirAll(activeDir, 0755)
-	if err := os.WriteFile(filepath.Join(activeDir, code+".yaml"), data, 0644); err != nil {
-		log.Debug("config", "recover language %q: %v", code, err)
 		return nil
 	}
 	var lc LanguageConfig
@@ -272,6 +261,59 @@ func TryLoadTemplate(configDir, code string) *LanguageConfig {
 		return nil
 	}
 	return &lc
+}
+
+func TryLoadTemplate(configDir, code string) *LanguageConfig {
+	// Try file first
+	templatePath := filepath.Join(configDir, "_languages", code+".yaml")
+	if data, err := os.ReadFile(templatePath); err == nil {
+		activeDir := filepath.Join(configDir, "languages")
+		os.MkdirAll(activeDir, 0755)
+		if err := os.WriteFile(filepath.Join(activeDir, code+".yaml"), data, 0644); err != nil {
+			log.Debug("config", "recover language %q: %v", code, err)
+			return nil
+		}
+		var lc LanguageConfig
+		if err := yaml.Unmarshal(data, &lc); err != nil {
+			return nil
+		}
+		return &lc
+	}
+	// Fallback: built-in minimal config for known languages
+	if lc := BuiltinLanguage(code); lc != nil {
+		return lc
+	}
+	return nil
+}
+
+// BuiltinLanguage returns a minimal built-in language config for zero-config mode.
+// Works without any YAML template files on disk. Supported: ja, zh, en, ko.
+func BuiltinLanguage(code string) *LanguageConfig {
+	makeLC := func(c, dn, nn, tr, el string, qts []string) *LanguageConfig {
+		lc := &LanguageConfig{QuestionTypes: qts}
+		lc.Lang.Code = c
+		lc.Lang.DisplayName = dn
+		lc.Lang.NativeName = nn
+		lc.PromptContext.TeacherRole = tr
+		lc.PromptContext.ExplanationLang = el
+		lc.PromptContext.LevelDescriptions = map[string]string{"beginner": c, "intermediate": c, "advanced": c}
+		return lc
+	}
+	switch code {
+	case "ja":
+		return makeLC("ja", "日本語", "日语", "日本語教師", "zh-CN",
+			[]string{"choice", "fill", "pronounce", "listening", "reading_comp", "grammar", "read_word", "read_sentence"})
+	case "zh":
+		return makeLC("zh", "中文", "中文", "中文教师", "zh-CN",
+			[]string{"choice", "fill", "pronounce", "listening", "reading_comp", "grammar", "read_word", "read_sentence"})
+	case "en":
+		return makeLC("en", "English", "English", "English Teacher", "zh-CN",
+			[]string{"choice", "fill", "spelling", "pronounce"})
+	case "ko":
+		return makeLC("ko", "한국어", "韩语", "한국어 교사", "zh-CN",
+			[]string{"choice", "fill", "pronounce", "listening", "reading_comp", "grammar", "read_word", "read_sentence"})
+	}
+	return nil
 }
 
 func (c *Config) SaveAppConfig(configDir string) error {

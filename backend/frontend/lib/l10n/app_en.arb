@@ -50,12 +50,6 @@
   "fieldRegister": "Register",
   "fieldEtymology": "Etymology",
   "fieldExampleSentence": "Example",
-  "fieldPitchAccent": "Pitch Accent",
-  "fieldConjugationClass": "Conjugation",
-  "fieldCaseGovernment": "Case Gov.",
-  "fieldOrthographicVariants": "Variants",
-  "fieldKeigoLevel": "Keigo Level",
-
   "statusPendingReview": "Pending Review",
   "statusAIFilled": "AI Filled",
   "tooltipPlayAudio": "Play pronunciation",
@@ -79,6 +73,81 @@
   "quizReviewGrammar": "Review Grammar",
   "quizNoItems": "No items to review",
   "quizDailyTargetMet": "Daily target met",
+  "quizDismiss": "Back",
+  "quizDontKnow": "I don't know, show me the answer",
+  "recordingStart": "Start Recording",
+  "recordingDone": "Recorded",
+  "recordingInProgress": "Recording...",
+  "recordingStop": "Stop Recording",
+  "recordingRetry": "Re-record",
+  "recordingDontKnow": "I can't read this, show answer",
+  "quizTypeAnswer": "Type your answer...",
+  "aiPreparingContent": "AI is preparing learning content...",
+  "aiPreparingPleaseWait": "Please wait, first-time generation may take 10-20s",
+  "aiAnalyzing": "AI is analyzing your learning data...",
+  "viewAISummary": "View AI Summary",
+  "quizCompletedToday": "Daily learning complete!",
+  "quizAccuracy": "Accuracy: {pct}%",
+  "@quizAccuracy": {
+    "placeholders": {
+      "pct": {}
+    }
+  },
+  "quizCorrectCount": "{correct}/{answered} correct",
+  "@quizCorrectCount": {
+    "placeholders": {
+      "correct": {},
+      "answered": {}
+    }
+  },
+  "quizQuestionProgress": "{answered}Q · {correct} ✓ · {pct}%",
+  "@quizQuestionProgress": {
+    "placeholders": {
+      "answered": {},
+      "correct": {},
+      "pct": {}
+    }
+  },
+  "quizTotalEstimate": "{total} questions · ~{minutes} min",
+  "@quizTotalEstimate": {
+    "placeholders": {
+      "total": {},
+      "minutes": {}
+    }
+  },
+  "quizBeginLearning": "Start Learning",
+  "quizNoContentReturn": "No content, go back",
+  "quizDailyTitle": "Today's Study",
+  "quizSM2Subtitle": "SM-2 smart review + AI curated content",
+  "quizLearnNewContent": "Learn New Content",
+  "quizBeginWithCount": "Start Quiz ({count} questions)",
+  "@quizBeginWithCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "quizCongrats": "Congratulations!",
+  "quizKeepGoing": "Keep it up!",
+  "quizCompletedDone": "Done",
+  "quizAppBarTitle": "Quiz",
+  "readAloudPass": "PASS",
+  "readAloudNeedWork": "NEED WORK",
+  "readAloudScoreLabel": "Score {score}% (need ≥ {threshold}%)",
+  "@readAloudScoreLabel": {
+    "placeholders": {
+      "score": {},
+      "threshold": {}
+    }
+  },
+  "readAloudListenFirst": "Listen first, then answer",
+  "fieldMeaning": "Meaning",
+  "cardPageOf": "{current} / {total}",
+  "@cardPageOf": {
+    "placeholders": {
+      "current": {},
+      "total": {}
+    }
+  },
 
   "labelLanguage": "Language",
   "labelCurrentLanguage": "Current Language",
@@ -97,5 +166,33 @@
   "labelEnabledTypes": "Enabled Types",
   "labelVoices": "voices",
   "labelWithLevel": "With Level",
-  "labelNoLevel": "No Level"
+  "labelNoLevel": "No Level",
+
+  "tabGeneral": "General",
+  "labelEnabled": "Enabled",
+  "labelMinIntervalMinutes": "Min Interval (min)",
+  "labelMaxIntervalMinutes": "Max Interval (min)",
+  "labelCadenceDays": "Every N Days",
+  "labelCadenceCount": "Questions Per Batch",
+  "labelAIRecommend": "AI Recommend",
+  "labelModel": "Model",
+  "labelAddress": "Address",
+  "labelStatus": "Status",
+  "hintRefreshTTS": "Tap refresh to load TTS config",
+  "hintRefreshDict": "Tap refresh to load dictionary config",
+  "labelSettings": "Settings",
+  "labelRetry": "Retry",
+  "statusRemaining": "{count} remaining",
+  "@statusRemaining": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "statusDailyComplete": "Daily task complete",
+  "statusWordsReady": "{count} words ready, start the quiz",
+  "@statusWordsReady": {
+    "placeholders": {
+      "count": {}
+    }
+  }
 }

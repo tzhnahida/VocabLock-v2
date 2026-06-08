@@ -20,7 +20,7 @@ func (s *Server) handleQuizSummarize(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	if s.AI == nil {
+	if s.AI() == nil {
 		writeJSON(w, map[string]interface{}{
 			"message": "AI required for session summary",
 		})
@@ -60,7 +60,7 @@ func (s *Server) handleQuizSummarize(w http.ResponseWriter, r *http.Request) {
 
 	// Auto-expand new words in background for the next session.
 	// Use tryStartExpanding so session/start knows to block.
-	if s.Config.App.AutoExpandWords && s.AI != nil {
+	if s.Config.App.AutoExpandWords && s.AI() != nil {
 		nw, ng, rw, rg, _ := s.DB.SessionCounts(lang)
 		log.Debug("expand", "summarize check: nw=%d ng=%d rw=%d rg=%d", nw, ng, rw, rg)
 		if nw == 0 {
@@ -208,7 +208,7 @@ func (s *Server) runSummarize(ctx context.Context, lang, stats, yesterdayPlan st
 	timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	response, err := s.AI.Chat(timeoutCtx, messages, pt.Temperature)
+	response, err := s.AI().Chat(timeoutCtx, messages, pt.Temperature)
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +266,7 @@ func (s *Server) runPlan(ctx context.Context, lang, stats string, summary map[st
 	timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	response, err := s.AI.Chat(timeoutCtx, messages, pt.Temperature)
+	response, err := s.AI().Chat(timeoutCtx, messages, pt.Temperature)
 	if err != nil {
 		return nil, err
 	}

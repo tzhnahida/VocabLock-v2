@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
 import 'progress_card.dart';
@@ -88,6 +89,7 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final lang = state.activeLanguage;
     final todayStats = state.todayStats;
     final remaining = state.progress?.remaining ?? 0;
@@ -100,7 +102,7 @@ class _Header extends StatelessWidget {
             Text(lang?.label ?? 'VocabLock', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
             const SizedBox(height: 4),
             Text(
-              remaining > 0 ? '剩余 $remaining 题' : '今日任务完成',
+              remaining > 0 ? l10n.statusRemaining(remaining) : l10n.statusDailyComplete,
               style: TextStyle(fontSize: 13, color: AppTheme.textHint),
             ),
           ],
@@ -113,7 +115,7 @@ class _Header extends StatelessWidget {
               ElevatedButton.icon(
                 onPressed: onStartQuiz,
                 icon: const Icon(Icons.play_arrow, size: 18),
-                label: const Text('测试'),
+                label: Text(l10n.quizStart),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primary,
                   foregroundColor: Colors.white,
@@ -135,6 +137,7 @@ class _ExpandBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final expanding = state.expanding;
     return Container(
       width: double.infinity,
@@ -168,7 +171,7 @@ class _ExpandBanner extends StatelessWidget {
                 if (state.expandTotal > 0 && !expanding) ...[
                   const SizedBox(height: 4),
                   Text(
-                    '${state.expandVerified} 个词汇已就绪，可以开始答题',
+                    l10n.statusWordsReady(state.expandVerified),
                     style: TextStyle(fontSize: 12, color: AppTheme.textHint),
                   ),
                 ],
@@ -176,7 +179,7 @@ class _ExpandBanner extends StatelessWidget {
             ),
           ),
           if (!expanding && state.expandTotal == 0)
-            TextButton(onPressed: onRetry, child: Text('重试', style: TextStyle(fontSize: 12, color: AppTheme.primary))),
+            TextButton(onPressed: onRetry, child: Text(l10n.labelRetry, style: TextStyle(fontSize: 12, color: AppTheme.primary))),
         ],
       ),
     );

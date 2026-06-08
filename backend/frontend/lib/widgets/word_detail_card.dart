@@ -19,16 +19,18 @@ class WordDetailCard extends StatelessWidget {
     required this.onPlayText,
   });
 
-  static const _badgeKeys = {'meaning', 'pos', 'level', 'syllable_count', 'register', 'pitch_accent'};
+  // _badgeKeys: fields rendered as compact badge chips (short atomic values).
+  // These are language-neutral keys that apply across all learning languages.
+  static const _badgeKeys = {'meaning', 'pos', 'level', 'syllable_count', 'register'};
   static const _exampleKeys = {'example_sentence'};
   static const _playableFields = {'word', 'morphology', 'collocation', 'example_sentence'};
 
+  // _fallbackFieldOrder is only used when fieldConfig from the language config
+  // is unavailable. It contains language-neutral fields only.
   static const _fallbackFieldOrder = [
     'pos', 'level', 'syllable_count',
     'morphology', 'syntax', 'collocation', 'register',
     'etymology', 'example_sentence',
-    'pitch_accent', 'conjugation_class', 'case_government',
-    'orthographic_variants', 'keigo_level',
   ];
 
   @override
@@ -58,9 +60,6 @@ class WordDetailCard extends StatelessWidget {
         'pos': l10n.fieldPos, 'level': l10n.fieldLevel, 'syllable_count': l10n.fieldSyllableCount,
         'morphology': l10n.fieldMorphology, 'syntax': l10n.fieldSyntax, 'collocation': l10n.fieldCollocation,
         'register': l10n.fieldRegister, 'etymology': l10n.fieldEtymology, 'example_sentence': l10n.fieldExampleSentence,
-        'pitch_accent': l10n.fieldPitchAccent, 'conjugation_class': l10n.fieldConjugationClass,
-        'case_government': l10n.fieldCaseGovernment, 'orthographic_variants': l10n.fieldOrthographicVariants,
-        'keigo_level': l10n.fieldKeigoLevel,
       };
     }
 

@@ -1,153 +1,204 @@
 #!/usr/bin/env python3
-"""VocabLock Dict provider: Japanese-Chinese thesaurus.
+"""VocabLock Dict provider: Japanese (JamDict + JLPT).
 
-Data source: https://github.com/lxl66566/Japanese-Chinese-thesaurus
-Download final.json from Releases, point JADICT_PATH to it.
+Data sources:
+  - dict/ja/jamdict.db   JamDict SQLite (kanji, kana, Chinese gloss, POS)
+  - dict/ja/jlpt.csv      JLPT word-level classification
 
 Protocol:
   --word {word}
-  stdout: {"found":true, "word":"...", "reading":"...", "meaning":"...", "pos":"..."}
+  stdout: {"found":true, "word":"...", "reading":"...", "meaning":"...", "pos":"...", "level":"N1", "detail":"{}"}
   stdout: {"found":false}
   Exit: 0=hit, 1=miss, 2+=error.
-
-Value format (regular words):
-  （kana）pitch【POS】meaning
-  e.g.  食べる → （たべる）②【他动2】吃
-
-Key format (grammar patterns, only ~49 entries):
-  (kana)pattern
-  e.g.  (～が)欲しいです
 """
 
 import argparse
+import csv
 import json
 import os
-import re
+import sqlite3
 import sys
 
-DICT_FILE = os.environ.get("JADICT_PATH", "dict/ja/final.json")
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.environ.get("JAMDICT_PATH", os.path.join(SCRIPT_DIR, "ja", "jamdict.db"))
+JLPT_PATH = os.environ.get("JLPT_PATH", os.path.join(SCRIPT_DIR, "ja", "jlpt.csv"))
 
-# Full-width： U+FF08  U+FF09  【 U+3010  】 U+3011
-_RE_READING_FW = re.compile(r"（(.+?)）")
-_RE_POS_FW = re.compile(r"【(.+?)】")
-# Half-width fallbacks: (kana) with optional pitch digit
-_RE_READING_HW = re.compile(r"\(([ぁ-んァ-ヴー0-9]+?)\)")
-# Circled numbers / pitch: ⓪①②③④⑤⑥⑦⑧⑨
-_RE_PITCH = re.compile(r"[⓪①-⑨⑨]︎?")
+# ── JLPT level ────────────────────────────────────────────────
 
-# Known POS tokens for half-width entries (try longest match first)
-_POS_TOKENS = [
-    "名·自他动3", "名·他动3", "名·自动3",
-    "自他动2", "自他动", "他动2", "他动", "自动2", "自动",
-    "形容動詞", "形容詞", "形容", "名詞", "名",
-    "副詞", "副", "接続詞", "接続", "接", "連体詞", "連体", "連",
-    "感動詞", "感", "助動詞", "助詞", "助", "数詞", "数", "代名詞", "代",
-    # Chinese-character variants (common in this dictionary)
-    "名词", "动词", "形容词", "形容动词", "副词", "接续词", "连体词", "感叹词", "助词",
-]
+_jlpt: dict[str, str] | None = None
 
 
-def load_dict(path: str) -> dict:
+def _load_jlpt() -> dict[str, str]:
+    levels: dict[str, str] = {}
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        with open(JLPT_PATH, "r", encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                expr = (row.get("expression") or "").strip()
+                tags = (row.get("tags") or "").strip()
+                if not expr:
+                    continue
+                for tag in tags.split():
+                    if tag.startswith("JLPT_"):
+                        levels[expr] = "N" + tag.rsplit("_", 1)[-1]
+                        break
     except FileNotFoundError:
-        print(f"dict file not found: {path}", file=sys.stderr)
-        sys.exit(2)
-    except json.JSONDecodeError as e:
-        print(f"dict file parse error: {e}", file=sys.stderr)
-        sys.exit(2)
-    return data
+        pass
+    return levels
 
 
-def parse_entry(key: str, value: str) -> dict:
-    """Parse a single dict entry into {reading, pos, meaning}."""
-    reading = ""
+def get_level(word: str) -> str:
+    global _jlpt
+    if _jlpt is None:
+        _jlpt = _load_jlpt()
+    return _jlpt.get(word, "")
+
+
+# ── JamDict lookup ────────────────────────────────────────────
+
+# Limit to 3 senses — first sense is the primary meaning. Chinese glosses first.
+LOOKUP_SQL = """
+SELECT
+    kn.text AS kana,
+    k.text  AS kanji,
+    p.text  AS pos,
+    sg.text AS gloss
+FROM Entry e
+JOIN Kana kn ON kn.idseq = e.idseq
+LEFT JOIN Kanji k ON k.idseq = e.idseq
+LEFT JOIN Sense s ON s.idseq = e.idseq
+LEFT JOIN SenseGloss sg ON sg.sid = s.ID AND sg.lang = 'chn'
+LEFT JOIN pos p ON p.sid = s.ID
+WHERE k.text = ? OR kn.text = ?
+ORDER BY s.ID, sg.lang
+LIMIT 6
+"""
+
+# Garbage patterns in jamdict that should be filtered out
+_GARBAGE_PATTERNS = ["误译", "重复条目", "同上"]
+
+# POS mapping: jamdict English → Chinese
+_POS_MAP = {
+    "noun (common) (futsuumeishi)": "名词",
+    "noun (common)": "名词",
+    "noun": "名词",
+    "Ichidan verb": "一段动词",
+    "Godan verb": "五段动词",
+    "transitive verb": "他动词",
+    "intransitive verb": "自动词",
+    "adjectival nouns or quasi-adjectives (keiyodoshi)": "形容动词",
+    "adjectival noun": "形容动词",
+    "adjective (keiyoushi)": "形容词",
+    "adjective": "形容词",
+    "interjection (kandoushi)": "感叹词",
+    "interjection": "感叹词",
+    "adverb (fukushi)": "副词",
+    "adverb": "副词",
+    "conjunction": "接续词",
+    "particle": "助词",
+    "auxiliary verb": "助动词",
+    "prefix": "接头词",
+    "suffix": "接尾词",
+    "counter": "量词",
+    "pronoun": "代词",
+    "expressions (phrases, clauses, etc.)": "惯用表达",
+    "noun or participle which takes the aux. verb suru": "名词/サ変动词",
+    "nouns which may take the genitive case particle 'no'": "名词(の)",
+    "noun, used as a prefix": "名词(接头)",
+    "noun, used as a suffix": "名词(接尾)",
+}
+
+
+def _translate_pos(pos_en: str) -> str:
+    """Map English POS from jamdict to Chinese."""
+    pos_en = pos_en.strip().rstrip(";")
+    for en, cn in _POS_MAP.items():
+        if en in pos_en:
+            return cn
+    return pos_en  # keep original if no match
+
+
+def _clean_gloss(text: str) -> str:
+    """Filter garbage entries. Returns empty string if the gloss is bad data."""
+    t = text.strip()
+    if not t:
+        return ""
+    for g in _GARBAGE_PATTERNS:
+        if g in t:
+            return ""
+    return t
+
+
+def lookup_db(word: str) -> list[dict]:
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        cur.execute(LOOKUP_SQL, (word, word))
+        rows = [dict(r) for r in cur.fetchall()]
+        conn.close()
+        return rows
+    except sqlite3.Error as e:
+        print(f"jamdict error: {e}", file=sys.stderr)
+        sys.exit(2)
+
+
+def build_result(word: str, rows: list[dict]) -> dict | None:
+    if not rows:
+        return None
+
+    kana = ""
+    kanji = ""
     pos = ""
-    meaning = ""
+    glosses: list[str] = []
+    seen = set()
 
-    if not isinstance(value, str):
-        value = str(value)
+    for r in rows:
+        if not kana:
+            kana = (r.get("kana") or "").strip()
+        if not kanji:
+            kanji = (r.get("kanji") or "").strip()
+        if not pos:
+            pos = _translate_pos((r.get("pos") or "").strip())
 
-    # 1. Extract reading from value: （kana） or (kana)
-    m = _RE_READING_FW.search(value)
-    if not m:
-        m = _RE_READING_HW.search(value)
-    if m:
-        reading = m.group(1)
+        g = _clean_gloss((r.get("gloss") or "").strip())
+        if g and g not in seen:
+            glosses.append(g)
+            seen.add(g)
 
-    # 2. If no reading in value, try extracting from key: (kana)...
-    if not reading and "(" in key:
-        m = re.search(r"\((.+?)\)", key)
-        if m:
-            reading = m.group(1)
+    if not kana and not kanji:
+        return None
 
-    # 3. Extract POS from value: 【POS】 first, then known half-width tokens
-    m = _RE_POS_FW.search(value)
-    if m:
-        pos = m.group(1)
-    else:
-        for tok in _POS_TOKENS:
-            if tok in value:
-                pos = tok
-                break
+    reading = kana
+    display = kanji if kanji else word
+    meaning = "; ".join(glosses)
 
-    # 4. Clean up value to get meaning
-    meaning = value
-    meaning = _RE_READING_FW.sub("", meaning)   # remove （kana）
-    meaning = _RE_READING_HW.sub("", meaning)    # remove (kana)
-    meaning = _RE_PITCH.sub("", meaning)         # remove pitch numbers
-    meaning = _RE_POS_FW.sub("", meaning)        # remove 【POS】
-    if pos:
-        meaning = meaning.replace(pos, "", 1)
-    meaning = meaning.strip()
-
-    if not meaning:
-        meaning = value.strip()
-
-    # Build detail JSON with derived fields
-    detail = {}
-    # Syllable count: count kana characters in reading (excluding pitch digits)
-    clean_reading = re.sub(r'[0-9]', '', reading)
-    if clean_reading:
-        detail["syllable_count"] = str(len(clean_reading))
+    level = get_level(word) or (get_level(display) if display != word else "")
 
     return {
+        "found": True,
+        "word": display,
         "reading": reading,
-        "pos": pos,
         "meaning": meaning,
-        "detail": json.dumps(detail, ensure_ascii=False) if detail else "",
+        "pos": pos,
+        "level": level,
+        "detail": "{}",
     }
 
 
-def lookup(word: str, data: dict) -> dict | None:
-    # 1. Exact key match
-    value = data.get(word)
-    if value is not None:
-        parsed = parse_entry(word, value)
-        result = {"found": True, "word": word}
-        result.update(parsed)
-        return result
-
-    # 2. Search for (kana)word — grammar patterns like (～が)欲しいです
-    #    where the query might be just "欲しいです"
-    for key, value in data.items():
-        if key.endswith(word) and key.startswith("("):
-            parsed = parse_entry(key, value)
-            result = {"found": True, "word": key}
-            result.update(parsed)
-            return result
-
-    return None
-
+# ── Main ──────────────────────────────────────────────────────
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--word", required=True)
     args = parser.parse_args()
+    word = args.word.strip()
 
-    data = load_dict(DICT_FILE)
-    result = lookup(args.word, data)
+    if not word:
+        sys.stdout.buffer.write(json.dumps({"found": False}, ensure_ascii=False).encode("utf-8"))
+        sys.exit(1)
+
+    rows = lookup_db(word)
+    result = build_result(word, rows)
 
     if result:
         sys.stdout.buffer.write(json.dumps(result, ensure_ascii=False).encode("utf-8"))

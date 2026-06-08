@@ -26,7 +26,7 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 
 	log.Debug("ai/chat", "request: len=%d history=%d", len(req.Message), len(req.History))
 
-	if s.AI == nil {
+	if s.AI() == nil {
 		writeJSON(w, map[string]interface{}{
 			"reply":  "AI chat requires API key configuration. Set ai.api_key in app.yaml.",
 			"model":  "none",
@@ -69,7 +69,7 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	log.Debug("ai/chat", "user: %.80s...", req.Message)
-	reply, err := s.AI.Chat(ctx, allMsgs, pt.Temperature)
+	reply, err := s.AI().Chat(ctx, allMsgs, pt.Temperature)
 	if err != nil {
 		log.Error("ai/chat", "%v", err)
 		writeJSON(w, map[string]interface{}{
@@ -95,7 +95,7 @@ func (s *Server) handleAIProfile(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]interface{}{
 		"base_url":   s.Config.App.AI.BaseURL,
 		"model":      s.Config.App.AI.Model,
-		"configured": s.AI != nil,
+		"configured": s.AI() != nil,
 	})
 }
 

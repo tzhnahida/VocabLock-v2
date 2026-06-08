@@ -75,6 +75,12 @@ func (s *Server) EnsureBootstrap(lang string) {
 	if s.DB == nil {
 		return
 	}
+	if lang == "" {
+		// No language selected yet — user hasn't completed onboarding.
+		// Bootstrap will run when language is set via PUT /api/v1/config.
+		s.markBootstrapDone()
+		return
+	}
 
 	log.Info("bootstrap", "start: lang=%s", lang)
 
@@ -87,7 +93,7 @@ func (s *Server) EnsureBootstrap(lang string) {
 	}
 
 	if total == 0 {
-		if s.AI != nil {
+		if s.AI() != nil {
 			// AI available 閳?generate initial words from plan direction
 			expandCount, extraCtx := s.planExpandParams(lang)
 			if expandCount <= 0 {
@@ -133,7 +139,7 @@ func (s *Server) EnsureBootstrap(lang string) {
 	}
 
 	// Fill missing detail fields for words that lack them (runs in background)
-	if s.AI != nil {
+	if s.AI() != nil {
 		go s.fillMissingDetails(lang)
 	}
 
@@ -144,7 +150,7 @@ func (s *Server) EnsureBootstrap(lang string) {
 // fillMissingDetails finds words that have reading/meaning but no detail JSON,
 // and fills them via AI in the background.
 func (s *Server) fillMissingDetails(lang string) {
-	if s.AI == nil || s.DB == nil {
+	if s.AI() == nil || s.DB == nil {
 		return
 	}
 	words, _, err := s.DB.ListWords(lang, 100, 0)

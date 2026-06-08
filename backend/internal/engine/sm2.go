@@ -82,3 +82,19 @@ func QualityFromScore(score float64) int {
 		return 0
 	}
 }
+
+// QualityFromPassiveRecall maps a passive recall self-assessment to SM-2 quality.
+// Used for passive quiz popup submissions where there's no scored answer.
+// recall: "easy" → 4, "hard" → 3, "forgot" → 1, empty/other → 3 (neutral acknowledgement)
+func QualityFromPassiveRecall(recall string) int {
+	switch recall {
+	case "easy":
+		return 4
+	case "hard":
+		return 3
+	case "forgot":
+		return 1
+	default:
+		return 3
+	}
+}

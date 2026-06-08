@@ -142,21 +142,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fieldExampleSentence => 'Example';
 
   @override
-  String get fieldPitchAccent => 'Pitch Accent';
-
-  @override
-  String get fieldConjugationClass => 'Conjugation';
-
-  @override
-  String get fieldCaseGovernment => 'Case Gov.';
-
-  @override
-  String get fieldOrthographicVariants => 'Variants';
-
-  @override
-  String get fieldKeigoLevel => 'Keigo Level';
-
-  @override
   String get statusPendingReview => 'Pending Review';
 
   @override
@@ -220,6 +205,123 @@ class AppLocalizationsEn extends AppLocalizations {
   String get quizDailyTargetMet => 'Daily target met';
 
   @override
+  String get quizDismiss => 'Back';
+
+  @override
+  String get quizDontKnow => 'I don\'t know, show me the answer';
+
+  @override
+  String get recordingStart => 'Start Recording';
+
+  @override
+  String get recordingDone => 'Recorded';
+
+  @override
+  String get recordingInProgress => 'Recording...';
+
+  @override
+  String get recordingStop => 'Stop Recording';
+
+  @override
+  String get recordingRetry => 'Re-record';
+
+  @override
+  String get recordingDontKnow => 'I can\'t read this, show answer';
+
+  @override
+  String get quizTypeAnswer => 'Type your answer...';
+
+  @override
+  String get aiPreparingContent => 'AI is preparing learning content...';
+
+  @override
+  String get aiPreparingPleaseWait =>
+      'Please wait, first-time generation may take 10-20s';
+
+  @override
+  String get aiAnalyzing => 'AI is analyzing your learning data...';
+
+  @override
+  String get viewAISummary => 'View AI Summary';
+
+  @override
+  String get quizCompletedToday => 'Daily learning complete!';
+
+  @override
+  String quizAccuracy(Object pct) {
+    return 'Accuracy: $pct%';
+  }
+
+  @override
+  String quizCorrectCount(Object correct, Object answered) {
+    return '$correct/$answered correct';
+  }
+
+  @override
+  String quizQuestionProgress(Object answered, Object correct, Object pct) {
+    return '${answered}Q · $correct ✓ · $pct%';
+  }
+
+  @override
+  String quizTotalEstimate(Object total, Object minutes) {
+    return '$total questions · ~$minutes min';
+  }
+
+  @override
+  String get quizBeginLearning => 'Start Learning';
+
+  @override
+  String get quizNoContentReturn => 'No content, go back';
+
+  @override
+  String get quizDailyTitle => 'Today\'s Study';
+
+  @override
+  String get quizSM2Subtitle => 'SM-2 smart review + AI curated content';
+
+  @override
+  String get quizLearnNewContent => 'Learn New Content';
+
+  @override
+  String quizBeginWithCount(Object count) {
+    return 'Start Quiz ($count questions)';
+  }
+
+  @override
+  String get quizCongrats => 'Congratulations!';
+
+  @override
+  String get quizKeepGoing => 'Keep it up!';
+
+  @override
+  String get quizCompletedDone => 'Done';
+
+  @override
+  String get quizAppBarTitle => 'Quiz';
+
+  @override
+  String get readAloudPass => 'PASS';
+
+  @override
+  String get readAloudNeedWork => 'NEED WORK';
+
+  @override
+  String readAloudScoreLabel(Object score, Object threshold) {
+    return 'Score $score% (need ≥ $threshold%)';
+  }
+
+  @override
+  String get readAloudListenFirst => 'Listen first, then answer';
+
+  @override
+  String get fieldMeaning => 'Meaning';
+
+  @override
+  String cardPageOf(Object current, Object total) {
+    return '$current / $total';
+  }
+
+  @override
   String get labelLanguage => 'Language';
 
   @override
@@ -272,4 +374,59 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get labelNoLevel => 'No Level';
+
+  @override
+  String get tabGeneral => 'General';
+
+  @override
+  String get labelEnabled => 'Enabled';
+
+  @override
+  String get labelMinIntervalMinutes => 'Min Interval (min)';
+
+  @override
+  String get labelMaxIntervalMinutes => 'Max Interval (min)';
+
+  @override
+  String get labelCadenceDays => 'Every N Days';
+
+  @override
+  String get labelCadenceCount => 'Questions Per Batch';
+
+  @override
+  String get labelAIRecommend => 'AI Recommend';
+
+  @override
+  String get labelModel => 'Model';
+
+  @override
+  String get labelAddress => 'Address';
+
+  @override
+  String get labelStatus => 'Status';
+
+  @override
+  String get hintRefreshTTS => 'Tap refresh to load TTS config';
+
+  @override
+  String get hintRefreshDict => 'Tap refresh to load dictionary config';
+
+  @override
+  String get labelSettings => 'Settings';
+
+  @override
+  String get labelRetry => 'Retry';
+
+  @override
+  String statusRemaining(Object count) {
+    return '$count remaining';
+  }
+
+  @override
+  String get statusDailyComplete => 'Daily task complete';
+
+  @override
+  String statusWordsReady(Object count) {
+    return '$count words ready, start the quiz';
+  }
 }

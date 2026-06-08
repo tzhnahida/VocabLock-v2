@@ -49,12 +49,6 @@
   "fieldRegister": "语体/语域",
   "fieldEtymology": "词源/构词",
   "fieldExampleSentence": "例句",
-  "fieldPitchAccent": "高低アクセント",
-  "fieldConjugationClass": "活用类型",
-  "fieldCaseGovernment": "格支配",
-  "fieldOrthographicVariants": "表記揺れ",
-  "fieldKeigoLevel": "敬語階層",
-
   "statusPendingReview": "待审核",
   "statusAIFilled": "AI填充",
   "tooltipPlayAudio": "播放发音",
@@ -78,6 +72,81 @@
   "quizReviewGrammar": "复习语法",
   "quizNoItems": "没有可复习的内容",
   "quizDailyTargetMet": "每日目标已达成",
+  "quizDismiss": "返回",
+  "quizDontKnow": "我不知道，告诉我答案",
+  "recordingStart": "开始录音",
+  "recordingDone": "已录制",
+  "recordingInProgress": "正在录音...",
+  "recordingStop": "停止录音",
+  "recordingRetry": "重录",
+  "recordingDontKnow": "不会念，告诉我答案",
+  "quizTypeAnswer": "输入你的答案...",
+  "aiPreparingContent": "AI 正在准备学习内容...",
+  "aiPreparingPleaseWait": "请稍候，首次生成可能需要 10-20 秒",
+  "aiAnalyzing": "AI 正在分析你的学习数据...",
+  "viewAISummary": "查看 AI 学习总结",
+  "quizCompletedToday": "今日学习完成！",
+  "quizAccuracy": "正确率: {pct}%",
+  "@quizAccuracy": {
+    "placeholders": {
+      "pct": {}
+    }
+  },
+  "quizCorrectCount": "正确 {correct} / {answered} 题",
+  "@quizCorrectCount": {
+    "placeholders": {
+      "correct": {},
+      "answered": {}
+    }
+  },
+  "quizQuestionProgress": "{answered} 题 · {correct} ✓ · {pct}%",
+  "@quizQuestionProgress": {
+    "placeholders": {
+      "answered": {},
+      "correct": {},
+      "pct": {}
+    }
+  },
+  "quizTotalEstimate": "共 {total} 题 · 预估 {minutes} 分钟",
+  "@quizTotalEstimate": {
+    "placeholders": {
+      "total": {},
+      "minutes": {}
+    }
+  },
+  "quizBeginLearning": "开始学习",
+  "quizNoContentReturn": "暂无内容，返回",
+  "quizDailyTitle": "今日学习",
+  "quizSM2Subtitle": "SM-2 智能复习 + AI 策展新内容",
+  "quizLearnNewContent": "学习新内容",
+  "quizBeginWithCount": "开始答题 ({count} 题)",
+  "@quizBeginWithCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "quizCongrats": "恭喜完成今日学习！",
+  "quizKeepGoing": "继续加油！",
+  "quizCompletedDone": "完成",
+  "quizAppBarTitle": "学习",
+  "readAloudPass": "通过",
+  "readAloudNeedWork": "需改进",
+  "readAloudScoreLabel": "总分 {score}% (需 ≥ {threshold}%)",
+  "@readAloudScoreLabel": {
+    "placeholders": {
+      "score": {},
+      "threshold": {}
+    }
+  },
+  "readAloudListenFirst": "先听读，再作答",
+  "fieldMeaning": "释义",
+  "cardPageOf": "{current} / {total}",
+  "@cardPageOf": {
+    "placeholders": {
+      "current": {},
+      "total": {}
+    }
+  },
 
   "labelLanguage": "语言",
   "labelCurrentLanguage": "当前语言",
@@ -96,5 +165,33 @@
   "labelEnabledTypes": "启用的题型",
   "labelVoices": "声音",
   "labelWithLevel": "带等级",
-  "labelNoLevel": "无等级"
+  "labelNoLevel": "无等级",
+
+  "tabGeneral": "通用",
+  "labelEnabled": "启用",
+  "labelMinIntervalMinutes": "最小间隔(分钟)",
+  "labelMaxIntervalMinutes": "最大间隔(分钟)",
+  "labelCadenceDays": "每几天一次",
+  "labelCadenceCount": "每次几题",
+  "labelAIRecommend": "AI 推荐",
+  "labelModel": "模型",
+  "labelAddress": "地址",
+  "labelStatus": "状态",
+  "hintRefreshTTS": "点击刷新加载 TTS 配置",
+  "hintRefreshDict": "点击刷新加载词典配置",
+  "labelSettings": "设置",
+  "labelRetry": "重试",
+  "statusRemaining": "剩余 {count} 题",
+  "@statusRemaining": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "statusDailyComplete": "今日任务完成",
+  "statusWordsReady": "{count} 个词汇已就绪，可以开始答题",
+  "@statusWordsReady": {
+    "placeholders": {
+      "count": {}
+    }
+  }
 }

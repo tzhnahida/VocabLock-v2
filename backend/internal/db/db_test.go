@@ -298,16 +298,18 @@ func TestGetQuizProgressNoNegativeRemaining(t *testing.T) {
 	d := openTestDB(t)
 
 	id, _ := d.InsertWord(&Word{Word: "hello", Language: "en"})
+	// Insert 5 review logs for the same word — all count as 1 unique subject.
 	for i := 0; i < 5; i++ {
 		d.InsertReviewLog(&ReviewLog{WordID: id, SubjectType: "word", SubjectID: id, QuestionType: "choice", Correct: true, Score: 1.0})
 	}
 
+	// target=3, unique reviewed=1 → remaining=2 (not negative)
 	_, remaining, err := d.GetQuizProgress("en", 3)
 	if err != nil {
 		t.Fatalf("GetQuizProgress: %v", err)
 	}
-	if remaining != 0 {
-		t.Errorf("remaining should be 0 (not negative), got %d", remaining)
+	if remaining != 2 {
+		t.Errorf("remaining should be 2 (target 3 - 1 unique reviewed), got %d", remaining)
 	}
 }
 

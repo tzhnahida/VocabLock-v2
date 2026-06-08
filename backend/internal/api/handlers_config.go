@@ -9,6 +9,9 @@ import (
 )
 
 func (s *Server) handleConfigGet(w http.ResponseWriter, r *http.Request) {
+	s.configMu.RLock()
+	defer s.configMu.RUnlock()
+
 	langs := make([]string, 0, len(s.Config.Languages))
 	for code := range s.Config.Languages {
 		langs = append(langs, code)
@@ -60,6 +63,9 @@ func (s *Server) handleConfigGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleConfigGetKey(w http.ResponseWriter, r *http.Request) {
+	s.configMu.RLock()
+	defer s.configMu.RUnlock()
+
 	key := r.PathValue("key")
 	var value interface{}
 
@@ -197,8 +203,13 @@ func (s *Server) handleConfigUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Bootstrap seed words and grammar points for newly activated language
+	// Re-wire providers + reset per-language state + bootstrap for newly activated language
 	if langChanged {
+		s.WireTTS()
+		s.WireDict()
+		s.WirePronounce()
+		s.sessionBudget.reset()
+		s.markBootstrapNotDone()
 		go s.EnsureBootstrap(s.Config.App.ActiveLang)
 	}
 

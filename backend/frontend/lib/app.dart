@@ -44,6 +44,12 @@ class VocabLockApp extends StatelessWidget {
     if (state.isFirstRun) {
       return OnboardingScreen(
         aiConfigured: state.aiConfigured,
+        onGetLangConfig: state.configApi != null
+            ? (code) async {
+                final r = await state.configApi!.getLanguageConfig(code);
+                return r;
+              }
+            : null,
         onAiChat: state.aiApi != null
             ? (msg, history) async {
                 final r = await state.aiApi!.chat(msg, history: history

@@ -24,7 +24,7 @@ func (s *Server) handleAssignmentNext(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 500, "database not available")
 		return
 	}
-	if s.AI == nil {
+	if s.AI() == nil {
 		writeJSON(w, map[string]interface{}{
 			"assignments": []interface{}{},
 			"message":     "AI required for assignments",
@@ -119,7 +119,7 @@ func (s *Server) handleAssignmentSubmit(w http.ResponseWriter, r *http.Request) 
 		})
 		return
 	}
-	if s.AI == nil {
+	if s.AI() == nil {
 		writeError(w, 500, "AI not available")
 		return
 	}
@@ -161,7 +161,7 @@ func (s *Server) handleAssignmentSubmit(w http.ResponseWriter, r *http.Request) 
 
 // handleAssignmentCadence returns AI-recommended assignment cadence.
 func (s *Server) handleAssignmentCadence(w http.ResponseWriter, r *http.Request) {
-	if s.Mock || s.AI == nil {
+	if s.Mock || s.AI() == nil {
 		writeJSON(w, map[string]interface{}{
 			"cadence_days":  s.Config.App.Assignment.CadenceDays,
 			"cadence_count": s.Config.App.Assignment.CadenceCount,
@@ -234,7 +234,7 @@ func (s *Server) generateAssignment(ctx context.Context, lang string, aType engi
 	timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	response, err := s.AI.Chat(timeoutCtx, messages, pt.Temperature)
+	response, err := s.AI().Chat(timeoutCtx, messages, pt.Temperature)
 	if err != nil {
 		return nil, err
 	}
@@ -288,7 +288,7 @@ func (s *Server) gradeAssignment(ctx context.Context, lang, topic, answer string
 	timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	response, err := s.AI.Chat(timeoutCtx, messages, pt.Temperature)
+	response, err := s.AI().Chat(timeoutCtx, messages, pt.Temperature)
 	if err != nil {
 		return nil, err
 	}
@@ -384,7 +384,7 @@ func (s *Server) aiCadenceRecommend(ctx context.Context, lang string) (map[strin
 	timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	response, err := s.AI.Chat(timeoutCtx, messages, pt.Temperature)
+	response, err := s.AI().Chat(timeoutCtx, messages, pt.Temperature)
 	if err != nil {
 		return nil, err
 	}

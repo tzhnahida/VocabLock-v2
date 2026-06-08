@@ -126,8 +126,10 @@ func spawnFlutter(port int, token string) {
 		return
 	}
 	dir := filepath.Dir(exe)
-	// Try both layouts: project-root and backend-directory
+	// Try layouts: flat (test/frontend), test, project-root, backend-directory
 	candidates := []string{
+		filepath.Join(dir, "frontend", "vocablock_ui.exe"),
+		filepath.Join(dir, "vocablock_ui.exe"),
 		filepath.Join(dir, "backend", "frontend", "build", "windows", "x64", "runner", "Release", "vocablock_ui.exe"),
 		filepath.Join(dir, "frontend", "build", "windows", "x64", "runner", "Release", "vocablock_ui.exe"),
 	}

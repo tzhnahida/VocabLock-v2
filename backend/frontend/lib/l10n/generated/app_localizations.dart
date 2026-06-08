@@ -364,36 +364,6 @@ abstract class AppLocalizations {
   /// **'Example'**
   String get fieldExampleSentence;
 
-  /// No description provided for @fieldPitchAccent.
-  ///
-  /// In en, this message translates to:
-  /// **'Pitch Accent'**
-  String get fieldPitchAccent;
-
-  /// No description provided for @fieldConjugationClass.
-  ///
-  /// In en, this message translates to:
-  /// **'Conjugation'**
-  String get fieldConjugationClass;
-
-  /// No description provided for @fieldCaseGovernment.
-  ///
-  /// In en, this message translates to:
-  /// **'Case Gov.'**
-  String get fieldCaseGovernment;
-
-  /// No description provided for @fieldOrthographicVariants.
-  ///
-  /// In en, this message translates to:
-  /// **'Variants'**
-  String get fieldOrthographicVariants;
-
-  /// No description provided for @fieldKeigoLevel.
-  ///
-  /// In en, this message translates to:
-  /// **'Keigo Level'**
-  String get fieldKeigoLevel;
-
   /// No description provided for @statusPendingReview.
   ///
   /// In en, this message translates to:
@@ -520,6 +490,210 @@ abstract class AppLocalizations {
   /// **'Daily target met'**
   String get quizDailyTargetMet;
 
+  /// No description provided for @quizDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get quizDismiss;
+
+  /// No description provided for @quizDontKnow.
+  ///
+  /// In en, this message translates to:
+  /// **'I don\'t know, show me the answer'**
+  String get quizDontKnow;
+
+  /// No description provided for @recordingStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Recording'**
+  String get recordingStart;
+
+  /// No description provided for @recordingDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Recorded'**
+  String get recordingDone;
+
+  /// No description provided for @recordingInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording...'**
+  String get recordingInProgress;
+
+  /// No description provided for @recordingStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop Recording'**
+  String get recordingStop;
+
+  /// No description provided for @recordingRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-record'**
+  String get recordingRetry;
+
+  /// No description provided for @recordingDontKnow.
+  ///
+  /// In en, this message translates to:
+  /// **'I can\'t read this, show answer'**
+  String get recordingDontKnow;
+
+  /// No description provided for @quizTypeAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Type your answer...'**
+  String get quizTypeAnswer;
+
+  /// No description provided for @aiPreparingContent.
+  ///
+  /// In en, this message translates to:
+  /// **'AI is preparing learning content...'**
+  String get aiPreparingContent;
+
+  /// No description provided for @aiPreparingPleaseWait.
+  ///
+  /// In en, this message translates to:
+  /// **'Please wait, first-time generation may take 10-20s'**
+  String get aiPreparingPleaseWait;
+
+  /// No description provided for @aiAnalyzing.
+  ///
+  /// In en, this message translates to:
+  /// **'AI is analyzing your learning data...'**
+  String get aiAnalyzing;
+
+  /// No description provided for @viewAISummary.
+  ///
+  /// In en, this message translates to:
+  /// **'View AI Summary'**
+  String get viewAISummary;
+
+  /// No description provided for @quizCompletedToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily learning complete!'**
+  String get quizCompletedToday;
+
+  /// No description provided for @quizAccuracy.
+  ///
+  /// In en, this message translates to:
+  /// **'Accuracy: {pct}%'**
+  String quizAccuracy(Object pct);
+
+  /// No description provided for @quizCorrectCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{correct}/{answered} correct'**
+  String quizCorrectCount(Object correct, Object answered);
+
+  /// No description provided for @quizQuestionProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'{answered}Q · {correct} ✓ · {pct}%'**
+  String quizQuestionProgress(Object answered, Object correct, Object pct);
+
+  /// No description provided for @quizTotalEstimate.
+  ///
+  /// In en, this message translates to:
+  /// **'{total} questions · ~{minutes} min'**
+  String quizTotalEstimate(Object total, Object minutes);
+
+  /// No description provided for @quizBeginLearning.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Learning'**
+  String get quizBeginLearning;
+
+  /// No description provided for @quizNoContentReturn.
+  ///
+  /// In en, this message translates to:
+  /// **'No content, go back'**
+  String get quizNoContentReturn;
+
+  /// No description provided for @quizDailyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s Study'**
+  String get quizDailyTitle;
+
+  /// No description provided for @quizSM2Subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'SM-2 smart review + AI curated content'**
+  String get quizSM2Subtitle;
+
+  /// No description provided for @quizLearnNewContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Learn New Content'**
+  String get quizLearnNewContent;
+
+  /// No description provided for @quizBeginWithCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Quiz ({count} questions)'**
+  String quizBeginWithCount(Object count);
+
+  /// No description provided for @quizCongrats.
+  ///
+  /// In en, this message translates to:
+  /// **'Congratulations!'**
+  String get quizCongrats;
+
+  /// No description provided for @quizKeepGoing.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep it up!'**
+  String get quizKeepGoing;
+
+  /// No description provided for @quizCompletedDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get quizCompletedDone;
+
+  /// No description provided for @quizAppBarTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Quiz'**
+  String get quizAppBarTitle;
+
+  /// No description provided for @readAloudPass.
+  ///
+  /// In en, this message translates to:
+  /// **'PASS'**
+  String get readAloudPass;
+
+  /// No description provided for @readAloudNeedWork.
+  ///
+  /// In en, this message translates to:
+  /// **'NEED WORK'**
+  String get readAloudNeedWork;
+
+  /// No description provided for @readAloudScoreLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Score {score}% (need ≥ {threshold}%)'**
+  String readAloudScoreLabel(Object score, Object threshold);
+
+  /// No description provided for @readAloudListenFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Listen first, then answer'**
+  String get readAloudListenFirst;
+
+  /// No description provided for @fieldMeaning.
+  ///
+  /// In en, this message translates to:
+  /// **'Meaning'**
+  String get fieldMeaning;
+
+  /// No description provided for @cardPageOf.
+  ///
+  /// In en, this message translates to:
+  /// **'{current} / {total}'**
+  String cardPageOf(Object current, Object total);
+
   /// No description provided for @labelLanguage.
   ///
   /// In en, this message translates to:
@@ -627,6 +801,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No Level'**
   String get labelNoLevel;
+
+  /// No description provided for @tabGeneral.
+  ///
+  /// In en, this message translates to:
+  /// **'General'**
+  String get tabGeneral;
+
+  /// No description provided for @labelEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get labelEnabled;
+
+  /// No description provided for @labelMinIntervalMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'Min Interval (min)'**
+  String get labelMinIntervalMinutes;
+
+  /// No description provided for @labelMaxIntervalMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'Max Interval (min)'**
+  String get labelMaxIntervalMinutes;
+
+  /// No description provided for @labelCadenceDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Every N Days'**
+  String get labelCadenceDays;
+
+  /// No description provided for @labelCadenceCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Questions Per Batch'**
+  String get labelCadenceCount;
+
+  /// No description provided for @labelAIRecommend.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Recommend'**
+  String get labelAIRecommend;
+
+  /// No description provided for @labelModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get labelModel;
+
+  /// No description provided for @labelAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get labelAddress;
+
+  /// No description provided for @labelStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get labelStatus;
+
+  /// No description provided for @hintRefreshTTS.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap refresh to load TTS config'**
+  String get hintRefreshTTS;
+
+  /// No description provided for @hintRefreshDict.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap refresh to load dictionary config'**
+  String get hintRefreshDict;
+
+  /// No description provided for @labelSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get labelSettings;
+
+  /// No description provided for @labelRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get labelRetry;
+
+  /// No description provided for @statusRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} remaining'**
+  String statusRemaining(Object count);
+
+  /// No description provided for @statusDailyComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily task complete'**
+  String get statusDailyComplete;
+
+  /// No description provided for @statusWordsReady.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} words ready, start the quiz'**
+  String statusWordsReady(Object count);
 }
 
 class _AppLocalizationsDelegate

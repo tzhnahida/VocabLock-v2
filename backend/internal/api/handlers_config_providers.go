@@ -239,6 +239,26 @@ func (s *Server) handleConfigLanguageGet(w http.ResponseWriter, r *http.Request)
 	code := r.PathValue("code")
 	lc, ok := s.Config.Languages[code]
 	if !ok {
+		// Try template file first (has real tts/dict providers), then builtin.
+		lc2 := config.ReadTemplate(s.ConfigDir, code)
+		if lc2 == nil {
+			lc2 = config.BuiltinLanguage(code)
+		}
+		if lc2 != nil {
+			writeJSON(w, map[string]interface{}{
+				"code":             code,
+				"display_name":     lc2.Lang.DisplayName,
+				"native_name":      lc2.Lang.NativeName,
+				"tts_provider":     lc2.TTS.Provider,
+				"tts_voice":        lc2.TTS.Voice,
+				"dict_provider":    lc2.Dict.Provider,
+				"question_types":   lc2.QuestionTypes,
+				"prompt_context":   lc2.PromptContext,
+				"word_fields_base": lc2.WordFieldsBase,
+				"word_fields_dlc":  lc2.WordFieldsDLC,
+			})
+			return
+		}
 		writeError(w, 404, "language not found"); return
 	}
 	writeJSON(w, map[string]interface{}{

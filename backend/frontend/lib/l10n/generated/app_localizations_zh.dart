@@ -141,21 +141,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get fieldExampleSentence => '例句';
 
   @override
-  String get fieldPitchAccent => '高低アクセント';
-
-  @override
-  String get fieldConjugationClass => '活用类型';
-
-  @override
-  String get fieldCaseGovernment => '格支配';
-
-  @override
-  String get fieldOrthographicVariants => '表記揺れ';
-
-  @override
-  String get fieldKeigoLevel => '敬語階層';
-
-  @override
   String get statusPendingReview => '待审核';
 
   @override
@@ -219,6 +204,122 @@ class AppLocalizationsZh extends AppLocalizations {
   String get quizDailyTargetMet => '每日目标已达成';
 
   @override
+  String get quizDismiss => '返回';
+
+  @override
+  String get quizDontKnow => '我不知道，告诉我答案';
+
+  @override
+  String get recordingStart => '开始录音';
+
+  @override
+  String get recordingDone => '已录制';
+
+  @override
+  String get recordingInProgress => '正在录音...';
+
+  @override
+  String get recordingStop => '停止录音';
+
+  @override
+  String get recordingRetry => '重录';
+
+  @override
+  String get recordingDontKnow => '不会念，告诉我答案';
+
+  @override
+  String get quizTypeAnswer => '输入你的答案...';
+
+  @override
+  String get aiPreparingContent => 'AI 正在准备学习内容...';
+
+  @override
+  String get aiPreparingPleaseWait => '请稍候，首次生成可能需要 10-20 秒';
+
+  @override
+  String get aiAnalyzing => 'AI 正在分析你的学习数据...';
+
+  @override
+  String get viewAISummary => '查看 AI 学习总结';
+
+  @override
+  String get quizCompletedToday => '今日学习完成！';
+
+  @override
+  String quizAccuracy(Object pct) {
+    return '正确率: $pct%';
+  }
+
+  @override
+  String quizCorrectCount(Object correct, Object answered) {
+    return '正确 $correct / $answered 题';
+  }
+
+  @override
+  String quizQuestionProgress(Object answered, Object correct, Object pct) {
+    return '$answered 题 · $correct ✓ · $pct%';
+  }
+
+  @override
+  String quizTotalEstimate(Object total, Object minutes) {
+    return '共 $total 题 · 预估 $minutes 分钟';
+  }
+
+  @override
+  String get quizBeginLearning => '开始学习';
+
+  @override
+  String get quizNoContentReturn => '暂无内容，返回';
+
+  @override
+  String get quizDailyTitle => '今日学习';
+
+  @override
+  String get quizSM2Subtitle => 'SM-2 智能复习 + AI 策展新内容';
+
+  @override
+  String get quizLearnNewContent => '学习新内容';
+
+  @override
+  String quizBeginWithCount(Object count) {
+    return '开始答题 ($count 题)';
+  }
+
+  @override
+  String get quizCongrats => '恭喜完成今日学习！';
+
+  @override
+  String get quizKeepGoing => '继续加油！';
+
+  @override
+  String get quizCompletedDone => '完成';
+
+  @override
+  String get quizAppBarTitle => '学习';
+
+  @override
+  String get readAloudPass => '通过';
+
+  @override
+  String get readAloudNeedWork => '需改进';
+
+  @override
+  String readAloudScoreLabel(Object score, Object threshold) {
+    return '总分 $score% (需 ≥ $threshold%)';
+  }
+
+  @override
+  String get readAloudListenFirst => '先听读，再作答';
+
+  @override
+  String get fieldMeaning => '释义';
+
+  @override
+  String cardPageOf(Object current, Object total) {
+    return '$current / $total';
+  }
+
+  @override
   String get labelLanguage => '语言';
 
   @override
@@ -271,4 +372,59 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get labelNoLevel => '无等级';
+
+  @override
+  String get tabGeneral => '通用';
+
+  @override
+  String get labelEnabled => '启用';
+
+  @override
+  String get labelMinIntervalMinutes => '最小间隔(分钟)';
+
+  @override
+  String get labelMaxIntervalMinutes => '最大间隔(分钟)';
+
+  @override
+  String get labelCadenceDays => '每几天一次';
+
+  @override
+  String get labelCadenceCount => '每次几题';
+
+  @override
+  String get labelAIRecommend => 'AI 推荐';
+
+  @override
+  String get labelModel => '模型';
+
+  @override
+  String get labelAddress => '地址';
+
+  @override
+  String get labelStatus => '状态';
+
+  @override
+  String get hintRefreshTTS => '点击刷新加载 TTS 配置';
+
+  @override
+  String get hintRefreshDict => '点击刷新加载词典配置';
+
+  @override
+  String get labelSettings => '设置';
+
+  @override
+  String get labelRetry => '重试';
+
+  @override
+  String statusRemaining(Object count) {
+    return '剩余 $count 题';
+  }
+
+  @override
+  String get statusDailyComplete => '今日任务完成';
+
+  @override
+  String statusWordsReady(Object count) {
+    return '$count 个词汇已就绪，可以开始答题';
+  }
 }

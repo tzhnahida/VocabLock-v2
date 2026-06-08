@@ -106,6 +106,17 @@ func (d *Database) WordExists(language, word string) (bool, error) {
 	return count > 0, nil
 }
 
+// WordActive checks if an active (learnable) word exists. Pending/archived words
+// are NOT counted — the student hasn't learned them yet.
+func (d *Database) WordActive(language, word string) (bool, error) {
+	var count int
+	err := d.DB.QueryRow(`SELECT COUNT(*) FROM words WHERE language = ? AND word = ? AND status = 'active'`, language, word).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("word active: %w", err)
+	}
+	return count > 0, nil
+}
+
 func (d *Database) GetWord(id int64) (*Word, error) {
 	row := d.DB.QueryRow(`SELECT `+wordColumns+` FROM words WHERE id = ?`, id)
 	w, err := scanWordRow(row)

@@ -3,12 +3,12 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/vocablock/v2/internal/ai"
 	"github.com/vocablock/v2/internal/api/mock"
 	"github.com/vocablock/v2/internal/db"
 	"github.com/vocablock/v2/internal/log"
@@ -377,135 +377,29 @@ func (s *Server) handleWordsExpand(w http.ResponseWriter, r *http.Request) {
 
 	log.Debug("words", "expand: count=%d", req.Count)
 
-	// Build context from recently mastered words
-	recentContext := ""
+	extraCtx := ""
 	if len(req.Context) > 0 {
-		recentContext = strings.Join(req.Context, ", ")
-	} else {
-		recentWords, _ := s.DB.GetReviewWords(lang, 5)
-		parts := make([]string, 0, len(recentWords))
-		for _, w := range recentWords {
-			parts = append(parts, w.Word)
-		}
-		recentContext = strings.Join(parts, ", ")
-	}
-	if recentContext == "" {
-		recentContext = "(new learner, no words yet)"
+		extraCtx = strings.Join(req.Context, ", ")
 	}
 
-	// Load expand prompt
-	pt, err := ai.LoadPrompt("expand")
-	if err != nil {
-		writeError(w, 500, "load prompt: "+err.Error())
-		return
-	}
-
-	teacherRole := "Language Teacher"
-	level := s.getStudentLevel(lang)
-	explLang := "zh-CN"
-	targetLang := lang
-	if lc, ok := s.Config.Languages[lang]; ok {
-		teacherRole = lc.PromptContext.TeacherRole
-		explLang = lc.PromptContext.ExplanationLang
-		targetLang = lc.Lang.DisplayName
-	}
-
-	messages, err := pt.BuildMessages(&ai.PromptVars{
-		Language:        targetLang,
-		TeacherRole:     teacherRole,
-		Level:           level,
-		ExplanationLang: explLang,
-		ExtraContext:    recentContext,
-	})
-	if err != nil {
-		writeError(w, 500, "build prompt: "+err.Error())
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
 	defer cancel()
 
-	response, err := s.AI().Chat(ctx, messages, pt.Temperature)
+	verified, pending, err := s.expandWords(ctx, lang, req.Count, extraCtx)
 	if err != nil {
 		writeJSON(w, map[string]interface{}{
 			"verified":       []interface{}{},
 			"pending_review": []interface{}{},
-			"message":        "AI temporarily unavailable: " + err.Error(),
+			"message":        err.Error(),
 		})
 		return
 	}
-		// Parse AI JSON response — AI only provides words, dictionary provides everything else
-		var aiResult struct {
-			Words []string `json:"words"`
-		}
-		if err := json.Unmarshal([]byte(response), &aiResult); err != nil {
-			cleaned := extractJSON(response)
-			if err2 := json.Unmarshal([]byte(cleaned), &aiResult); err2 != nil {
-				writeError(w, 500, "parse AI response: "+err.Error())
-				return
-			}
-		}
 
-		var verified []map[string]interface{}
-		var pendingReview []map[string]interface{}
-
-		for _, word := range aiResult.Words {
-			if word == "" {
-				continue
-			}
-
-			// Dictionary is the sole source of reading, meaning, POS
-			var reading, meaning, pos, level, detail, source, confidence string
-			var dictOK bool
-			if s.DictProvider != nil {
-				lookupCtx, lookupCancel := context.WithTimeout(r.Context(), 5*time.Second)
-				result, lookupErr := s.DictProvider.Lookup(lookupCtx, word)
-				lookupCancel()
-				if lookupErr == nil && result != nil && result.Found {
-					dictOK = true
-					reading = result.Reading
-					meaning = result.Meaning
-					pos = result.POS
-						level = result.Level
-						detail = result.Detail
-			}
-
-			if dictOK {
-				source = "ai_expansion_dict"
-				// AI generates extension fields
-				aiDetail := s.generateDetail(ctx, word, reading, meaning, pos, level, lang)
-				detail = mergeJSON(detail, aiDetail)
-				confidence = "high"
-				s.DB.InsertWord(&db.Word{
-					Word: word, Reading: reading, Meaning: meaning, POS: pos, Level: level, Detail: detail,
-					Language: lang, Source: source, Confidence: confidence,
-				})
-				verified = append(verified, map[string]interface{}{
-					"word": word, "reading": reading, "meaning": meaning, "pos": pos, "source": source,
-				})
-			} else {
-				// Dictionary miss — pending review with no AI-generated fields
-				s.DB.InsertWord(&db.Word{
-					Word: word, Language: lang, Source: "ai_expansion", Status: "pending_review",
-				})
-				pendingReview = append(pendingReview, map[string]interface{}{
-					"word": word, "review_reason": "字典未查到，需人工审核",
-				})
-			}
-		}
-
-		if verified == nil {
-			verified = []map[string]interface{}{}
-		}
-		if pendingReview == nil {
-			pendingReview = []map[string]interface{}{}
-		}
-
-		writeJSON(w, map[string]interface{}{
-			"verified":       verified,
-			"pending_review": pendingReview,
-		})
-	}
+	writeJSON(w, map[string]interface{}{
+		"verified":       verified,
+		"pending_review": pending,
+		"message":        fmt.Sprintf("Added %d verified + %d pending review", verified, pending),
+	})
 }
 
 func extractJSON(s string) string {

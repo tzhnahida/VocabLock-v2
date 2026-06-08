@@ -14,10 +14,10 @@ import (
 //	tier 2: free recall (no hint)
 //	tier 3: sentence-level production + comprehension
 var tierTypes = map[int][]QuestionType{
-	0: {TypeChoice, TypeReadWord},                                          // see it, pick it, say it
-	1: {TypeChoice, TypeFill, TypeReadWord},                                // fill the gap
-	2: {TypeFill, TypePronounce, TypeSpelling},                             // recall on your own
-	3: {TypePronounce, TypeSpelling, TypeListening, TypeGrammar, TypeReadSentence, TypeReadingComp}, // full mastery
+	0: {TypeChoice, TypePronounce, TypeReadWord},
+	1: {TypeChoice, TypeFill, TypePronounce, TypeReadWord},
+	2: {TypeFill, TypePronounce, TypeSpelling},
+	3: {TypePronounce, TypeSpelling, TypeListening, TypeGrammar, TypeReadSentence, TypeReadingComp},
 }
 
 // SelectQuestionType picks the best question type for a word based on its SM-2 state.

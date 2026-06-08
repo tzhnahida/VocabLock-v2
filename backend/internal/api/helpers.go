@@ -3,6 +3,8 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/vocablock/v2/internal/log"
 )
 
 func writeNotImplemented(w http.ResponseWriter) {
@@ -13,13 +15,17 @@ func writeNotImplemented(w http.ResponseWriter) {
 
 func writeJSON(w http.ResponseWriter, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(v)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		log.Error("api", "writeJSON encode: %v", err)
+	}
 }
 
 func writeError(w http.ResponseWriter, code int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+	if err := json.NewEncoder(w).Encode(map[string]string{"error": msg}); err != nil {
+		log.Error("api", "writeError encode: %v", err)
+	}
 }
 
 func readJSON(r *http.Request, v interface{}) error {

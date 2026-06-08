@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
 
@@ -136,6 +137,7 @@ class _ConfigPanelState extends State<ConfigPanel> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     if (_loading) return const Center(child: CircularProgressIndicator());
 
     return Padding(
@@ -145,7 +147,7 @@ class _ConfigPanelState extends State<ConfigPanel> with SingleTickerProviderStat
         children: [
           Row(
             children: [
-              Text('设置', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+              Text(l10n.labelSettings, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
               const Spacer(),
               if (_saving) const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
               IconButton(onPressed: _loadApp, icon: const Icon(Icons.refresh, size: 20)),
@@ -160,7 +162,7 @@ class _ConfigPanelState extends State<ConfigPanel> with SingleTickerProviderStat
             indicatorColor: AppTheme.primary,
             onTap: _onTabChanged,
             tabs: [
-              const Tab(text: '通用'),
+              Tab(text: l10n.tabGeneral),
               ..._langs.map((c) => Tab(text: c.toUpperCase())),
             ],
           ),
@@ -169,8 +171,8 @@ class _ConfigPanelState extends State<ConfigPanel> with SingleTickerProviderStat
             child: TabBarView(
               controller: _tabCtrl,
               children: [
-                _buildGeneralTab(),
-                ..._langs.map((c) => _buildLanguageTab(c)),
+                _buildGeneralTab(l10n),
+                ..._langs.map((c) => _buildLanguageTab(c, l10n)),
               ],
             ),
           ),
@@ -181,73 +183,73 @@ class _ConfigPanelState extends State<ConfigPanel> with SingleTickerProviderStat
 
   // ─── General Tab ─────────────────────────────────────
 
-  Widget _buildGeneralTab() {
+  Widget _buildGeneralTab(AppLocalizations l10n) {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _section('学习'),
-          _intField('每日目标', 'daily_target', 1, 200),
-          _percentField('最低正确率', 'min_accuracy'),
-          _intField('学习时长(分钟, 0=不限)', 'session_time_budget', 0, 120),
-          _percentField('慢速题型上限', 'max_slow_type_ratio'),
+          _section(l10n.sectionLearning),
+          _intField(l10n.dailyTarget, 'daily_target', 1, 200),
+          _percentField(l10n.minAccuracy, 'min_accuracy'),
+          _intField(l10n.sessionTimeBudget, 'session_time_budget', 0, 120),
+          _percentField(l10n.maxSlowTypeRatio, 'max_slow_type_ratio'),
 
-          _section('AI 学习方案'),
-          _buildPlanPanel(),
+          _section(l10n.sectionAIPlan),
+          _buildPlanPanel(l10n),
 
-          _section('被动答题 (即将推出)'),
-          _dimmedField(_boolField('启用', 'passive_enabled')),
-          _dimmedField(_intField('最小间隔(分钟)', 'passive_min_interval', 5, 120)),
-          _dimmedField(_intField('最大间隔(分钟)', 'passive_max_interval', 10, 240)),
+          _section(l10n.sectionPassive),
+          _dimmedField(_boolField(l10n.labelEnabled, 'passive_enabled')),
+          _dimmedField(_intField(l10n.labelMinIntervalMinutes, 'passive_min_interval', 5, 120)),
+          _dimmedField(_intField(l10n.labelMaxIntervalMinutes, 'passive_max_interval', 10, 240)),
 
-          _section('AI 扩词'),
-          _boolField('自动扩词', 'auto_expand_words'),
-          _intField('每批扩词数', 'expand_batch_size', 3, 50),
-          _intField('SM-2 最大间隔(天)', 'sm2_max_interval_days', 30, 365),
+          _section(l10n.sectionExpand),
+          _boolField(l10n.autoExpand, 'auto_expand_words'),
+          _intField(l10n.expandBatchSize, 'expand_batch_size', 3, 50),
+          _intField(l10n.sm2MaxInterval, 'sm2_max_interval_days', 30, 365),
 
-          _section('课后作业'),
-          _assignmentIntField('每几天一次', 'cadence_days', 1, 30),
-          _assignmentIntField('每次几题', 'cadence_count', 1, 10),
-          _assignmentBoolField('AI 推荐', 'ai_recommend'),
+          _section(l10n.sectionAssignment),
+          _assignmentIntField(l10n.labelCadenceDays, 'cadence_days', 1, 30),
+          _assignmentIntField(l10n.labelCadenceCount, 'cadence_count', 1, 10),
+          _assignmentBoolField(l10n.labelAIRecommend, 'ai_recommend'),
 
-          _section('AI 模型'),
+          _section(l10n.sectionAIModel),
           if (_aiConfig != null) ...[
-            _aiRow('模型', _aiConfig!['model'] ?? '-'),
-            _aiRow('地址', _aiConfig!['base_url'] ?? '-'),
-            _aiRow('状态', _aiConfig!['configured'] == true ? '已配置' : '未配置'),
+            _aiRow(l10n.labelModel, _aiConfig!['model'] ?? '-'),
+            _aiRow(l10n.labelAddress, _aiConfig!['base_url'] ?? '-'),
+            _aiRow(l10n.labelStatus, _aiConfig!['configured'] == true ? l10n.configured : l10n.notConfigured),
           ] else
             const Center(child: SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))),
 
-          _section('TTS 提供者'),
+          _section(l10n.sectionTTS),
           if (_ttsProviders.isEmpty)
-            _hint('点击刷新加载 TTS 配置')
+            _hint(l10n.hintRefreshTTS)
           else
             ..._ttsProviders.map((p) => _providerRow(
               name: p['name'] ?? '',
               binary: p['binary'] ?? '',
               healthy: p['healthy'] == true,
               badge: (p['voices'] as Map?)?.length.toString() ?? '0',
-              badgeLabel: 'voices',
+              badgeLabel: l10n.labelVoices,
               onTap: () {},
             )),
 
-          _section('词典提供者'),
+          _section(l10n.sectionDict),
           if (_dictProviders.isEmpty)
-            _hint('点击刷新加载词典配置')
+            _hint(l10n.hintRefreshDict)
           else
             ..._dictProviders.map((p) => _providerRow(
               name: p['name'] ?? '',
               binary: p['binary'] ?? '',
               healthy: p['healthy'] == true,
               badge: p['exam_levels'] == true ? 'Lv' : null,
-              badgeLabel: p['exam_levels'] == true ? '带等级' : '无等级',
+              badgeLabel: p['exam_levels'] == true ? l10n.labelWithLevel : l10n.labelNoLevel,
               onTap: () {},
             )),
 
-          _section('系统'),
-          _dimmedField(_boolField('开机自启 (即将推出)', 'auto_start')),
-          _readOnly('当前语言', _appConfig['active_lang']?.toString().toUpperCase() ?? '-'),
-          _readOnly('可用语言', _langs.join(', ').toUpperCase()),
+          _section(l10n.sectionSystem),
+          _dimmedField(_boolField(l10n.autoStart, 'auto_start')),
+          _readOnly(l10n.labelCurrentLanguage, _appConfig['active_lang']?.toString().toUpperCase() ?? '-'),
+          _readOnly(l10n.labelAvailableLanguages, _langs.join(', ').toUpperCase()),
 
           const SizedBox(height: 32),
         ],
@@ -257,7 +259,7 @@ class _ConfigPanelState extends State<ConfigPanel> with SingleTickerProviderStat
 
   // ─── Language Tab ────────────────────────────────────
 
-  Widget _buildLanguageTab(String code) {
+  Widget _buildLanguageTab(String code, AppLocalizations l10n) {
     if (_langCode != code) _loadLanguage(_langs.indexOf(code));
     final lc = _langConfig;
     if (lc == null) return const Center(child: CircularProgressIndicator());
@@ -269,36 +271,36 @@ class _ConfigPanelState extends State<ConfigPanel> with SingleTickerProviderStat
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _section('基本信息'),
-          _readOnly('语言', lc['display_name'] ?? code),
-          _readOnly('本地名称', lc['native_name'] ?? code),
+          _section(l10n.labelBaseInfo),
+          _readOnly(l10n.labelLanguage, lc['display_name'] ?? code),
+          _readOnly(l10n.labelNativeName, lc['native_name'] ?? code),
 
-          _section('TTS'),
-          _dropdown('提供者', lc['tts_provider'] ?? '', (v) {
+          _section(l10n.labelTTS),
+          _dropdown(l10n.labelProvider, lc['tts_provider'] ?? '', (v) {
             _saveLanguage(code, {'tts_provider': v});
             setState(() => _langConfig!['tts_provider'] = v);
           }, _ttsProviders.map((p) => (p['name'] ?? '') as String).toList()),
-          _dropdown('声音', lc['tts_voice'] ?? '', (v) {
+          _dropdown(l10n.labelVoice, lc['tts_voice'] ?? '', (v) {
             _saveLanguage(code, {'tts_voice': v});
             setState(() => _langConfig!['tts_voice'] = v);
           }, ttsVoices),
 
-          _section('词典'),
-          _dropdown('提供者', lc['dict_provider'] ?? '', (v) {
+          _section(l10n.labelDict),
+          _dropdown(l10n.labelProvider, lc['dict_provider'] ?? '', (v) {
             _saveLanguage(code, {'dict_provider': v});
             setState(() => _langConfig!['dict_provider'] = v);
           }, dictNames),
 
           if (lc['prompt_context'] != null) ...[
-            _section('AI Prompt'),
-            _readOnly('老师角色', lc['prompt_context']['teacher_role'] ?? '-'),
-            _readOnly('解释语言', lc['prompt_context']['explanation_lang'] ?? '-'),
-            _readOnly('等级描述', (lc['prompt_context']['level_descriptions'] as Map?)?.keys.join(', ') ?? '-'),
+            _section(l10n.labelPrompt),
+            _readOnly(l10n.labelTeacherRole, lc['prompt_context']['teacher_role'] ?? '-'),
+            _readOnly(l10n.labelExplanationLang, lc['prompt_context']['explanation_lang'] ?? '-'),
+            _readOnly(l10n.labelLevelDescriptions, (lc['prompt_context']['level_descriptions'] as Map?)?.keys.join(', ') ?? '-'),
           ],
 
           if (lc['question_types'] != null) ...[
-            _section('题型'),
-            _readOnly('启用的题型', (lc['question_types'] as List?)?.join(', ') ?? '-'),
+            _section(l10n.labelQuestionTypes),
+            _readOnly(l10n.labelEnabledTypes, (lc['question_types'] as List?)?.join(', ') ?? '-'),
           ],
 
           const SizedBox(height: 32),
@@ -523,13 +525,13 @@ class _ConfigPanelState extends State<ConfigPanel> with SingleTickerProviderStat
     return Opacity(opacity: 0.4, child: child);
   }
 
-  Widget _buildPlanPanel() {
+  Widget _buildPlanPanel(AppLocalizations l10n) {
     return FutureBuilder(
       future: widget.state.quizApi?.getPlan(),
       builder: (context, snapshot) {
         final plan = snapshot.data;
         if (plan == null || plan.planJson.isEmpty) {
-          return _hint('完成一次学习后 AI 将生成方案');
+          return _hint(l10n.noPlanYet);
         }
 
         Map<String, dynamic> tomorrow;
@@ -537,7 +539,7 @@ class _ConfigPanelState extends State<ConfigPanel> with SingleTickerProviderStat
           final parsed = const JsonDecoder().convert(plan.planJson);
           tomorrow = (parsed['tomorrow'] as Map<String, dynamic>?) ?? {};
         } catch (_) {
-          return _hint('计划数据解析失败');
+          return _hint(l10n.planParseError);
         }
 
         final ratio = tomorrow['question_type_ratio'] as Map<String, dynamic>?;
@@ -556,7 +558,7 @@ class _ConfigPanelState extends State<ConfigPanel> with SingleTickerProviderStat
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('难度', style: TextStyle(fontSize: 14, color: AppTheme.textPrimary)),
+                    Text(l10n.difficulty, style: TextStyle(fontSize: 14, color: AppTheme.textPrimary)),
                     Text(difficulty, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.primary)),
                   ],
                 ),
@@ -569,14 +571,14 @@ class _ConfigPanelState extends State<ConfigPanel> with SingleTickerProviderStat
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('建议扩词数', style: TextStyle(fontSize: 14, color: AppTheme.textPrimary)),
+                    Text(l10n.suggestedWordCount, style: TextStyle(fontSize: 14, color: AppTheme.textPrimary)),
                     Text('$wordCount', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.primary)),
                   ],
                 ),
               ),
             if (ratio != null && ratio.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Text('题型配比', style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
+              Text(l10n.typeRatio, style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
               const SizedBox(height: 4),
               ...ratio.entries.map((e) {
                 final pct = (e.value as num).toDouble();
@@ -607,7 +609,7 @@ class _ConfigPanelState extends State<ConfigPanel> with SingleTickerProviderStat
             ],
             if (grammarFocus.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Text('语法重点', style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
+              Text(l10n.grammarFocus, style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
               const SizedBox(height: 4),
               Wrap(
                 spacing: 6, runSpacing: 4,

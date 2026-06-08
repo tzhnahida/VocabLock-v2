@@ -59,8 +59,29 @@ func (d *Database) GetTodayStats(language string) (reviewed, correct int, err er
 	return
 }
 
+// GetUniqueSubjectsReviewed returns the count of distinct (subject_type, subject_id)
+// pairs reviewed today for the given language. This counts unique words/grammar points
+// rather than total attempts, so repeated attempts on the same word don't inflate
+// the daily counter for session completion checks.
+func (d *Database) GetUniqueSubjectsReviewed(language string) (int, error) {
+	var count int
+	err := d.DB.QueryRow(`
+		SELECT COUNT(DISTINCT subject_type || ':' || subject_id)
+		FROM review_log
+		WHERE date(created_at) = date('now','localtime')
+		AND (
+			(subject_type = 'word' AND subject_id IN (SELECT id FROM words WHERE language = ?))
+			OR (subject_type = 'grammar' AND subject_id IN (SELECT id FROM grammar_points WHERE language = ?))
+		)
+	`, language, language).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count unique subjects: %w", err)
+	}
+	return count, nil
+}
+
 func (d *Database) GetQuizProgress(language string, dailyTarget int) (reviewedToday, remaining int, err error) {
-	reviewedToday, _, err = d.GetTodayStats(language)
+	reviewedToday, err = d.GetUniqueSubjectsReviewed(language)
 	if err != nil {
 		return 0, 0, err
 	}
