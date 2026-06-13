@@ -496,6 +496,66 @@ abstract class AppLocalizations {
   /// **'Back'**
   String get quizDismiss;
 
+  /// No description provided for @quizTypeChoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Choice'**
+  String get quizTypeChoice;
+
+  /// No description provided for @quizTypeFill.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill-in'**
+  String get quizTypeFill;
+
+  /// No description provided for @quizTypeSpelling.
+  ///
+  /// In en, this message translates to:
+  /// **'Spelling'**
+  String get quizTypeSpelling;
+
+  /// No description provided for @quizTypePronounce.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading'**
+  String get quizTypePronounce;
+
+  /// No description provided for @quizTypeMeaning.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation'**
+  String get quizTypeMeaning;
+
+  /// No description provided for @quizTypeReadWord.
+  ///
+  /// In en, this message translates to:
+  /// **'Read Aloud'**
+  String get quizTypeReadWord;
+
+  /// No description provided for @quizTypeReadSentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Read Sentence'**
+  String get quizTypeReadSentence;
+
+  /// No description provided for @quizTypeListening.
+  ///
+  /// In en, this message translates to:
+  /// **'Listening'**
+  String get quizTypeListening;
+
+  /// No description provided for @quizTypeReadingComp.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading Comp'**
+  String get quizTypeReadingComp;
+
+  /// No description provided for @quizTypeGrammar.
+  ///
+  /// In en, this message translates to:
+  /// **'Grammar'**
+  String get quizTypeGrammar;
+
   /// No description provided for @quizDontKnow.
   ///
   /// In en, this message translates to:

@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/vocablock/v2/internal/ai"
-	"github.com/vocablock/v2/internal/db"
-	"github.com/vocablock/v2/internal/log"
+	"github.com/tzhnahida/VocabLock/internal/ai"
+	"github.com/tzhnahida/VocabLock/internal/db"
+	"github.com/tzhnahida/VocabLock/internal/log"
 )
 
 // handleQuizSummarize triggers AI analysis of today's session.
@@ -59,6 +59,27 @@ func (s *Server) handleQuizSummarize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Auto-expand new words in background for the next session.
+	// Sync plan's suggested daily word count to config
+	if tomorrow, ok := plan["tomorrow"].(map[string]interface{}); ok {
+		if wc, ok := tomorrow["word_count"].(float64); ok && wc > 0 {
+			newTarget := int(wc)
+			log.Info("plan", "AI suggested daily_target=%d (current=%d)", newTarget, s.Config.App.DailyTarget)
+			if newTarget != s.Config.App.DailyTarget {
+				log.Info("plan", "updating daily_target: %d → %d", s.Config.App.DailyTarget, newTarget)
+				s.Config.App.DailyTarget = newTarget
+				if err := s.Config.SaveAppConfig(s.ConfigDir); err != nil {
+					log.Warn("plan", "save daily_target: %v", err)
+				}
+			} else {
+				log.Debug("plan", "daily_target unchanged (%d)", newTarget)
+			}
+		} else {
+			log.Debug("plan", "AI plan has no word_count, keeping daily_target=%d", s.Config.App.DailyTarget)
+		}
+	} else {
+		log.Debug("plan", "AI plan missing tomorrow block, keeping daily_target=%d", s.Config.App.DailyTarget)
+	}
+
 	// Use tryStartExpanding so session/start knows to block.
 	if s.Config.App.AutoExpandWords && s.AI() != nil {
 		nw, ng, rw, rg, _ := s.DB.SessionCounts(lang)

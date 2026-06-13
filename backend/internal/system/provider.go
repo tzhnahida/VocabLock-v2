@@ -9,6 +9,15 @@ type SystemProvider interface {
 	AcquireLock() (bool, error)
 	SetAutoStart(enabled bool) error
 	FindFlutterWindow() (uintptr, error)
+	// Runtime configuration
+	SetServerInfo(healthURL string, flutterPID int)
+	// Flutter window control
+	FullscreenFlutterWindow() error
+	RestoreFlutterWindow() error
+	// Passive quiz
+	SetPassiveInterval(minutes int)
+	StartPassiveQuiz()
+	StopPassiveQuiz()
 }
 
 // Default returns the platform-specific SystemProvider.

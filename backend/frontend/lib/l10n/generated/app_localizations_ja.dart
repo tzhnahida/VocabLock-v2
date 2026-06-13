@@ -207,6 +207,36 @@ class AppLocalizationsJa extends AppLocalizations {
   String get quizDismiss => '戻る';
 
   @override
+  String get quizTypeChoice => '選択問題';
+
+  @override
+  String get quizTypeFill => '穴埋め問題';
+
+  @override
+  String get quizTypeSpelling => '綴り問題';
+
+  @override
+  String get quizTypePronounce => '読み方問題';
+
+  @override
+  String get quizTypeMeaning => '翻訳問題';
+
+  @override
+  String get quizTypeReadWord => '音読問題';
+
+  @override
+  String get quizTypeReadSentence => '文章音読';
+
+  @override
+  String get quizTypeListening => '聴解問題';
+
+  @override
+  String get quizTypeReadingComp => '読解問題';
+
+  @override
+  String get quizTypeGrammar => '文法問題';
+
+  @override
   String get quizDontKnow => 'わからない、答えを教えて';
 
   @override

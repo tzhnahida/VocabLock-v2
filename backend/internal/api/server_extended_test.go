@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/vocablock/v2/internal/db"
+	"github.com/tzhnahida/VocabLock/internal/db"
 )
 
 func mustUnmarshal(t *testing.T, data string) map[string]interface{} {

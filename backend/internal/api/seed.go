@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/vocablock/v2/internal/db"
-	"github.com/vocablock/v2/internal/log"
+	"github.com/tzhnahida/VocabLock/internal/db"
+	"github.com/tzhnahida/VocabLock/internal/log"
 )
 
 // seedWord represents a word in a seed JSON file.

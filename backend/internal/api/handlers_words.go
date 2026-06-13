@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vocablock/v2/internal/api/mock"
-	"github.com/vocablock/v2/internal/db"
-	"github.com/vocablock/v2/internal/log"
+	"github.com/tzhnahida/VocabLock/internal/api/mock"
+	"github.com/tzhnahida/VocabLock/internal/db"
+	"github.com/tzhnahida/VocabLock/internal/log"
 )
 
 func (s *Server) handleWordsList(w http.ResponseWriter, r *http.Request) {

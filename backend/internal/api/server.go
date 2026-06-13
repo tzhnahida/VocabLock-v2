@@ -11,15 +11,16 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/vocablock/v2/internal/log"
+	"github.com/tzhnahida/VocabLock/internal/log"
 
-	"github.com/vocablock/v2/internal/ai"
-	"github.com/vocablock/v2/internal/config"
-	"github.com/vocablock/v2/internal/db"
-	"github.com/vocablock/v2/internal/dict"
-	"github.com/vocablock/v2/internal/engine"
-	"github.com/vocablock/v2/internal/pronounce"
-	"github.com/vocablock/v2/internal/tts"
+	"github.com/tzhnahida/VocabLock/internal/ai"
+	"github.com/tzhnahida/VocabLock/internal/config"
+	"github.com/tzhnahida/VocabLock/internal/db"
+	"github.com/tzhnahida/VocabLock/internal/dict"
+	"github.com/tzhnahida/VocabLock/internal/engine"
+	"github.com/tzhnahida/VocabLock/internal/pronounce"
+	"github.com/tzhnahida/VocabLock/internal/tts"
+	"github.com/tzhnahida/VocabLock/internal/system"
 )
 
 type cachedQuestion struct {
@@ -72,6 +73,15 @@ type Server struct {
 
 	// Session budget tracks time/type usage for the current day
 	sessionBudget sessionBudget
+
+	// System-level features (lock screen, tray, passive quiz)
+	System system.SystemProvider
+
+	// Escape tracking (daily limits)
+	escapeMu           sync.Mutex
+	escapeDate         string
+	escapePasswordUsed int
+	escapeClickUsed    int
 }
 
 func (s *Server) tryStartExpanding() bool {

@@ -529,7 +529,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
       child: Column(
         children: [
           Text(q.subjectWord ?? '', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
-          if (q.subjectReading != null && q.subjectReading!.isNotEmpty) ...[
+          if (q.type != QuestionType.pronounce && q.subjectReading != null && q.subjectReading!.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(q.subjectReading!, style: TextStyle(fontSize: 18, color: AppTheme.accent)),
           ],
@@ -825,7 +825,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                     color: AppTheme.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(q.type.displayName,
+                  child: Text(_typeLabel(l10n, q.type),
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primary)),
                 ),
                 const SizedBox(width: 8),
@@ -1076,6 +1076,22 @@ class _CountRow extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+String _typeLabel(AppLocalizations l10n, QuestionType t) {
+  switch (t) {
+    case QuestionType.choice: return l10n.quizTypeChoice;
+    case QuestionType.fill: return l10n.quizTypeFill;
+    case QuestionType.spelling: return l10n.quizTypeSpelling;
+    case QuestionType.pronounce: return l10n.quizTypePronounce;
+    case QuestionType.meaning: return l10n.quizTypeMeaning;
+    case QuestionType.readWord: return l10n.quizTypeReadWord;
+    case QuestionType.readSentence: return l10n.quizTypeReadSentence;
+    case QuestionType.listening: return l10n.quizTypeListening;
+    case QuestionType.readingComp: return l10n.quizTypeReadingComp;
+    case QuestionType.grammar: return l10n.quizTypeGrammar;
+    default: return t.name;
   }
 }
 

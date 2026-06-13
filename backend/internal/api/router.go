@@ -73,6 +73,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET "+prefix+"/system/passive-q", s.handleSystemPassiveQ)
 	mux.HandleFunc("POST "+prefix+"/system/passive-submit", s.handleSystemPassiveSubmit)
 	mux.HandleFunc("POST "+prefix+"/system/quit", s.handleSystemQuit)
+	mux.HandleFunc("POST "+prefix+"/system/escape", s.handleSystemEscape)
 
 	// Config
 	mux.HandleFunc("GET "+prefix+"/config", s.handleConfigGet)

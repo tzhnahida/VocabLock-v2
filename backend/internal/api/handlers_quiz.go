@@ -11,14 +11,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vocablock/v2/internal/ai"
-	"github.com/vocablock/v2/internal/api/mock"
-	"github.com/vocablock/v2/internal/config"
-	"github.com/vocablock/v2/internal/db"
-	"github.com/vocablock/v2/internal/engine"
-	"github.com/vocablock/v2/internal/engine/judge"
-	"github.com/vocablock/v2/internal/log"
-	"github.com/vocablock/v2/internal/pronounce"
+	"github.com/tzhnahida/VocabLock/internal/ai"
+	"github.com/tzhnahida/VocabLock/internal/api/mock"
+	"github.com/tzhnahida/VocabLock/internal/config"
+	"github.com/tzhnahida/VocabLock/internal/db"
+	"github.com/tzhnahida/VocabLock/internal/engine"
+	"github.com/tzhnahida/VocabLock/internal/engine/judge"
+	"github.com/tzhnahida/VocabLock/internal/log"
+	"github.com/tzhnahida/VocabLock/internal/pronounce"
 )
 
 // nonAITypes are question types that work without AI.
@@ -44,7 +44,8 @@ func langQuestionTypes(lang string, cfg *config.Config) []engine.QuestionType {
 
 func (s *Server) handleQuizProgress(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleQuizProgress(w, r); return
+		mock.HandleQuizProgress(w, r)
+		return
 	}
 	if s.DB == nil {
 		writeError(w, 500, "database not available")
@@ -67,7 +68,8 @@ func (s *Server) handleQuizProgress(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleQuizSessionStart(w, r); return
+		mock.HandleQuizSessionStart(w, r)
+		return
 	}
 	if s.DB == nil {
 		writeError(w, 500, "database not available")
@@ -75,7 +77,7 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 	}
 
 	lang := s.Config.App.ActiveLang
-nw, ng, rw, rg, err := s.DB.SessionCounts(lang)
+	nw, ng, rw, rg, err := s.DB.SessionCounts(lang)
 	if err != nil {
 		writeError(w, 500, "session counts: "+err.Error())
 		return
@@ -84,11 +86,11 @@ nw, ng, rw, rg, err := s.DB.SessionCounts(lang)
 	// If bootstrap hasn't finished, block — show preparing
 	if !s.isBootstrapDone() && s.AI() != nil {
 		writeJSON(w, map[string]interface{}{
-			"new_words":       0,
-			"new_grammar":     0,
-			"review_words":    0,
-			"review_grammar":  0,
-			"preparing":       true,
+			"new_words":      0,
+			"new_grammar":    0,
+			"review_words":   0,
+			"review_grammar": 0,
+			"preparing":      true,
 		})
 		return
 	}
@@ -157,11 +159,11 @@ nw, ng, rw, rg, err := s.DB.SessionCounts(lang)
 	if expanding {
 		log.Debug("session", "BLOCK: expansion running")
 		writeJSON(w, map[string]interface{}{
-			"new_words":       0,
-			"new_grammar":     0,
-			"review_words":    0,
-			"review_grammar":  0,
-			"preparing":       true,
+			"new_words":      0,
+			"new_grammar":    0,
+			"review_words":   0,
+			"review_grammar": 0,
+			"preparing":      true,
 		})
 		return
 	}
@@ -189,11 +191,11 @@ nw, ng, rw, rg, err := s.DB.SessionCounts(lang)
 		// or someone else did (block until they finish).
 		log.Debug("session", "return preparing=true (total=%d < target=%d)", totalAvailable, s.Config.App.DailyTarget)
 		writeJSON(w, map[string]interface{}{
-			"new_words":       0,
-			"new_grammar":     0,
-			"review_words":    0,
-			"review_grammar":  0,
-			"preparing":       true,
+			"new_words":      0,
+			"new_grammar":    0,
+			"review_words":   0,
+			"review_grammar": 0,
+			"preparing":      true,
 		})
 		return
 	}
@@ -210,9 +212,9 @@ nw, ng, rw, rg, err := s.DB.SessionCounts(lang)
 		if fresh >= s.Config.App.DailyTarget {
 			log.Debug("session", "READY (refreshed): nw=%d ng=%d rw=%d rg=%d", nw2, ng2, rw2, rg2)
 			writeJSON(w, map[string]interface{}{
-				"new_words":    nw2,
-				"new_grammar":  ng2,
-				"review_words": rw2,
+				"new_words":      nw2,
+				"new_grammar":    ng2,
+				"review_words":   rw2,
 				"review_grammar": rg2,
 			})
 			return
@@ -234,20 +236,20 @@ nw, ng, rw, rg, err := s.DB.SessionCounts(lang)
 		if reviewed > 0 {
 			log.Debug("session", "re-entry with available: nw=%d ng=%d rw=%d rg=%d", nw, ng, rw, rg)
 			writeJSON(w, map[string]interface{}{
-				"new_words":    nw,
-				"new_grammar":  ng,
-				"review_words": rw,
+				"new_words":      nw,
+				"new_grammar":    ng,
+				"review_words":   rw,
 				"review_grammar": rg,
 			})
 			return
 		}
 		log.Debug("session", "BLOCK (final): total=%d fresh=%d < target=%d", totalAvailable, fresh, s.Config.App.DailyTarget)
 		writeJSON(w, map[string]interface{}{
-			"new_words":       0,
-			"new_grammar":     0,
-			"review_words":    0,
-			"review_grammar":  0,
-			"preparing":       true,
+			"new_words":      0,
+			"new_grammar":    0,
+			"review_words":   0,
+			"review_grammar": 0,
+			"preparing":      true,
 		})
 		return
 	}
@@ -261,16 +263,17 @@ nw, ng, rw, rg, err := s.DB.SessionCounts(lang)
 	}
 
 	writeJSON(w, map[string]interface{}{
-		"new_words":    nw,
-		"new_grammar":  ng,
-		"review_words": rw,
+		"new_words":      nw,
+		"new_grammar":    ng,
+		"review_words":   rw,
 		"review_grammar": rg,
 	})
 }
 
 func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleQuizNext(w, r, s.Config.App.ActiveLang); return
+		mock.HandleQuizNext(w, r, s.Config.App.ActiveLang)
+		return
 	}
 	if s.DB == nil {
 		writeError(w, 500, "database not available")
@@ -297,6 +300,10 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 			"daily_target":     s.Config.App.DailyTarget,
 			"daily_target_met": true,
 		})
+		if s.System != nil {
+			s.System.ExitLockMode()
+			s.System.RestoreFlutterWindow()
+		}
 		return
 	}
 
@@ -394,11 +401,36 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 			case engine.TypeChoice:
 				q = engine.GenerateChoice(info, distractors, explLang)
 			case engine.TypeFill:
-				q = engine.GenerateFill(info, explLang)
+				if info.Example != "" {
+					q = engine.GenerateFill(info, explLang)
+				} else if currentWord != nil && s.AI() != nil {
+					// No cached example — generate with 3-round vocabulary validation
+					example := s.generateExample(r.Context(), currentWord, lang)
+					if example != "" {
+						currentWord.Detail = injectExample(currentWord.Detail, example)
+						s.DB.UpdateWord(currentWord)
+						info.Example = example
+						q = engine.GenerateFill(info, explLang)
+					} else {
+						// 3 rounds failed — fall back to choice
+						q = engine.GenerateChoice(info, distractors, explLang)
+					}
+				} else {
+					// No AI available — use word-masking fallback
+					q = engine.GenerateFill(info, explLang)
+				}
 			case engine.TypeSpelling:
 				q = engine.GenerateSpelling(info, explLang)
 			case engine.TypePronounce:
-				q = engine.GeneratePronounce(info, explLang)
+				if info.Word == info.Reading {
+					// Word is kana-only (e.g. ありがとう) — pronouncing IS the word.
+					// Fall through to meaning instead.
+					q = engine.GenerateMeaning(info, explLang)
+				} else {
+					q = engine.GeneratePronounce(info, explLang)
+				}
+			case engine.TypeMeaning:
+				q = engine.GenerateMeaning(info, explLang)
 			case engine.TypeReadWord:
 				q = engine.GenerateReadWord(info, explLang)
 			case engine.TypeReadSentence:
@@ -467,7 +499,8 @@ func compareWordGrammarPriority(w *db.Word, g *db.GrammarPoint) bool {
 
 func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleQuizSubmit(w, r); return
+		mock.HandleQuizSubmit(w, r)
+		return
 	}
 	if s.DB == nil {
 		writeError(w, 500, "database not available")
@@ -640,6 +673,11 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 			writeError(w, 500, "update word: "+err.Error())
 			return
 		}
+
+		// —— Sense expansion ——
+		if result.Correct && engine.IsLongTerm(word.Repetitions, word.Interval) {
+			s.unlockNextSense(word)
+		}
 	}
 
 	// Log review
@@ -676,6 +714,16 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 		nextReviewAt = grammar.NextReviewAt
 	}
 
+	// Auto-unlock if daily target met
+	if s.System != nil && result.Correct {
+		reviewed, _ := s.DB.GetUniqueSubjectsReviewed(s.Config.App.ActiveLang)
+		if reviewed >= s.Config.App.DailyTarget {
+			log.Info("quiz", "daily target met — auto-unlocking")
+			s.System.ExitLockMode()
+			s.System.RestoreFlutterWindow()
+		}
+	}
+
 	writeJSON(w, map[string]interface{}{
 		"correct":        result.Correct,
 		"score":          result.Score,
@@ -687,7 +735,8 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleQuizTodayStats(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleQuizTodayStats(w, r); return
+		mock.HandleQuizTodayStats(w, r)
+		return
 	}
 	if s.DB == nil {
 		writeError(w, 500, "database not available")
@@ -715,7 +764,8 @@ func (s *Server) handleQuizTodayStats(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleQuizComplete(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleQuizComplete(w, r); return
+		mock.HandleQuizComplete(w, r)
+		return
 	}
 
 	lang := s.Config.App.ActiveLang
@@ -728,6 +778,11 @@ func (s *Server) handleQuizComplete(w http.ResponseWriter, r *http.Request) {
 	targetMet := reviewed >= s.Config.App.DailyTarget
 	if targetMet {
 		s.sessionBudget.markSessionDone()
+		if s.System != nil {
+			log.Info("quiz", "complete: target met — unlocking")
+			s.System.ExitLockMode()
+			s.System.RestoreFlutterWindow()
+		}
 	}
 
 	writeJSON(w, map[string]interface{}{
@@ -922,6 +977,16 @@ func (s *Server) writeReadAloudResult(w http.ResponseWriter, stype string, sid i
 	}
 	s.DB.UpsertDailyStats(now.Format("2006-01-02"), s.Config.App.ActiveLang, 1, correctCount, 0)
 
+	// Auto-unlock if daily target met
+	if s.System != nil && correct {
+		reviewed, _ := s.DB.GetUniqueSubjectsReviewed(s.Config.App.ActiveLang)
+		if reviewed >= s.Config.App.DailyTarget {
+			log.Info("quiz", "daily target met (read-aloud) — auto-unlocking")
+			s.System.ExitLockMode()
+			s.System.RestoreFlutterWindow()
+		}
+	}
+
 	feedback := fmt.Sprintf("正确答案: %s", targetText)
 	if score > 0 {
 		feedback = fmt.Sprintf("Score: %.0f%%", score*100)
@@ -957,6 +1022,7 @@ func wordToInfo(w *db.Word) *engine.WordInfo {
 		Reading: w.Reading,
 		Meaning: w.Meaning,
 		POS:     w.POS,
+		Example: extractFieldFromDetail(w.Detail, "example"),
 	}
 }
 
@@ -977,6 +1043,8 @@ func expectedAnswers(qType string, w *db.Word) []string {
 		return dedupNonEmpty(w.Word, w.Reading)
 	case engine.TypePronounce, engine.TypeReadWord, engine.TypeReadSentence:
 		return nonEmpty(w.Reading)
+	case engine.TypeMeaning:
+		return nonEmpty(w.Meaning)
 	case engine.TypeListening:
 		return nonEmpty(w.Meaning)
 	default:
@@ -1037,6 +1105,7 @@ func (s *Server) makeAIJudge(qType string, word *db.Word) func(user, expected st
 			UserAnswer:      userAnswer,
 			ExpectedAnswer:  expectedAnswer,
 			ExplanationLang: explLang,
+			QuestionType:    qType,
 		})
 		if err != nil {
 			return nil, err

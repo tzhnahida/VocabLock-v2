@@ -208,6 +208,36 @@ class AppLocalizationsEn extends AppLocalizations {
   String get quizDismiss => 'Back';
 
   @override
+  String get quizTypeChoice => 'Choice';
+
+  @override
+  String get quizTypeFill => 'Fill-in';
+
+  @override
+  String get quizTypeSpelling => 'Spelling';
+
+  @override
+  String get quizTypePronounce => 'Reading';
+
+  @override
+  String get quizTypeMeaning => 'Translation';
+
+  @override
+  String get quizTypeReadWord => 'Read Aloud';
+
+  @override
+  String get quizTypeReadSentence => 'Read Sentence';
+
+  @override
+  String get quizTypeListening => 'Listening';
+
+  @override
+  String get quizTypeReadingComp => 'Reading Comp';
+
+  @override
+  String get quizTypeGrammar => 'Grammar';
+
+  @override
   String get quizDontKnow => 'I don\'t know, show me the answer';
 
   @override

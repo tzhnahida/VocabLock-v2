@@ -8,6 +8,7 @@ min_accuracy: 0
 passive_enabled: false
 passive_min_interval: 0
 passive_max_interval: 0
+escape_password: ""
 escape_password_limit: 0
 escape_click_limit: 0
 auto_start: false

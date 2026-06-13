@@ -53,7 +53,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   // Step 5: Learning
   String _learnLang = 'zh';
   Map<String, dynamic>? _langConfig;
-  bool _loadingLangConfig = false;
   int _dailyTarget = 20;
   String _password = '';
   String _profileText = '';
@@ -78,12 +77,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Future<void> _fetchLangConfig(String code) async {
     if (widget.onGetLangConfig == null) return;
-    setState(() => _loadingLangConfig = true);
     try {
       final cfg = await widget.onGetLangConfig!(code);
       if (mounted) setState(() => _langConfig = cfg);
     } catch (_) {}
-    if (mounted) setState(() => _loadingLangConfig = false);
   }
 
   @override

@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/vocablock/v2/internal/log"
+	"github.com/tzhnahida/VocabLock/internal/log"
 	"gopkg.in/yaml.v3"
 )
 
@@ -23,6 +23,7 @@ type AppConfig struct {
 	PassiveEnabled      bool     `yaml:"passive_enabled"`
 	PassiveMinInterval  int      `yaml:"passive_min_interval"`
 	PassiveMaxInterval  int      `yaml:"passive_max_interval"`
+	EscapePassword      string   `yaml:"escape_password"`
 	EscapePasswordLimit int      `yaml:"escape_password_limit"`
 	EscapeClickLimit    int      `yaml:"escape_click_limit"`
 	AutoStart           bool     `yaml:"auto_start"`
@@ -302,16 +303,16 @@ func BuiltinLanguage(code string) *LanguageConfig {
 	switch code {
 	case "ja":
 		return makeLC("ja", "日本語", "日语", "日本語教師", "zh-CN",
-			[]string{"choice", "fill", "pronounce", "listening", "reading_comp", "grammar", "read_word", "read_sentence"})
+			[]string{"choice", "fill", "spelling", "pronounce", "meaning", "listening", "reading_comp", "grammar", "read_word", "read_sentence"})
 	case "zh":
 		return makeLC("zh", "中文", "中文", "中文教师", "zh-CN",
-			[]string{"choice", "fill", "pronounce", "listening", "reading_comp", "grammar", "read_word", "read_sentence"})
+			[]string{"choice", "fill", "spelling", "pronounce", "meaning", "listening", "reading_comp", "grammar", "read_word", "read_sentence"})
 	case "en":
 		return makeLC("en", "English", "English", "English Teacher", "zh-CN",
-			[]string{"choice", "fill", "spelling", "pronounce"})
+			[]string{"choice", "fill", "spelling", "pronounce", "meaning"})
 	case "ko":
 		return makeLC("ko", "한국어", "韩语", "한국어 교사", "zh-CN",
-			[]string{"choice", "fill", "pronounce", "listening", "reading_comp", "grammar", "read_word", "read_sentence"})
+			[]string{"choice", "fill", "spelling", "pronounce", "meaning", "listening", "reading_comp", "grammar", "read_word", "read_sentence"})
 	}
 	return nil
 }

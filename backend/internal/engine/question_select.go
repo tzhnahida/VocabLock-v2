@@ -9,15 +9,15 @@ import (
 // Higher tier = more demanding question types.
 // Tier progression based on cognitive load:
 //
-//	tier 0: recognition + shadowing (no recall needed)
-//	tier 1: cued recall (partial hint)
-//	tier 2: free recall (no hint)
+//	tier 0: recognition + shadowing (choice, meaning, read aloud)
+//	tier 1: same types, words with review history
+//	tier 2: cued + free recall (fill, spelling — production)
 //	tier 3: sentence-level production + comprehension
 var tierTypes = map[int][]QuestionType{
-	0: {TypeChoice, TypePronounce, TypeReadWord},
-	1: {TypeChoice, TypeFill, TypePronounce, TypeReadWord},
-	2: {TypeFill, TypePronounce, TypeSpelling},
-	3: {TypePronounce, TypeSpelling, TypeListening, TypeGrammar, TypeReadSentence, TypeReadingComp},
+	0: {TypeChoice, TypePronounce, TypeMeaning, TypeReadWord},
+	1: {TypeChoice, TypePronounce, TypeMeaning, TypeReadWord},
+	2: {TypeFill, TypePronounce, TypeMeaning, TypeSpelling, TypeReadWord},
+	3: {TypePronounce, TypeMeaning, TypeSpelling, TypeReadWord, TypeListening, TypeGrammar, TypeReadSentence, TypeReadingComp},
 }
 
 // SelectQuestionType picks the best question type for a word based on its SM-2 state.

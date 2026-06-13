@@ -207,6 +207,36 @@ class AppLocalizationsZh extends AppLocalizations {
   String get quizDismiss => '返回';
 
   @override
+  String get quizTypeChoice => '选择题';
+
+  @override
+  String get quizTypeFill => '填空题';
+
+  @override
+  String get quizTypeSpelling => '拼写题';
+
+  @override
+  String get quizTypePronounce => '读音题';
+
+  @override
+  String get quizTypeMeaning => '翻译题';
+
+  @override
+  String get quizTypeReadWord => '朗读题';
+
+  @override
+  String get quizTypeReadSentence => '朗读句子';
+
+  @override
+  String get quizTypeListening => '听力题';
+
+  @override
+  String get quizTypeReadingComp => '阅读理解';
+
+  @override
+  String get quizTypeGrammar => '语法题';
+
+  @override
   String get quizDontKnow => '我不知道，告诉我答案';
 
   @override

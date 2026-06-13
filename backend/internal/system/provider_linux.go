@@ -39,3 +39,13 @@ func (p *linuxProvider) SetAutoStart(enabled bool) error {
 func (p *linuxProvider) FindFlutterWindow() (uintptr, error) {
 	return 0, fmt.Errorf("not implemented on linux")
 }
+func (p *linuxProvider) SetServerInfo(healthURL string, flutterPID int) {}
+func (p *linuxProvider) FullscreenFlutterWindow() error {
+	return fmt.Errorf("not implemented")
+}
+func (p *linuxProvider) RestoreFlutterWindow() error {
+	return fmt.Errorf("not implemented")
+}
+func (p *linuxProvider) SetPassiveInterval(minutes int)                {}
+func (p *linuxProvider) StartPassiveQuiz()                             {}
+func (p *linuxProvider) StopPassiveQuiz()                              {}

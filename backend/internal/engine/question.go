@@ -13,6 +13,7 @@ const (
 	TypeFill        QuestionType = "fill"
 	TypeSpelling    QuestionType = "spelling"
 	TypePronounce   QuestionType = "pronounce"     // recall the pronunciation (type kana/pinyin)
+	TypeMeaning     QuestionType = "meaning"       // write the translation (see word, type meaning)
 	TypeListening    QuestionType = "listening"     // hear audio, answer
 	TypeReadingComp  QuestionType = "reading_comp"  // read passage, answer questions
 	TypeGrammar      QuestionType = "grammar"
@@ -28,6 +29,7 @@ var promptTemplates = map[string]map[string]string{
 		"fill":         "填空: ",
 		"spelling":     "拼写单词: ",
 		"pronounce":    "输入读音: ",
+		"meaning":      "输入释义: ",
 		"read_word":    "朗读单词: ",
 		"read_sentence": "朗读句子: ",
 	},
@@ -36,6 +38,7 @@ var promptTemplates = map[string]map[string]string{
 		"fill":         "Fill in the blank: ",
 		"spelling":     "Spell the word for: ",
 		"pronounce":    "Enter the pronunciation of: ",
+		"meaning":      "What does this mean?: ",
 		"read_word":    "Read the word aloud: ",
 		"read_sentence": "Read the sentence aloud: ",
 	},
@@ -44,6 +47,7 @@ var promptTemplates = map[string]map[string]string{
 		"fill":         "빈칸 채우기: ",
 		"spelling":     "단어 철자 쓰기: ",
 		"pronounce":    "발음 입력: ",
+		"meaning":      "뜻을 입력하세요: ",
 		"read_word":    "단어를 소리내어 읽으세요: ",
 		"read_sentence": "문장을 소리내어 읽으세요: ",
 	},
@@ -52,6 +56,7 @@ var promptTemplates = map[string]map[string]string{
 		"fill":         "空欄を埋めてください: ",
 		"spelling":     "単語の綴りを入力: ",
 		"pronounce":    "読み方を入力: ",
+		"meaning":      "意味を入力: ",
 		"read_word":    "単語を声に出して読んでください: ",
 		"read_sentence": "文章を声に出して読んでください: ",
 	},
@@ -115,15 +120,34 @@ func GenerateChoice(word *WordInfo, distractors []*WordInfo, explLang string) *Q
 }
 
 // GenerateFill creates a fill-in-the-blank question.
+// If word.Example is non-empty, uses sentence-based cloze deletion
+// (replace the target word in the example sentence with a blank).
+// Falls back to single-word masking when no example is available.
 func GenerateFill(word *WordInfo, explLang string) *Question {
-	blank := maskWord(word.Word)
+	prompt := ""
+	answer := word.Word
+
+	if word.Example != "" {
+		// Sentence-based cloze: "彼は手紙を___。" instead of "か_く (吃)"
+		cloze := strings.Replace(word.Example, word.Word, "___", 1)
+		if cloze != word.Example {
+			prompt = promptPrefix("fill", explLang) + " 「" + cloze + "」"
+		}
+	}
+
+	if prompt == "" {
+		// Fallback: single-word masking
+		blank := maskWord(word.Word)
+		prompt = promptPrefix("fill", explLang) + blank + " (" + word.Meaning + ")"
+	}
+
 	return &Question{
 		ID:          genID("word", "fill", word.ID),
 		Type:        TypeFill,
 		SubjectType: "word",
 		SubjectID:   word.ID,
-		Prompt:      promptPrefix("fill", explLang) + blank + " (" + word.Meaning + ")",
-		Answer:      word.Word,
+		Prompt:      prompt,
+		Answer:      answer,
 	}
 }
 
@@ -148,6 +172,19 @@ func GeneratePronounce(word *WordInfo, explLang string) *Question {
 		SubjectID:   word.ID,
 		Prompt:      promptPrefix("pronounce", explLang) + word.Word,
 		Answer:      word.Reading,
+	}
+}
+
+// GenerateMeaning creates a "see word, write meaning" question.
+// Answer is the word's meaning (translation in the explanation language).
+func GenerateMeaning(word *WordInfo, explLang string) *Question {
+	return &Question{
+		ID:          genID("word", "meaning", word.ID),
+		Type:        TypeMeaning,
+		SubjectType: "word",
+		SubjectID:   word.ID,
+		Prompt:      promptPrefix("meaning", explLang) + word.Word,
+		Answer:      word.Meaning,
 	}
 }
 
@@ -185,6 +222,7 @@ type WordInfo struct {
 	Reading string
 	Meaning string
 	POS     string
+	Example string // optional example sentence for fill/context questions
 }
 
 func maskWord(s string) string {

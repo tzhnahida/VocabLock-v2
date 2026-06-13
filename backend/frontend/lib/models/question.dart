@@ -2,6 +2,8 @@ enum QuestionType {
   choice,
   fill,
   spelling,
+  pronounce,
+  meaning,
   reading,
   listening,
   readingComp,
@@ -17,6 +19,10 @@ enum QuestionType {
         return QuestionType.fill;
       case 'spelling':
         return QuestionType.spelling;
+      case 'pronounce':
+        return QuestionType.pronounce;
+      case 'meaning':
+        return QuestionType.meaning;
       case 'reading':
         return QuestionType.reading;
       case 'listening':
@@ -55,6 +61,10 @@ enum QuestionType {
         return 'Fill';
       case QuestionType.spelling:
         return 'Spelling';
+      case QuestionType.pronounce:
+        return 'Pronounce';
+      case QuestionType.meaning:
+        return 'Meaning';
       case QuestionType.reading:
         return 'Reading';
       case QuestionType.listening:
@@ -63,6 +73,8 @@ enum QuestionType {
         return 'Reading Comp';
       case QuestionType.grammar:
         return 'Grammar';
+      case QuestionType.meaning:
+        return 'Meaning';
       case QuestionType.readWord:
         return 'Read';
       case QuestionType.readSentence:

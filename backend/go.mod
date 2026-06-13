@@ -1,4 +1,4 @@
-module github.com/vocablock/v2
+module github.com/tzhnahida/VocabLock
 
 go 1.26.3
 

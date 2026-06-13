@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vocablock/v2/internal/ai"
-	"github.com/vocablock/v2/internal/engine"
+	"github.com/tzhnahida/VocabLock/internal/ai"
+	"github.com/tzhnahida/VocabLock/internal/engine"
 )
 
 // handleAssignmentNext returns the next pending assignment, or generates a new batch if due.

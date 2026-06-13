@@ -20,18 +20,18 @@ func TestSelectQuestionType_EarlyStage(t *testing.T) {
 	next := now.AddDate(0, 0, 1) // 1 day interval
 	types := []QuestionType{TypeChoice, TypeFill, TypePronounce}
 
-	// reps=0, interval=1 → tier 1: choice or fill
+	// reps=0, interval=1 → tier 1: choice or pronounce (fill removed from tier 1)
 	seen := make(map[QuestionType]int)
 	for i := 0; i < 50; i++ {
 		qt := SelectQuestionType(&next, 2.5, 1, 0, types, false, false)
 		seen[qt]++
 	}
 
-	if seen[TypePronounce] > 0 {
-		t.Errorf("early stage should not get reading, got %d times", seen[TypePronounce])
+	if seen[TypeChoice]+seen[TypePronounce] == 0 {
+		t.Error("early stage should get choice or pronounce")
 	}
-	if seen[TypeChoice]+seen[TypeFill] == 0 {
-		t.Error("early stage should get choice or fill")
+	if seen[TypeFill] > 0 {
+		t.Errorf("early stage should not get fill, got %d times", seen[TypeFill])
 	}
 }
 
@@ -75,14 +75,15 @@ func TestSelectQuestionType_StrugglingWord(t *testing.T) {
 	types := []QuestionType{TypeChoice, TypeFill, TypePronounce}
 
 	// EF=1.4 (< 1.5) should drop tier 2 → tier 1
+	// Tier 1: choice, pronounce. Fill not in tier 1.
 	seen := make(map[QuestionType]int)
 	for i := 0; i < 50; i++ {
 		qt := SelectQuestionType(&next, 1.4, 5, 2, types, false, false)
 		seen[qt]++
 	}
 
-	if seen[TypePronounce] > 0 {
-		t.Errorf("struggling word should not get reading, got %d times", seen[TypePronounce])
+	if seen[TypeFill] > 0 {
+		t.Errorf("struggling word should not get fill, got %d times", seen[TypeFill])
 	}
 }
 
@@ -116,14 +117,13 @@ func TestSelectQuestionType_RespectsAvailableTypes(t *testing.T) {
 	now := time.Now()
 	next := now.AddDate(0, 0, 1) // tier 1
 
-	// Only reading available (not a tier-1 type normally)
+	// Pronounce IS a tier-1 type, so it should be returned directly.
 	types := []QuestionType{TypePronounce}
 
-	// Should fall back to choice (ultimate fallback)
 	for i := 0; i < 20; i++ {
 		qt := SelectQuestionType(&next, 2.5, 1, 0, types, false, false)
-		if qt != TypeChoice {
-			t.Errorf("should fall back to choice when config excludes tier types, got %s", qt)
+		if qt != TypePronounce {
+			t.Errorf("pronounce is tier 1, should be returned, got %s", qt)
 		}
 	}
 }

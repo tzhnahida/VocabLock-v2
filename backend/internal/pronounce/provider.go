@@ -1,14 +1,15 @@
 package pronounce
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strings"
 
-	"github.com/vocablock/v2/internal/config"
-	"github.com/vocablock/v2/internal/log"
+	"github.com/tzhnahida/VocabLock/internal/config"
+	"github.com/tzhnahida/VocabLock/internal/log"
 )
 
 // Result is the JSON output expected from a pronunciation assessment binary.
@@ -44,13 +45,22 @@ func (p *Provider) Assess(ctx context.Context, audioPath, targetText string) (*R
 
 	cmd := exec.CommandContext(ctx, p.cfg.Binary, args...)
 
-	stdout, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("pronounce %s: %w", p.name, err)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		errMsg := stderr.String()
+		if errMsg == "" {
+			errMsg = stdout.String()
+		}
+		if len(errMsg) > 200 {
+			errMsg = errMsg[:200]
+		}
+		return nil, fmt.Errorf("pronounce %s: %w (output: %s)", p.name, err, errMsg)
 	}
 
 	var result Result
-	if err := json.Unmarshal(stdout, &result); err != nil {
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
 		return nil, fmt.Errorf("pronounce %s parse output: %w", p.name, err)
 	}
 

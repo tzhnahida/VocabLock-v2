@@ -5,10 +5,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/vocablock/v2/internal/api/mock"
-	"github.com/vocablock/v2/internal/db"
-	"github.com/vocablock/v2/internal/engine"
-	"github.com/vocablock/v2/internal/log"
+	"github.com/tzhnahida/VocabLock/internal/api/mock"
+	"github.com/tzhnahida/VocabLock/internal/db"
+	"github.com/tzhnahida/VocabLock/internal/engine"
+	"github.com/tzhnahida/VocabLock/internal/log"
 )
 
 func (s *Server) handleSystemStatus(w http.ResponseWriter, r *http.Request) {
@@ -25,9 +25,19 @@ func (s *Server) handleSystemLock(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
 		mock.HandleSystemLock(w, r); return
 	}
+	if s.System != nil {
+		s.System.FullscreenFlutterWindow()
+		hwnd, _ := s.System.FindFlutterWindow()
+		if err := s.System.EnterLockMode(hwnd); err != nil {
+			writeJSON(w, map[string]interface{}{
+				"locked": false,
+				"error":  err.Error(),
+			})
+			return
+		}
+	}
 	writeJSON(w, map[string]interface{}{
 		"locked": true,
-		"status": "lock screen not implemented",
 	})
 }
 
@@ -36,8 +46,102 @@ func (s *Server) handleSystemUnlock(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
 		mock.HandleSystemUnlock(w, r); return
 	}
+	if s.System != nil {
+		s.System.ExitLockMode()
+		s.System.RestoreFlutterWindow()
+	}
 	writeJSON(w, map[string]interface{}{
 		"locked": false,
+	})
+}
+
+// handleSystemEscape handles emergency escape attempts (password or click).
+// Password escape: daily limit from config (escape_password_limit, default 1).
+// Click escape: daily limit from config (escape_click_limit, default 2).
+func (s *Server) handleSystemEscape(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Method   string `json:"method"` // "password" or "click"
+		Password string `json:"password,omitempty"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeError(w, 400, "invalid request")
+		return
+	}
+
+	todayKey := time.Now().Format("2006-01-02")
+	s.escapeMu.Lock()
+	if s.escapeDate != todayKey {
+		s.escapeDate = todayKey
+		s.escapePasswordUsed = 0
+		s.escapeClickUsed = 0
+	}
+
+	switch req.Method {
+	case "password":
+		max := s.Config.App.EscapePasswordLimit
+		if max <= 0 {
+			max = 1
+		}
+		if s.escapePasswordUsed >= max {
+			s.escapeMu.Unlock()
+			writeJSON(w, map[string]interface{}{
+				"allowed":  false,
+				"reason":   "daily password escape limit reached",
+				"used":     s.escapePasswordUsed,
+				"max":      max,
+			})
+			return
+		}
+		// Verify password (config password, or default)
+		expected := s.Config.App.EscapePassword
+		if expected == "" {
+			expected = "vocablock" // default password
+		}
+		if req.Password != expected {
+			s.escapeMu.Unlock()
+			writeJSON(w, map[string]interface{}{
+				"allowed": false,
+				"reason":  "wrong password",
+			})
+			return
+		}
+		s.escapePasswordUsed++
+		s.escapeMu.Unlock()
+		s.performEscape(w)
+
+	case "click":
+		max := s.Config.App.EscapeClickLimit
+		if max <= 0 {
+			max = 2
+		}
+		if s.escapeClickUsed >= max {
+			s.escapeMu.Unlock()
+			writeJSON(w, map[string]interface{}{
+				"allowed":  false,
+				"reason":   "daily click escape limit reached",
+				"used":     s.escapeClickUsed,
+				"max":      max,
+			})
+			return
+		}
+		s.escapeClickUsed++
+		s.escapeMu.Unlock()
+		s.performEscape(w)
+
+	default:
+		s.escapeMu.Unlock()
+		writeError(w, 400, "unknown escape method")
+	}
+}
+
+func (s *Server) performEscape(w http.ResponseWriter) {
+	if s.System != nil {
+		s.System.ExitLockMode()
+		s.System.RestoreFlutterWindow()
+	}
+	writeJSON(w, map[string]interface{}{
+		"allowed":  true,
+		"unlocked": true,
 	})
 }
 

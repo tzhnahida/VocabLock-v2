@@ -83,6 +83,12 @@ func QualityFromScore(score float64) int {
 	}
 }
 
+// IsLongTerm returns true when a word has reached SM-2 tier 3 (long-term memory).
+// Tier 3 triggers sense expansion: new dissimilar meanings can be unlocked.
+func IsLongTerm(reps int, interval int) bool {
+	return reps >= 4 && interval > 14
+}
+
 // QualityFromPassiveRecall maps a passive recall self-assessment to SM-2 quality.
 // Used for passive quiz popup submissions where there's no scored answer.
 // recall: "easy" → 4, "hard" → 3, "forgot" → 1, empty/other → 3 (neutral acknowledgement)

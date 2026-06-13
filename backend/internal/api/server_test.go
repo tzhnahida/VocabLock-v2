@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vocablock/v2/internal/config"
-	"github.com/vocablock/v2/internal/db"
+	"github.com/tzhnahida/VocabLock/internal/config"
+	"github.com/tzhnahida/VocabLock/internal/db"
 )
 
 func newTestServer(t *testing.T) *Server {

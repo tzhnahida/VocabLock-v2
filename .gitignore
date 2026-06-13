@@ -45,6 +45,23 @@ frontend/package.json.md5
 *.swp
 *.swo
 
+# Python
+__pycache__/
+*.pyc
+
+# External bridge scripts / data (community-provided, kept locally)
+backend/dict/
+backend/tts/
+backend/pronounce-test/
+
+# Claude Code (never commit AI assistant config)
+CLAUDE.md
+.claude/
+
+# Debug / one-off tools
+backend/server_combined.txt
+backend/scan_all.go
+
 # OS
 Thumbs.db
 .DS_Store

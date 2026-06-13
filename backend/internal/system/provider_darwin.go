@@ -39,3 +39,13 @@ func (p *darwinProvider) SetAutoStart(enabled bool) error {
 func (p *darwinProvider) FindFlutterWindow() (uintptr, error) {
 	return 0, fmt.Errorf("not implemented on darwin")
 }
+func (p *darwinProvider) SetServerInfo(healthURL string, flutterPID int) {}
+func (p *darwinProvider) FullscreenFlutterWindow() error {
+	return fmt.Errorf("not implemented")
+}
+func (p *darwinProvider) RestoreFlutterWindow() error {
+	return fmt.Errorf("not implemented")
+}
+func (p *darwinProvider) SetPassiveInterval(minutes int)                {}
+func (p *darwinProvider) StartPassiveQuiz()                             {}
+func (p *darwinProvider) StopPassiveQuiz()                              {}

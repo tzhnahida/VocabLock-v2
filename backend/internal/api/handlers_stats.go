@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/vocablock/v2/internal/api/mock"
-	"github.com/vocablock/v2/internal/log"
+	"github.com/tzhnahida/VocabLock/internal/api/mock"
+	"github.com/tzhnahida/VocabLock/internal/log"
 )
 
 func (s *Server) handleStatsHeatmap(w http.ResponseWriter, r *http.Request) {

@@ -7,8 +7,8 @@ func TestLoadPromptExists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadPrompt judge: %v", err)
 	}
-	if pt.Version != "1.0" {
-		t.Errorf("version = %q, want 1.0", pt.Version)
+	if pt.Version != "2.0" {
+		t.Errorf("version = %q, want 2.0", pt.Version)
 	}
 	if pt.System == "" {
 		t.Error("system prompt is empty")

@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/vocablock/v2/internal/config"
+	"github.com/tzhnahida/VocabLock/internal/config"
 )
 
 type Provider struct {

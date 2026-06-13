@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vocablock/v2/internal/log"
+	"github.com/tzhnahida/VocabLock/internal/log"
 )
 
 type Client struct {

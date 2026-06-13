@@ -8,18 +8,43 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vocablock/v2/internal/ai"
-	"github.com/vocablock/v2/internal/db"
-	"github.com/vocablock/v2/internal/dict"
-	"github.com/vocablock/v2/internal/log"
+	"github.com/tzhnahida/VocabLock/internal/ai"
+	"github.com/tzhnahida/VocabLock/internal/db"
+	"github.com/tzhnahida/VocabLock/internal/dict"
+	"github.com/tzhnahida/VocabLock/internal/log"
 )
 
 const maxExpandRounds = 3
 
+type expandWordEntry struct {
+	Word    string `json:"word"`
+	Example string `json:"example"`
+}
+
 type expandResponse struct {
-	Status string   `json:"status"`
-	Reason string   `json:"reason"`
-	Words  []string `json:"words"`
+	Status string            `json:"status"`
+	Reason string            `json:"reason"`
+	Words  []json.RawMessage `json:"words"`
+}
+
+// parseExpandWords normalizes the AI response's "words" field.
+// Supports both legacy format (string array) and new format (object array with example).
+func parseExpandWords(raw []json.RawMessage) []expandWordEntry {
+	var entries []expandWordEntry
+	for _, r := range raw {
+		// Try new format first: {"word": "...", "example": "..."}
+		var e expandWordEntry
+		if json.Unmarshal(r, &e) == nil && e.Word != "" {
+			entries = append(entries, e)
+			continue
+		}
+		// Fallback: plain string
+		var s string
+		if json.Unmarshal(r, &s) == nil && s != "" {
+			entries = append(entries, expandWordEntry{Word: s})
+		}
+	}
+	return entries
 }
 
 // expandWords generates new words via AI, with dedup feedback loop and dict verification.
@@ -124,20 +149,23 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 			return 0, 0, nil
 		}
 
+		// Parse words (supports both legacy string array and new object array)
+		entries := parseExpandWords(result.Words)
+
 		// Check each word for duplicates
 		var dupList []string
-		for _, word := range result.Words {
-			if word == "" {
+		for _, e := range entries {
+			if e.Word == "" {
 				continue
 			}
-			exists, _ := s.DB.WordExists(lang, word)
+			exists, _ := s.DB.WordExists(lang, e.Word)
 			if exists {
-				dupList = append(dupList, word)
+				dupList = append(dupList, e.Word)
 			}
 		}
 
 		// All words are duplicates — feedback to AI and retry
-		if len(dupList) > 0 && len(dupList) == len(result.Words) {
+		if len(dupList) > 0 && len(dupList) == len(entries) {
 			duplicates = strings.Join(dupList, ", ")
 			continue
 		}
@@ -148,17 +176,17 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 			dupSet[d] = true
 		}
 
-		for _, word := range result.Words {
-			if word == "" || dupSet[word] {
+		for _, e := range entries {
+			if e.Word == "" || dupSet[e.Word] {
 				continue
 			}
 
 			// Dictionary provides reading, meaning, POS — not AI
-			dictEntry := s.lookupDict(ctx, word)
+			dictEntry := s.lookupDict(ctx, e.Word)
 			if dictEntry != nil {
 				// Word confirmed by dictionary. Dict provides what it has;
 				// AI fills any gaps in reading/meaning/POS/level + DLC fields.
-				aiDetail := s.generateDetail(ctx, word, dictEntry.Reading, dictEntry.Meaning, dictEntry.POS, dictEntry.Level, lang)
+				aiDetail := s.generateDetail(ctx, e.Word, dictEntry.Reading, dictEntry.Meaning, dictEntry.POS, dictEntry.Level, lang)
 
 				reading := dictEntry.Reading
 				if reading == "" { reading = extractFieldFromDetail(aiDetail, "reading") }
@@ -172,8 +200,13 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 				// Dict detail base + AI gap-fill (dict keys take priority)
 				detail := mergeJSON(dictEntry.Detail, aiDetail)
 
+				// Inject AI-provided example sentence into detail
+				if e.Example != "" {
+					detail = injectExample(detail, e.Example)
+				}
+
 				newWord := &db.Word{
-					Word:       word,
+					Word:       e.Word,
 					Reading:    reading,
 					Meaning:    meaning,
 					POS:        pos,
@@ -190,8 +223,13 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 				}
 			} else {
 				// Dictionary miss — might be AI-fabricated. Quarantine for user review.
+				detail := "{}"
+				if e.Example != "" {
+					detail = `{"example":"` + jsonEscape(e.Example) + `"}`
+				}
 				s.DB.InsertWord(&db.Word{
-					Word: word, Language: lang, Source: "ai_expansion", Status: "pending_review",
+					Word: e.Word, Language: lang, Source: "ai_expansion",
+					Status: "pending_review", Detail: detail,
 				})
 				pending++
 			}
@@ -359,6 +397,64 @@ func mergeJSON(a, b string) string {
 }
 
 // expandGrammar generates new grammar points via AI, following the same pattern as expandWords.
+// unlockNextSense checks the word's detail.glosses for an unused dissimilar meaning
+// and creates a new SM-2 entry for it. Called when a word reaches long-term memory.
+func (s *Server) unlockNextSense(word *db.Word) {
+	if word.Detail == "" || word.Detail == "{}" || s.DB == nil {
+		return
+	}
+	var detail struct {
+		Glosses []string `json:"glosses"`
+	}
+	if err := json.Unmarshal([]byte(word.Detail), &detail); err != nil || len(detail.Glosses) <= 1 {
+		return
+	}
+	// Find first gloss that is dissimilar to current meaning (common chars < 30%)
+	current := word.Meaning
+	for _, g := range detail.Glosses {
+		if g == current {
+			continue
+		}
+		if !dissimilarMeaning(current, g) {
+			continue
+		}
+		// Create new SM-2 entry for this sense
+		newWord := &db.Word{
+			Word: word.Word, Reading: word.Reading, Meaning: g,
+			POS: word.POS, Level: word.Level, Detail: "{}",
+			Language: word.Language, Source: "sense_expansion", Confidence: "high",
+		}
+		if _, err := s.DB.InsertWord(newWord); err == nil {
+			log.Debug("expand", "sense unlock: %s + %q (from %q)", word.Word, g, current)
+		}
+		return
+	}
+}
+
+// dissimilarMeaning returns true when two Chinese glosses are semantically different.
+// Heuristic: shared character ratio < 30% = dissimilar enough to learn separately.
+func dissimilarMeaning(a, b string) bool {
+	ra, rb := []rune(a), []rune(b)
+	if len(ra) == 0 || len(rb) == 0 {
+		return false
+	}
+	sa, sb := make(map[rune]bool), make(map[rune]bool)
+	for _, r := range ra {
+		sa[r] = true
+	}
+	for _, r := range rb {
+		sb[r] = true
+	}
+	common := 0
+	for r := range sa {
+		if sb[r] {
+			common++
+		}
+	}
+	ratio := float64(common) / float64(max(len(sa), len(sb)))
+	return ratio < 0.3
+}
+
 func (s *Server) expandGrammar(ctx context.Context, lang string, count int) (inserted int, err error) {
 	log.Debug("expand", "grammar start: lang=%s count=%d", lang, count)
 	if s.AI() == nil || s.DB == nil {
@@ -609,4 +705,35 @@ func (s *Server) buildVocabSummary(lang string) string {
 	if eCount > 0 { b.WriteString(fmt.Sprintf("Phrases: %d (e.g. %s). ", eCount, sample(phrases, 5))) }
 	if oCount > 0 { b.WriteString(fmt.Sprintf("Other: %d (e.g. %s).", oCount, sample(other, 5))) }
 	return b.String()
+}
+
+// injectExample adds an example sentence to a detail JSON object.
+func injectExample(detail, example string) string {
+	if example == "" {
+		return detail
+	}
+	var m map[string]interface{}
+	if detail != "" && detail != "{}" {
+		if err := json.Unmarshal([]byte(detail), &m); err != nil {
+			m = make(map[string]interface{})
+		}
+	} else {
+		m = make(map[string]interface{})
+	}
+	m["example"] = example
+	result, err := json.Marshal(m)
+	if err != nil {
+		return detail
+	}
+	return string(result)
+}
+
+// jsonEscape escapes a string for safe JSON embedding.
+func jsonEscape(s string) string {
+	b, _ := json.Marshal(s)
+	// json.Marshal wraps in quotes; strip them
+	if len(b) >= 2 {
+		return string(b[1 : len(b)-1])
+	}
+	return s
 }
