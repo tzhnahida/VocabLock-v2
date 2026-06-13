@@ -99,6 +99,7 @@ class AppState extends ChangeNotifier {
 
   ThemeMode _themeMode = ThemeMode.dark;
   ThemeMode get themeMode => _themeMode;
+  set themeMode(ThemeMode v) { _themeMode = v; notifyListeners(); }
 
   List<LanguageInfo> _languages = [];
   List<LanguageInfo> get languages => _languages;

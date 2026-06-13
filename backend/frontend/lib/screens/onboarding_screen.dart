@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
+import '../providers/app_state.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final Future<void> Function({
@@ -124,6 +126,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   void _setTheme(ThemeMode mode) {
     setState(() => _themeMode = mode);
     AppTheme.setThemeMode(mode);
+    Provider.of<AppState>(context, listen: false).themeMode = mode;
   }
 
   String _voiceForLang(dynamic lc) {
@@ -374,7 +377,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       _Label('界面语言', 'Interface Language'),
       const SizedBox(height: 12),
       ..._uiLanguages.map((e) => _SelectTile(
-        label: e.$2, isActive: e.$1 == _uiLang, onTap: () => setState(() => _uiLang = e.$1),
+        label: e.$2, isActive: e.$1 == _uiLang, onTap: () {
+          setState(() => _uiLang = e.$1);
+          Provider.of<AppState>(context, listen: false).uiLang = e.$1;
+        },
       )),
       const SizedBox(height: 24),
       _Label('界面颜色', 'Theme'),
