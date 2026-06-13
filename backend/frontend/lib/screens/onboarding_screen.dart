@@ -59,7 +59,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   String _profileDirection = '';
 
   static const _uiLanguages = [
-    ('en', 'English'), ('zh', '中文'), ('ja', '日本語'), ('ko', '한국어'),
+    ('zh-CN', '中文'), ('en', 'English'), ('ja', '日本語'), ('ko', '한국어'),
   ];
 
   static const _learnLanguages = [

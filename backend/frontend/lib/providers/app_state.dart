@@ -89,7 +89,8 @@ class AppState extends ChangeNotifier {
 
   Locale get locale {
     switch (_uiLang) {
-      case 'zh-CN': return const Locale('zh');
+      case 'zh-CN':
+      case 'zh': return const Locale('zh');
       case 'ja': return const Locale('ja');
       case 'en': return const Locale('en');
       default: return const Locale('en');
