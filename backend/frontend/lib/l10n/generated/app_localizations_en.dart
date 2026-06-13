@@ -459,4 +459,77 @@ class AppLocalizationsEn extends AppLocalizations {
   String statusWordsReady(Object count) {
     return '$count words ready, start the quiz';
   }
+
+  @override
+  String get onboardingInterface => 'Interface';
+
+  @override
+  String get onboardingInterfaceLanguage => 'Interface Language';
+
+  @override
+  String get onboardingTheme => 'Theme';
+
+  @override
+  String get onboardingLight => 'Light';
+
+  @override
+  String get onboardingDark => 'Dark';
+
+  @override
+  String get onboardingContinue => 'Continue';
+
+  @override
+  String get onboardingAIConfig => 'AI Setup';
+
+  @override
+  String get onboardingAIDesc =>
+      'Used for AI-powered quizzes, personalized tutoring, and session summaries';
+
+  @override
+  String get onboardingAIRegister =>
+      'Sign up at platform.deepseek.com → API Keys';
+
+  @override
+  String get onboardingNextAI => 'Next → AI Guide';
+
+  @override
+  String get onboardingSkipAI => 'Skip AI Setup';
+
+  @override
+  String get onboardingSkipAIHint =>
+      'Local quiz mode will be used. You can configure AI later in Settings.';
+
+  @override
+  String get onboardingAIAdvisor => 'AI Learning Advisor';
+
+  @override
+  String get onboardingGeneratePlan => 'Generate Study Plan';
+
+  @override
+  String get onboardingPlanDone => 'Profile created, continue →';
+
+  @override
+  String get onboardingSkipInterview => 'Skip interview, go to setup';
+
+  @override
+  String get onboardingStudySetup => 'Study Setup';
+
+  @override
+  String get onboardingEscapePassword => 'Escape Password';
+
+  @override
+  String get onboardingEscapePasswordHint =>
+      'Used for emergency unlock (please memorize)';
+
+  @override
+  String get onboardingLanguageToStudy => 'Language to study';
+
+  @override
+  String get onboardingDailyTarget => 'Daily Target';
+
+  @override
+  String get onboardingAccuracyHint => 'Accuracy >= 80% required to unlock';
+
+  @override
+  String get onboardingComplete => 'Complete Setup, Start Learning';
 }

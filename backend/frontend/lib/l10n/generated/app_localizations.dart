@@ -963,6 +963,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} words ready, start the quiz'**
   String statusWordsReady(Object count);
+
+  /// No description provided for @onboardingInterface.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface'**
+  String get onboardingInterface;
+
+  /// No description provided for @onboardingInterfaceLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface Language'**
+  String get onboardingInterfaceLanguage;
+
+  /// No description provided for @onboardingTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get onboardingTheme;
+
+  /// No description provided for @onboardingLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get onboardingLight;
+
+  /// No description provided for @onboardingDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get onboardingDark;
+
+  /// No description provided for @onboardingContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get onboardingContinue;
+
+  /// No description provided for @onboardingAIConfig.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Setup'**
+  String get onboardingAIConfig;
+
+  /// No description provided for @onboardingAIDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Used for AI-powered quizzes, personalized tutoring, and session summaries'**
+  String get onboardingAIDesc;
+
+  /// No description provided for @onboardingAIRegister.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign up at platform.deepseek.com → API Keys'**
+  String get onboardingAIRegister;
+
+  /// No description provided for @onboardingNextAI.
+  ///
+  /// In en, this message translates to:
+  /// **'Next → AI Guide'**
+  String get onboardingNextAI;
+
+  /// No description provided for @onboardingSkipAI.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip AI Setup'**
+  String get onboardingSkipAI;
+
+  /// No description provided for @onboardingSkipAIHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Local quiz mode will be used. You can configure AI later in Settings.'**
+  String get onboardingSkipAIHint;
+
+  /// No description provided for @onboardingAIAdvisor.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Learning Advisor'**
+  String get onboardingAIAdvisor;
+
+  /// No description provided for @onboardingGeneratePlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate Study Plan'**
+  String get onboardingGeneratePlan;
+
+  /// No description provided for @onboardingPlanDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile created, continue →'**
+  String get onboardingPlanDone;
+
+  /// No description provided for @onboardingSkipInterview.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip interview, go to setup'**
+  String get onboardingSkipInterview;
+
+  /// No description provided for @onboardingStudySetup.
+  ///
+  /// In en, this message translates to:
+  /// **'Study Setup'**
+  String get onboardingStudySetup;
+
+  /// No description provided for @onboardingEscapePassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Escape Password'**
+  String get onboardingEscapePassword;
+
+  /// No description provided for @onboardingEscapePasswordHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Used for emergency unlock (please memorize)'**
+  String get onboardingEscapePasswordHint;
+
+  /// No description provided for @onboardingLanguageToStudy.
+  ///
+  /// In en, this message translates to:
+  /// **'Language to study'**
+  String get onboardingLanguageToStudy;
+
+  /// No description provided for @onboardingDailyTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily Target'**
+  String get onboardingDailyTarget;
+
+  /// No description provided for @onboardingAccuracyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Accuracy >= 80% required to unlock'**
+  String get onboardingAccuracyHint;
+
+  /// No description provided for @onboardingComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete Setup, Start Learning'**
+  String get onboardingComplete;
 }
 
 class _AppLocalizationsDelegate

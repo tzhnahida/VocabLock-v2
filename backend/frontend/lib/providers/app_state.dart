@@ -83,7 +83,7 @@ class AppState extends ChangeNotifier {
   int _expandPending = 0;
   int get expandPending => _expandPending;
 
-  String _uiLang = 'zh-CN';
+  String _uiLang = 'en';
   String get uiLang => _uiLang;
   set uiLang(String v) { _uiLang = v; notifyListeners(); }
 

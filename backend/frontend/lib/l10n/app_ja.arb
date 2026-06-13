@@ -203,5 +203,28 @@
     "placeholders": {
       "count": {}
     }
-  }
+  },
+  "onboardingInterface": "インターフェース",
+  "onboardingInterfaceLanguage": "インターフェース言語",
+  "onboardingTheme": "テーマ",
+  "onboardingLight": "ライト",
+  "onboardingDark": "ダーク",
+  "onboardingContinue": "続ける",
+  "onboardingAIConfig": "AI設定",
+  "onboardingAIDesc": "AIによる出題、個別指導、学習サマリーに使用",
+  "onboardingAIRegister": "登録: platform.deepseek.com → API Keys",
+  "onboardingNextAI": "次へ → AIガイド",
+  "onboardingSkipAI": "AI設定をスキップ",
+  "onboardingSkipAIHint": "ローカル出題モードを使用します（後で設定から追加可能）",
+  "onboardingAIAdvisor": "AI学習アドバイザー",
+  "onboardingGeneratePlan": "学習プランを生成",
+  "onboardingPlanDone": "プロファイル作成済み、続ける →",
+  "onboardingSkipInterview": "インタビューをスキップ",
+  "onboardingStudySetup": "学習設定",
+  "onboardingEscapePassword": "緊急パスワード",
+  "onboardingEscapePasswordHint": "ロック解除に使用（必ず覚えてください）",
+  "onboardingLanguageToStudy": "学習言語",
+  "onboardingDailyTarget": "1日の目標",
+  "onboardingAccuracyHint": "正解率80%以上でロック解除",
+  "onboardingComplete": "設定完了、学習開始"
 }

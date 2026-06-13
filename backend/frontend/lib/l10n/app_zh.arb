@@ -203,5 +203,28 @@
     "placeholders": {
       "count": {}
     }
-  }
+  },
+  "onboardingInterface": "界面设置",
+  "onboardingInterfaceLanguage": "界面语言",
+  "onboardingTheme": "界面颜色",
+  "onboardingLight": "浅色",
+  "onboardingDark": "深色",
+  "onboardingContinue": "继续",
+  "onboardingAIConfig": "AI 配置",
+  "onboardingAIDesc": "用于 AI 智能出题、个性化辅导、学习总结",
+  "onboardingAIRegister": "注册地址: platform.deepseek.com → API Keys",
+  "onboardingNextAI": "下一步 → AI 引导",
+  "onboardingSkipAI": "跳过 AI 引导",
+  "onboardingSkipAIHint": "跳过后使用本地出题模式，可在设置中随时配置",
+  "onboardingAIAdvisor": "AI 学习顾问",
+  "onboardingGeneratePlan": "生成培养方案",
+  "onboardingPlanDone": "学习档案已建立，继续 →",
+  "onboardingSkipInterview": "跳过 AI 引导，直接设置",
+  "onboardingStudySetup": "学习设置",
+  "onboardingEscapePassword": "紧急密码",
+  "onboardingEscapePasswordHint": "锁屏状态下紧急退出用（请务必记住）",
+  "onboardingLanguageToStudy": "学习语言",
+  "onboardingDailyTarget": "每日目标",
+  "onboardingAccuracyHint": "正确率 ≥ 80% 方可解锁",
+  "onboardingComplete": "完成设置，开始学习"
 }

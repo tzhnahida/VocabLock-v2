@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../providers/app_state.dart';
 
@@ -371,10 +372,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   // ——— Step 1: Interface (UI lang + Theme) ———
   Widget _buildInterface({Key? key}) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(key: key, mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _Header(step: 1, title: '界面设置', onBack: () => setState(() => _step = 0)),
+      _Header(step: 1, title: l10n.onboardingInterface, onBack: () => setState(() => _step = 0)),
       const SizedBox(height: 24),
-      _Label('界面语言', 'Interface Language'),
+      _Label(l10n.onboardingInterfaceLanguage),
       const SizedBox(height: 12),
       ..._uiLanguages.map((e) => _SelectTile(
         label: e.$2, isActive: e.$1 == _uiLang, onTap: () {
@@ -383,27 +385,28 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         },
       )),
       const SizedBox(height: 24),
-      _Label('界面颜色', 'Theme'),
+      _Label(l10n.onboardingTheme),
       const SizedBox(height: 12),
       Row(children: [
-        Expanded(child: _ThemeCard(icon: Icons.light_mode, label: '浅色', sub: 'Light',
+        Expanded(child: _ThemeCard(icon: Icons.light_mode, label: l10n.onboardingLight, sub: '',
             isActive: _themeMode == ThemeMode.light, onTap: () => _setTheme(ThemeMode.light))),
         const SizedBox(width: 12),
-        Expanded(child: _ThemeCard(icon: Icons.dark_mode, label: '深色', sub: 'Dark',
+        Expanded(child: _ThemeCard(icon: Icons.dark_mode, label: l10n.onboardingDark, sub: '',
             isActive: _themeMode == ThemeMode.dark, onTap: () => _setTheme(ThemeMode.dark))),
       ]),
       const SizedBox(height: 32),
-      _Btn(label: 'Continue', onTap: () => setState(() => _step = 2)),
+      _Btn(label: l10n.onboardingContinue, onTap: () => setState(() => _step = 2)),
     ]);
   }
 
   // ——— Step 2: AI Config ———
   Widget _buildAIConfig({Key? key}) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(key: key, mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _Header(step: 2, title: 'AI 配置', onBack: () => setState(() => _step = 1)),
+      _Header(step: 2, title: l10n.onboardingAIConfig, onBack: () => setState(() => _step = 1)),
       const SizedBox(height: 16),
-      Text('用于 AI 智能出题、个性化辅导、学习总结', style: TextStyle(fontSize: 13, color: AppTheme.textHint)),
-      Text('注册地址: platform.deepseek.com → API Keys', style: TextStyle(fontSize: 12, color: AppTheme.primary)),
+      Text(l10n.onboardingAIDesc, style: TextStyle(fontSize: 13, color: AppTheme.textHint)),
+      Text(l10n.onboardingAIRegister, style: TextStyle(fontSize: 12, color: AppTheme.primary)),
       const SizedBox(height: 20),
       if (widget.aiConfigured)
         Container(
@@ -420,7 +423,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ]),
         ),
       if (widget.aiConfigured) const SizedBox(height: 16),
-      _Label('API Key', 'API Key'),
+      _Label('API Key'),
       TextField(
         obscureText: true,
         style: TextStyle(color: AppTheme.textPrimary, fontSize: 14),
@@ -428,10 +431,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         onChanged: (v) => setState(() => _apiKey = v),
       ),
       const SizedBox(height: 16),
-      _Label('模型', 'Model'),
+      _Label('Model'),
       TextField(style: TextStyle(color: AppTheme.textPrimary, fontSize: 14), decoration: _inputDec('deepseek-v4-pro'), controller: _modelCtrl, onChanged: (v) => _model = v),
       const SizedBox(height: 16),
-      _Label('API 地址', 'API Base URL'),
+      _Label('API Base URL'),
       TextField(style: TextStyle(color: AppTheme.textPrimary, fontSize: 14), decoration: _inputDec('https://api.deepseek.com'), controller: _baseUrlCtrl, onChanged: (v) => _baseUrl = v),
       const SizedBox(height: 20),
       Row(children: [
@@ -445,17 +448,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         ),
       ]),
       const SizedBox(height: 24),
-      _Btn(label: widget.aiConfigured || _apiKey.isNotEmpty ? '下一步 → AI 引导' : '跳过 AI 引导', onTap: _next),
+      _Btn(label: widget.aiConfigured || _apiKey.isNotEmpty ? l10n.onboardingNextAI : l10n.onboardingSkipAI, onTap: _next),
       if (!widget.aiConfigured && _apiKey.isEmpty)
-        Padding(padding: const EdgeInsets.only(top: 12), child: Text('跳过后使用本地出题模式，可在设置中随时配置', style: TextStyle(fontSize: 12, color: AppTheme.textHint))),
+        Padding(padding: const EdgeInsets.only(top: 12), child: Text(l10n.onboardingSkipAIHint, style: TextStyle(fontSize: 12, color: AppTheme.textHint))),
     ]);
   }
 
   // ——— Step 3: AI Interview ———
   Widget _buildInterview({Key? key}) {
     final canRequestProfile = _roundCount >= _minRounds && !_profileDone && !_chatLoading;
+    final l10n = AppLocalizations.of(context)!;
     return Column(key: key, mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _Header(step: 3, title: 'AI 学习顾问', onBack: () => setState(() => _step = 2)),
+      _Header(step: 3, title: l10n.onboardingAIAdvisor, onBack: () => setState(() => _step = 2)),
       const SizedBox(height: 8),
       Text('🤖 已对话 $_roundCount 轮${_profileDone ? " · 档案已建立" : canRequestProfile ? " · 可生成方案" : "（最少 ${_minRounds} 轮后可生成）"}',
           style: TextStyle(fontSize: 13, color: _profileDone ? Colors.green : AppTheme.textHint)),
@@ -510,33 +514,34 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         ]),
         const SizedBox(height: 12),
         if (canRequestProfile || (_roundCount > 0 && !_profileDone && !_chatLoading))
-          _Btn(label: '生成培养方案', onTap: _doRequestProfile),
+          _Btn(label: l10n.onboardingGeneratePlan, onTap: _doRequestProfile),
       ],
       if (_profileDone) ...[
         const SizedBox(height: 12),
-        _Btn(label: '学习档案已建立，继续 →', onTap: () => setState(() => _step = 4)),
+        _Btn(label: l10n.onboardingPlanDone, onTap: () => setState(() => _step = 4)),
       ],
       const SizedBox(height: 8),
-      TextButton(onPressed: () => setState(() => _step = 4), child: Text('跳过 AI 引导，直接设置', style: TextStyle(fontSize: 12, color: AppTheme.textHint))),
+      TextButton(onPressed: () => setState(() => _step = 4), child: Text(l10n.onboardingSkipInterview, style: TextStyle(fontSize: 12, color: AppTheme.textHint))),
     ]);
   }
 
   // ——— Step 4: Password + Learning Setup ———
   Widget _buildLearnSetup({Key? key}) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(key: key, mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _Header(step: 4, title: '学习设置', onBack: () => setState(() => _step = _apiKey.isNotEmpty ? 3 : 2)),
+      _Header(step: 4, title: l10n.onboardingStudySetup, onBack: () => setState(() => _step = _apiKey.isNotEmpty ? 3 : 2)),
       const SizedBox(height: 16),
-      _Label('紧急密码', 'Escape Password'),
-      Text('锁屏状态下紧急退出用（请务必记住）', style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
+      _Label(l10n.onboardingEscapePassword),
+      Text(l10n.onboardingEscapePasswordHint, style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
       const SizedBox(height: 12),
       TextField(
         obscureText: true,
         style: TextStyle(color: AppTheme.textPrimary, fontSize: 14),
-        decoration: _inputDec('设置紧急密码'),
+        decoration: _inputDec(l10n.onboardingEscapePassword),
         onChanged: (v) => _password = v,
       ),
       const SizedBox(height: 24),
-      _Label('学习语言', 'Language to study'),
+      _Label(l10n.onboardingLanguageToStudy),
       const SizedBox(height: 12),
       ..._learnLanguages.map((e) => _SelectTile(
         label: '${e.$2}  ${e.$3}', isActive: e.$1 == _learnLang, onTap: () { setState(() => _learnLang = e.$1); _fetchLangConfig(e.$1); },
@@ -544,8 +549,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       const SizedBox(height: 20),
       _TtsDictInfo(lang: _learnLang, voice: _voiceForLang(_langConfig), dict: _dictForLang(_langConfig)),
       const SizedBox(height: 24),
-      _Label('每日目标', 'Daily Target'),
-      Text('正确率 ≥ 80% 方可解锁', style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
+      _Label(l10n.onboardingDailyTarget),
+      Text(l10n.onboardingAccuracyHint, style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
       const SizedBox(height: 12),
       Row(children: [10, 15, 20, 30, 50].map((n) {
         final isActive = n == _dailyTarget;
@@ -564,7 +569,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         ));
       }).toList()),
       const SizedBox(height: 32),
-      _Btn(label: '完成设置，开始学习', onTap: () {
+      _Btn(label: l10n.onboardingComplete, onTap: () {
         widget.onComplete(
           uiLang: _uiLang, themeMode: _themeMode,
           learnLang: _learnLang, dailyTarget: _dailyTarget,
@@ -623,12 +628,11 @@ class _Header extends StatelessWidget {
 }
 
 class _Label extends StatelessWidget {
-  final String primary; final String secondary;
-  const _Label(this.primary, this.secondary);
+  final String label;
+  const _Label(this.label);
   @override
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Text(primary, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
-    Text(secondary, style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
+    Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
   ]);
 }
 

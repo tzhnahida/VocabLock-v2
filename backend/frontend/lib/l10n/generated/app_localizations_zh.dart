@@ -457,4 +457,73 @@ class AppLocalizationsZh extends AppLocalizations {
   String statusWordsReady(Object count) {
     return '$count 个词汇已就绪，可以开始答题';
   }
+
+  @override
+  String get onboardingInterface => '界面设置';
+
+  @override
+  String get onboardingInterfaceLanguage => '界面语言';
+
+  @override
+  String get onboardingTheme => '界面颜色';
+
+  @override
+  String get onboardingLight => '浅色';
+
+  @override
+  String get onboardingDark => '深色';
+
+  @override
+  String get onboardingContinue => '继续';
+
+  @override
+  String get onboardingAIConfig => 'AI 配置';
+
+  @override
+  String get onboardingAIDesc => '用于 AI 智能出题、个性化辅导、学习总结';
+
+  @override
+  String get onboardingAIRegister => '注册地址: platform.deepseek.com → API Keys';
+
+  @override
+  String get onboardingNextAI => '下一步 → AI 引导';
+
+  @override
+  String get onboardingSkipAI => '跳过 AI 引导';
+
+  @override
+  String get onboardingSkipAIHint => '跳过后使用本地出题模式，可在设置中随时配置';
+
+  @override
+  String get onboardingAIAdvisor => 'AI 学习顾问';
+
+  @override
+  String get onboardingGeneratePlan => '生成培养方案';
+
+  @override
+  String get onboardingPlanDone => '学习档案已建立，继续 →';
+
+  @override
+  String get onboardingSkipInterview => '跳过 AI 引导，直接设置';
+
+  @override
+  String get onboardingStudySetup => '学习设置';
+
+  @override
+  String get onboardingEscapePassword => '紧急密码';
+
+  @override
+  String get onboardingEscapePasswordHint => '锁屏状态下紧急退出用（请务必记住）';
+
+  @override
+  String get onboardingLanguageToStudy => '学习语言';
+
+  @override
+  String get onboardingDailyTarget => '每日目标';
+
+  @override
+  String get onboardingAccuracyHint => '正确率 ≥ 80% 方可解锁';
+
+  @override
+  String get onboardingComplete => '完成设置，开始学习';
 }

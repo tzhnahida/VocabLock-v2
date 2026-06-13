@@ -457,4 +457,73 @@ class AppLocalizationsJa extends AppLocalizations {
   String statusWordsReady(Object count) {
     return '$count 語が準備完了、学習を開始できます';
   }
+
+  @override
+  String get onboardingInterface => 'インターフェース';
+
+  @override
+  String get onboardingInterfaceLanguage => 'インターフェース言語';
+
+  @override
+  String get onboardingTheme => 'テーマ';
+
+  @override
+  String get onboardingLight => 'ライト';
+
+  @override
+  String get onboardingDark => 'ダーク';
+
+  @override
+  String get onboardingContinue => '続ける';
+
+  @override
+  String get onboardingAIConfig => 'AI設定';
+
+  @override
+  String get onboardingAIDesc => 'AIによる出題、個別指導、学習サマリーに使用';
+
+  @override
+  String get onboardingAIRegister => '登録: platform.deepseek.com → API Keys';
+
+  @override
+  String get onboardingNextAI => '次へ → AIガイド';
+
+  @override
+  String get onboardingSkipAI => 'AI設定をスキップ';
+
+  @override
+  String get onboardingSkipAIHint => 'ローカル出題モードを使用します（後で設定から追加可能）';
+
+  @override
+  String get onboardingAIAdvisor => 'AI学習アドバイザー';
+
+  @override
+  String get onboardingGeneratePlan => '学習プランを生成';
+
+  @override
+  String get onboardingPlanDone => 'プロファイル作成済み、続ける →';
+
+  @override
+  String get onboardingSkipInterview => 'インタビューをスキップ';
+
+  @override
+  String get onboardingStudySetup => '学習設定';
+
+  @override
+  String get onboardingEscapePassword => '緊急パスワード';
+
+  @override
+  String get onboardingEscapePasswordHint => 'ロック解除に使用（必ず覚えてください）';
+
+  @override
+  String get onboardingLanguageToStudy => '学習言語';
+
+  @override
+  String get onboardingDailyTarget => '1日の目標';
+
+  @override
+  String get onboardingAccuracyHint => '正解率80%以上でロック解除';
+
+  @override
+  String get onboardingComplete => '設定完了、学習開始';
 }

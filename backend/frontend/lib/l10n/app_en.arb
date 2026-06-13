@@ -204,5 +204,28 @@
     "placeholders": {
       "count": {}
     }
-  }
+  },
+  "onboardingInterface": "Interface",
+  "onboardingInterfaceLanguage": "Interface Language",
+  "onboardingTheme": "Theme",
+  "onboardingLight": "Light",
+  "onboardingDark": "Dark",
+  "onboardingContinue": "Continue",
+  "onboardingAIConfig": "AI Setup",
+  "onboardingAIDesc": "Used for AI-powered quizzes, personalized tutoring, and session summaries",
+  "onboardingAIRegister": "Sign up at platform.deepseek.com → API Keys",
+  "onboardingNextAI": "Next → AI Guide",
+  "onboardingSkipAI": "Skip AI Setup",
+  "onboardingSkipAIHint": "Local quiz mode will be used. You can configure AI later in Settings.",
+  "onboardingAIAdvisor": "AI Learning Advisor",
+  "onboardingGeneratePlan": "Generate Study Plan",
+  "onboardingPlanDone": "Profile created, continue →",
+  "onboardingSkipInterview": "Skip interview, go to setup",
+  "onboardingStudySetup": "Study Setup",
+  "onboardingEscapePassword": "Escape Password",
+  "onboardingEscapePasswordHint": "Used for emergency unlock (please memorize)",
+  "onboardingLanguageToStudy": "Language to study",
+  "onboardingDailyTarget": "Daily Target",
+  "onboardingAccuracyHint": "Accuracy >= 80% required to unlock",
+  "onboardingComplete": "Complete Setup, Start Learning"
 }
