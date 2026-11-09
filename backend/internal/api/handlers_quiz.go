@@ -514,6 +514,7 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 		QuestionType string `json:"question_type"`
 		Answer       string `json:"answer"`
 		Audio        string `json:"audio,omitempty"`
+		Study        bool   `json:"study,omitempty"`   // evaluate only: no SM-2 / review log / daily stats
 		Dispute      bool   `json:"dispute,omitempty"` // student disputes the AI verdict
 	}
 	if err := readJSON(r, &req); err != nil {
@@ -530,7 +531,7 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 
 	// Route read-aloud submissions to the dedicated handler
 	if qt := engine.QuestionType(req.QuestionType); qt == engine.TypeReadWord || qt == engine.TypeReadSentence {
-		s.handleReadAloudSubmit(w, r, req.QuestionType, req.SubjectType, req.SubjectID, req.QuestionID, req.Audio)
+		s.handleReadAloudSubmit(w, r, req.QuestionType, req.SubjectType, req.SubjectID, req.QuestionID, req.Audio, req.Study)
 		return
 	}
 
@@ -538,6 +539,17 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 	primaryExpected := ""
 	if cachedQ := s.getAndDelCachedQuestion(req.QuestionID); cachedQ != nil {
 		primaryExpected = cachedQ.Answer
+	}
+	if primaryExpected == "" && questionRequiresCachedAnswer(req.QuestionType) {
+		// AI-generated questions have no local expected answer. After a server
+		// restart (or cache eviction) grading against a guessed local answer
+		// would both mis-grade and corrupt SM-2. Treat it as expired instead.
+		writeJSON(w, map[string]interface{}{
+			"correct":  false,
+			"feedback": "Question expired, please get a new one",
+			"source":   "cache_miss",
+		})
+		return
 	}
 
 	var (
@@ -560,23 +572,8 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if primaryExpected == "" {
-			// Cache miss -- advance SM-2 so this grammar point doesn't
-			// immediately reappear, then return a friendly error.
-			nowG := time.Now()
-			gReps := grammar.Repetitions
-			if gReps == 0 {
-				gReps = 1
-			}
-			sm2g := engine.SM2(grammar.EasinessFactor, grammar.Interval, gReps, 0, nowG, 0)
-			if sm2g != nil {
-				grammar.EasinessFactor = sm2g.EasinessFactor
-				grammar.Interval = sm2g.Interval
-				grammar.Repetitions = sm2g.Repetitions
-				grammar.NextReviewAt = &sm2g.NextReviewAt
-			}
-			grammar.LastReviewAt = &nowG
-			grammar.TotalAttempts++
-			s.DB.UpdateGrammarPoint(grammar)
+			// Cache miss is not an answer. Do not advance SM-2 or write a
+			// review log — a server restart must not be recorded as a failure.
 			writeJSON(w, map[string]interface{}{
 				"correct":  false,
 				"feedback": "Question expired, please get a new one",
@@ -599,18 +596,7 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 		if primaryExpected == "" {
 			expected = expectedAnswers(req.QuestionType, word)
 			if len(expected) == 0 {
-				// Advance SM-2 so this word doesn't immediately reappear.
-				nowW := time.Now()
-				sm2w := engine.SM2(word.EasinessFactor, word.Interval, word.Repetitions, 0, nowW, s.Config.App.Sm2MaxIntervalDays)
-				if sm2w != nil {
-					word.EasinessFactor = sm2w.EasinessFactor
-					word.Interval = sm2w.Interval
-					word.Repetitions = sm2w.Repetitions
-					word.NextReviewAt = &sm2w.NextReviewAt
-				}
-				word.LastReviewAt = &nowW
-				word.TotalAttempts++
-				s.DB.UpdateWord(word)
+				// Missing local data is not a wrong answer. Do not touch SM-2.
 				writeJSON(w, map[string]interface{}{
 					"correct":  false,
 					"feedback": "Word data incomplete, please try another word",
@@ -866,7 +852,10 @@ func (s *Server) maybeAdjustDailyTarget(lang string) bool {
 			return false // a day with no session breaks the streak
 		}
 		// Met semantics mirror DailyTargetMet: unique >= target AND accuracy >= min.
-		acc := float64(d.Correct) / float64(d.Unique)
+		acc := 0.0
+		if d.Attempts > 0 {
+			acc = float64(d.Correct) / float64(d.Attempts)
+		}
 		if d.Unique >= s.Config.App.DailyTarget && acc >= s.Config.App.MinAccuracy {
 			return false // met at least one day → no adjustment
 		}
@@ -889,48 +878,25 @@ func (s *Server) maybeAdjustDailyTarget(lang string) bool {
 	return true
 }
 
-// ——— read-aloud submit ———
-
-// recordReadAloudFallback updates SM-2 with quality=2 when pronunciation
-// assessment could not be performed (no provider, no target text, assessment
-// error, etc.). Quality 2 is still "incorrect" in SM-2 (interval=1, reps=0),
-// but EF degrades by only 0.32 instead of 0.8, avoiding harsh penalty for
-// system errors while still flagging the word for re-review.
-func (s *Server) recordReadAloudFallback(stype string, sid int64) {
-	if stype != "word" || s.DB == nil {
-		return
+func questionRequiresCachedAnswer(qtype string) bool {
+	switch engine.QuestionType(qtype) {
+	case engine.TypeListening, engine.TypeReadingComp, engine.TypeGrammar:
+		return true
 	}
-	word, err := s.DB.GetWord(sid)
-	if err != nil || word == nil {
-		return
-	}
-	quality := 2
-	now := clock.Now()
-	sm2 := engine.SM2(word.EasinessFactor, word.Interval, word.Repetitions, quality, now, s.Config.App.Sm2MaxIntervalDays)
-	if sm2 != nil {
-		word.EasinessFactor = sm2.EasinessFactor
-		word.Interval = sm2.Interval
-		word.Repetitions = sm2.Repetitions
-		word.NextReviewAt = &sm2.NextReviewAt
-	}
-	word.LastReviewAt = &now
-	word.TotalAttempts++
-	s.DB.UpdateWord(word)
+	return false
 }
 
-func (s *Server) handleReadAloudSubmit(w http.ResponseWriter, r *http.Request, qtype, stype string, sid int64, qid, audio string) {
-	log.Debug("quiz", "read-aloud submit: subjectType=%s subjectId=%d", stype, sid)
-	if s.PronounceProvider == nil {
-		s.recordReadAloudFallback(stype, sid)
-		writeJSON(w, map[string]interface{}{
-			"correct":  false,
-			"feedback": "Pronunciation assessment not configured",
-			"source":   "no_provider",
-		})
-		return
+// readAloudTargetText resolves what the learner is asked to read. read_sentence
+// is AI-generated and its target sentence lives only in the question cache;
+// DO NOT fall back to the word's reading, which would grade a whole sentence
+// against a single word. Other read-aloud types can fall back to the cache.
+func (s *Server) readAloudTargetText(qtype, stype string, sid int64, qid string) string {
+	if qtype == string(engine.TypeReadSentence) {
+		if cachedQ := s.getAndDelCachedQuestion(qid); cachedQ != nil {
+			return strings.TrimSpace(cachedQ.Answer)
+		}
+		return ""
 	}
-
-	// Determine target text (need even if skipping)
 	targetText := ""
 	if stype == "word" && s.DB != nil {
 		word, err := s.DB.GetWord(sid)
@@ -942,13 +908,31 @@ func (s *Server) handleReadAloudSubmit(w http.ResponseWriter, r *http.Request, q
 		}
 	}
 	if targetText == "" {
-		cachedQ := s.getAndDelCachedQuestion(qid)
-		if cachedQ != nil {
-			targetText = cachedQ.Answer
+		if cachedQ := s.getAndDelCachedQuestion(qid); cachedQ != nil {
+			targetText = strings.TrimSpace(cachedQ.Answer)
 		}
 	}
+	return targetText
+}
+
+// ——— read-aloud submit ———
+
+func (s *Server) handleReadAloudSubmit(w http.ResponseWriter, r *http.Request, qtype, stype string, sid int64, qid, audio string, study bool) {
+	log.Debug("quiz", "read-aloud submit: subjectType=%s subjectId=%d study=%v", stype, sid, study)
+	if s.PronounceProvider == nil {
+		writeJSON(w, map[string]interface{}{
+			"correct":  false,
+			"feedback": "Pronunciation assessment not configured",
+			"source":   "no_provider",
+		})
+		return
+	}
+
+	// Determine target text (need even if skipping). read_sentence must use the
+	// sentence stored with the cached AI question; falling back to word.Reading
+	// would grade a sentence against a single word.
+	targetText := s.readAloudTargetText(qtype, stype, sid, qid)
 	if targetText == "" {
-		s.recordReadAloudFallback(stype, sid)
 		writeJSON(w, map[string]interface{}{
 			"correct":  false,
 			"feedback": "Could not determine target text",
@@ -959,14 +943,13 @@ func (s *Server) handleReadAloudSubmit(w http.ResponseWriter, r *http.Request, q
 
 	// Empty audio = user skipped (doesn't know how to read)
 	if audio == "" {
-		s.writeReadAloudResult(w, stype, sid, qtype, false, 0, nil, targetText, "skipped")
+		s.writeReadAloudResult(w, stype, sid, qtype, false, 0, nil, targetText, "skipped", study)
 		return
 	}
 
 	// Decode audio
 	audioBytes, err := base64.StdEncoding.DecodeString(audio)
 	if err != nil {
-		s.recordReadAloudFallback(stype, sid)
 		writeJSON(w, map[string]interface{}{
 			"correct":  false,
 			"feedback": "Invalid audio data",
@@ -979,7 +962,6 @@ func (s *Server) handleReadAloudSubmit(w http.ResponseWriter, r *http.Request, q
 	os.MkdirAll(tmpDir, 0755)
 	tmpFile, err := os.CreateTemp(tmpDir, "read_*.wav")
 	if err != nil {
-		s.recordReadAloudFallback(stype, sid)
 		writeJSON(w, map[string]interface{}{
 			"correct":  false,
 			"feedback": "Failed to create temp file",
@@ -1001,7 +983,6 @@ func (s *Server) handleReadAloudSubmit(w http.ResponseWriter, r *http.Request, q
 
 	result, err := s.PronounceProvider.Assess(ctx, tmpPath, targetText)
 	if err != nil {
-		s.recordReadAloudFallback(stype, sid)
 		writeJSON(w, map[string]interface{}{
 			"correct":  false,
 			"feedback": fmt.Sprintf("Assessment error: %v", err),
@@ -1016,7 +997,7 @@ func (s *Server) handleReadAloudSubmit(w http.ResponseWriter, r *http.Request, q
 		threshold = 0.4
 	}
 	correct := result.Score >= threshold
-	s.writeReadAloudResult(w, stype, sid, qtype, correct, result.Score, result.Phonemes, targetText, "pronounce")
+	s.writeReadAloudResult(w, stype, sid, qtype, correct, result.Score, result.Phonemes, targetText, "pronounce", study)
 }
 
 // writeReadAloudResult records SM-2, review log, and returns the result JSON.
@@ -1031,9 +1012,40 @@ func categoryForReadAloud(source string, correct bool) string {
 	return ""
 }
 
-func (s *Server) writeReadAloudResult(w http.ResponseWriter, stype string, sid int64, qtype string, correct bool, score float64, phonemes []pronounce.PhonemeScore, targetText, source string) {
+func (s *Server) writeReadAloudResult(w http.ResponseWriter, stype string, sid int64, qtype string, correct bool, score float64, phonemes []pronounce.PhonemeScore, targetText, source string, study bool) {
 	quality := engine.QualityFromScore(score)
 	now := clock.Now()
+
+	feedback := fmt.Sprintf("正确答案: %s", targetText)
+	if score > 0 {
+		feedback = fmt.Sprintf("Score: %.0f%%", score*100)
+		if len(phonemes) > 0 {
+			parts := make([]string, len(phonemes))
+			for i, p := range phonemes {
+				mark := "+"
+				if p.Score < 0.45 {
+					mark = "-"
+				}
+				parts[i] = fmt.Sprintf("%s:%.0f%s", p.Phoneme, p.Score*100, mark)
+			}
+			feedback = strings.Join(parts, " ") + " | " + feedback
+		}
+	}
+
+	// Study-card read-aloud is evaluation only. It must never advance SM-2 or
+	// count toward the daily target: the card is practice, not a graded review.
+	if study {
+		writeJSON(w, map[string]interface{}{
+			"correct":        correct,
+			"score":          score,
+			"phonemes":       phonemes,
+			"log_id":         0,
+			"feedback":       feedback,
+			"source":         source,
+			"next_review_at": nil,
+		})
+		return
+	}
 
 	var nextReviewAt *time.Time
 	if stype == "word" && s.DB != nil {
@@ -1097,22 +1109,6 @@ func (s *Server) writeReadAloudResult(w http.ResponseWriter, stype string, sid i
 			log.Info("quiz", "daily target met (read-aloud) — auto-unlocking")
 			s.System.ExitLockMode()
 			s.System.RestoreFlutterWindow()
-		}
-	}
-
-	feedback := fmt.Sprintf("正确答案: %s", targetText)
-	if score > 0 {
-		feedback = fmt.Sprintf("Score: %.0f%%", score*100)
-		if len(phonemes) > 0 {
-			parts := make([]string, len(phonemes))
-			for i, p := range phonemes {
-				mark := "+"
-				if p.Score < 0.45 {
-					mark = "-"
-				}
-				parts[i] = fmt.Sprintf("%s:%.0f%s", p.Phoneme, p.Score*100, mark)
-			}
-			feedback = strings.Join(parts, " ") + " | " + feedback
 		}
 	}
 

@@ -42,6 +42,7 @@ class QuizApi {
     required String answer,
     String? language,
     String? audio,
+    bool study = false,
   }) async {
     final r = await _client.post('/api/v1/quiz/submit', data: {
       'question_id': questionId,
@@ -51,6 +52,7 @@ class QuizApi {
       'answer': answer,
       if (language != null) 'language': language,
       if (audio != null) 'audio': audio,
+      if (study) 'study': true,
     });
     return SubmitResult.fromJson(r.data as Map<String, dynamic>);
   }

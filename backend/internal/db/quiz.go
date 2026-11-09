@@ -151,9 +151,10 @@ func (d *Database) SessionCounts(language string) (newWords, newGrammar, reviewW
 
 // DailyUnique is one calendar day's unique-subject review summary.
 type DailyUnique struct {
-	Date    string
-	Unique  int
-	Correct int
+	Date     string
+	Unique   int
+	Attempts int
+	Correct  int
 }
 
 // GetRecentUniqueDaily returns per-day unique-subject and correct counts for
@@ -162,7 +163,7 @@ type DailyUnique struct {
 func (d *Database) GetRecentUniqueDaily(language string, n int) ([]DailyUnique, error) {
 	since := clock.Now().AddDate(0, 0, -(n - 1)).Format("2006-01-02")
 	rows, err := d.DB.Query(`
-		SELECT date(created_at), COUNT(DISTINCT subject_type || ':' || subject_id), COALESCE(SUM(correct), 0)
+		SELECT date(created_at), COUNT(DISTINCT subject_type || ':' || subject_id), COUNT(*), COALESCE(SUM(correct), 0)
 		FROM review_log
 		WHERE language = ? AND date(created_at) >= ?
 		GROUP BY date(created_at)
@@ -175,7 +176,7 @@ func (d *Database) GetRecentUniqueDaily(language string, n int) ([]DailyUnique, 
 	var out []DailyUnique
 	for rows.Next() {
 		var du DailyUnique
-		if err := rows.Scan(&du.Date, &du.Unique, &du.Correct); err != nil {
+		if err := rows.Scan(&du.Date, &du.Unique, &du.Attempts, &du.Correct); err != nil {
 			return nil, fmt.Errorf("scan recent unique daily: %w", err)
 		}
 		out = append(out, du)

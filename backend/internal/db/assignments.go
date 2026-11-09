@@ -57,7 +57,21 @@ func (d *Database) ListPendingAssignments(language string) ([]*Assignment, error
 	return list, nil
 }
 
-func (d *Database) CompleteAssignment(id, answer string, score float64, feedback string) error {
+func (d *Database) GetAssignment(id int64) (*Assignment, error) {
+	a := &Assignment{}
+	var createdAt string
+	err := d.DB.QueryRow(`
+		SELECT id, language, type, prompt, context, status, created_at
+		FROM assignments WHERE id = ?
+	`, id).Scan(&a.ID, &a.Language, &a.Type, &a.Prompt, &a.Context, &a.Status, &createdAt)
+	if err != nil {
+		return nil, fmt.Errorf("get assignment: %w", err)
+	}
+	a.CreatedAt = TimeStr(createdAt)
+	return a, nil
+}
+
+func (d *Database) CompleteAssignment(id int64, answer string, score float64, feedback string) error {
 	_, err := d.DB.Exec(`
 		UPDATE assignments
 		SET answer = ?, score = ?, feedback = ?, status = 'completed', updated_at = datetime('now','localtime')

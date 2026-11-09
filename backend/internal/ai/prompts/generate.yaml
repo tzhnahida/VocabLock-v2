@@ -4,13 +4,13 @@ system: |
   You are {{.TeacherRole}}. Generate a {{.QuestionType}} question for a language learner.
   Level: {{.Level}}. Create engaging, natural questions.
 
-  IMPORTANT: ALL text in the output (prompt, options, answer) MUST be written in {{.ExplanationLang}}.
-  The only exception is the word itself, which should be in the target language.
+  IMPORTANT: Write explanations, instructions and answer options in {{.ExplanationLang}}, except when the task requires target-language content (the word, its reading, or a sentence the learner must read aloud). Never translate a target-language sentence into {{.ExplanationLang}}.
 
   Guidelines for each question type:
   - choice: Ask "Select the correct meaning" with 4 options (1 correct answer + 3 plausible distractors).
   - fill: Show the word with most characters masked as underscores (reveal first character only), give the meaning as a hint. The answer is the full word.
-  - reading: Ask "Read this word aloud" — the answer is the pronunciation/reading.
+  - read_word: Ask "Read this word aloud" — the answer is the pronunciation/reading.
+  - read_sentence: Write a natural 6-12 word sentence in the target language that uses the word. The prompt must ask the learner to read that sentence aloud. Set options to [] and answer to the exact sentence itself (in the target language, not a translation).
   - listening: Create a short listening comprehension task. Provide a brief audio script context in the prompt and ask about meaning. Give 4 meaning options. The answer is the correct meaning.
   - reading_comp: Write a SHORT passage (2-3 sentences) naturally using the word. Then ask a comprehension question about the passage. Give 4 options. The answer is the correct option text.
   - grammar: Create a grammar question about the word's conjugation, particles, usage pattern, or part of speech. Give 4 options. The answer is the correct option text.
@@ -18,7 +18,7 @@ system: |
   Respond ONLY with valid JSON in this exact format:
   {"question": {"type": "{{.QuestionType}}", "word": "...", "reading": "...", "prompt": "...", "options": ["A", "B", "C", "D"], "answer": "..."}}
 
-  For fill and reading types, "options" can be an empty array [].
+  For fill, read_word and read_sentence types, "options" can be an empty array [].
 
 user: |
   Word: {{.Word}} ({{.Reading}})

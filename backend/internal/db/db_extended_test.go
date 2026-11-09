@@ -1,7 +1,6 @@
 package db
 
 import (
-	"fmt"
 	"testing"
 	"time"
 )
@@ -157,7 +156,7 @@ func TestCompleteAssignment(t *testing.T) {
 	d := openTestDB(t)
 	aid, _ := d.InsertAssignment("en", "sentence", "Make a sentence", "use: eat")
 
-	if err := d.CompleteAssignment(fmt.Sprintf("%d", aid), "I eat breakfast", 0.9, "Good!"); err != nil {
+	if err := d.CompleteAssignment(aid, "I eat breakfast", 0.9, "Good!"); err != nil {
 		t.Fatalf("CompleteAssignment: %v", err)
 	}
 

@@ -142,8 +142,8 @@ func (s *Server) aiGenerateQuestion(ctx context.Context, word *engine.WordInfo, 
 	}
 
 	q := &engine.Question{
-		ID:          fmt.Sprintf("ai-%c-%d", qType[0], word.ID),
-		Type:        engine.QuestionType(result.Question.Type),
+		ID:          fmt.Sprintf("ai-%s-%d", qType, word.ID),
+		Type:        qType,
 		SubjectType: "word",
 		SubjectID:   word.ID,
 		Prompt:      result.Question.Prompt,

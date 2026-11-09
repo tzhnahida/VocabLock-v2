@@ -45,10 +45,12 @@ func (d *Database) migrate() error {
 		);
 
 		CREATE TABLE IF NOT EXISTS daily_stats (
-			date TEXT PRIMARY KEY,
+			date TEXT NOT NULL,
+			language TEXT NOT NULL DEFAULT '',
 			words_reviewed INTEGER NOT NULL DEFAULT 0,
 			words_correct INTEGER NOT NULL DEFAULT 0,
-			time_spent_sec INTEGER NOT NULL DEFAULT 0
+			time_spent_sec INTEGER NOT NULL DEFAULT 0,
+			PRIMARY KEY (date, language)
 		);
 
 		CREATE TABLE IF NOT EXISTS config (
@@ -225,6 +227,9 @@ func (d *Database) migrate() error {
 		}
 	}
 	_, _ = d.DB.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_stats_date_lang ON daily_stats(date, language)`)
+	if err := d.ensureDailyStatsCompositePK(); err != nil {
+		return err
+	}
 
 	// Phase 9: strip trailing pitch-accent digits from readings.
 	// Japanese dicts often return "おかね0" — the number is a pitch accent marker.
@@ -250,5 +255,68 @@ func (d *Database) migrate() error {
 		}
 	}
 
+	return nil
+}
+
+// ensureDailyStatsCompositePK rebuilds daily_stats when it still has the old
+// single-column date primary key. Phase 8 added a language column but left the
+// old primary key in place, so writing a second language for the same day hit
+// "UNIQUE constraint failed: daily_stats.date". Fresh databases already use the
+// composite primary key and skip the rebuild.
+func (d *Database) ensureDailyStatsCompositePK() error {
+	rows, err := d.DB.Query(`PRAGMA table_info(daily_stats)`)
+	if err != nil {
+		return fmt.Errorf("inspect daily_stats: %w", err)
+	}
+	pkCols := 0
+	for rows.Next() {
+		var cid, notNull, pk int
+		var name, typ string
+		var dflt interface{}
+		if err := rows.Scan(&cid, &name, &typ, &notNull, &dflt, &pk); err != nil {
+			rows.Close()
+			return fmt.Errorf("scan daily_stats columns: %w", err)
+		}
+		if pk > 0 {
+			pkCols++
+		}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return fmt.Errorf("iterate daily_stats columns: %w", err)
+	}
+	rows.Close()
+	if pkCols >= 2 {
+		return nil
+	}
+
+	tx, err := d.DB.Begin()
+	if err != nil {
+		return fmt.Errorf("begin daily_stats rebuild: %w", err)
+	}
+	stmts := []string{
+		`CREATE TABLE daily_stats_new (
+			date TEXT NOT NULL,
+			language TEXT NOT NULL DEFAULT '',
+			words_reviewed INTEGER NOT NULL DEFAULT 0,
+			words_correct INTEGER NOT NULL DEFAULT 0,
+			time_spent_sec INTEGER NOT NULL DEFAULT 0,
+			PRIMARY KEY (date, language)
+		)`,
+		`INSERT OR IGNORE INTO daily_stats_new (date, language, words_reviewed, words_correct, time_spent_sec)
+		 SELECT date, language, words_reviewed, words_correct, time_spent_sec FROM daily_stats`,
+		`DROP TABLE daily_stats`,
+		`ALTER TABLE daily_stats_new RENAME TO daily_stats`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_stats_date_lang ON daily_stats(date, language)`,
+	}
+	for _, stmt := range stmts {
+		if _, err := tx.Exec(stmt); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("rebuild daily_stats: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit daily_stats rebuild: %w", err)
+	}
 	return nil
 }

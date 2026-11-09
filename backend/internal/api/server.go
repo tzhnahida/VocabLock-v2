@@ -177,15 +177,17 @@ func (s *Server) DailyTargetMet(lang string) bool {
 	if reviewed < s.Config.App.DailyTarget {
 		return false
 	}
-	// No answers yet → nothing to gate on.
-	if reviewed == 0 {
-		return true
-	}
-	_, correct, err := s.DB.GetTodayStats(lang)
+	// Accuracy is attempts-based: a word answered twice counts as two attempts.
+	// Using unique subjects as the denominator let one correct retry push the
+	// ratio above 1.0 and bypass the accuracy gate.
+	attempts, correct, err := s.DB.GetTodayStats(lang)
 	if err != nil {
 		return false
 	}
-	accuracy := float64(correct) / float64(reviewed)
+	if attempts == 0 {
+		return true
+	}
+	accuracy := float64(correct) / float64(attempts)
 	return accuracy >= s.Config.App.MinAccuracy
 }
 

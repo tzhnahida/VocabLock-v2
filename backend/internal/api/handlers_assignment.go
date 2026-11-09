@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/tzhnahida/VocabLock/internal/ai"
 	"github.com/tzhnahida/VocabLock/internal/engine"
+	"github.com/tzhnahida/VocabLock/internal/log"
 )
 
 // handleAssignmentNext returns the next pending assignment, or generates a new batch if due.
@@ -80,14 +82,19 @@ func (s *Server) handleAssignmentNext(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			continue
 		}
+		// Store first, then expose the database ID. The generated a.ID is a
+		// display-only string and is not the primary key used for completion.
+		dbID, err := s.DB.InsertAssignment(lang, string(a.Type), a.Prompt, a.Context)
+		if err != nil {
+			log.Warn("assignment", "store generated assignment: %v", err)
+			continue
+		}
 		assignments = append(assignments, map[string]interface{}{
-			"id":      a.ID,
+			"id":      strconv.FormatInt(dbID, 10),
 			"type":    a.Type,
 			"prompt":  a.Prompt,
 			"context": a.Context,
 		})
-		// Store in DB
-		s.DB.InsertAssignment(lang, string(a.Type), a.Prompt, a.Context)
 	}
 
 	if len(assignments) == 0 {
@@ -139,9 +146,30 @@ func (s *Server) handleAssignmentSubmit(w http.ResponseWriter, r *http.Request) 
 
 	lang := s.Config.App.ActiveLang
 
-	// Derive topic from pending assignments
+	// Resolve the submitted assignment by its primary key. The previous code
+	// always graded against pending[0], so submitting assignment B could be
+	// graded against assignment A's prompt.
+	var assignmentID int64
 	topic := ""
-	if pending, err := s.DB.ListPendingAssignments(lang); err == nil && len(pending) > 0 {
+	if req.AssignmentID != "" {
+		id, err := strconv.ParseInt(strings.TrimSpace(req.AssignmentID), 10, 64)
+		if err != nil || id <= 0 {
+			writeError(w, 400, "invalid assignment_id")
+			return
+		}
+		a, err := s.DB.GetAssignment(id)
+		if err != nil {
+			writeError(w, 404, "assignment not found")
+			return
+		}
+		if a.Language != "" && a.Language != lang {
+			writeError(w, 404, "assignment not found")
+			return
+		}
+		assignmentID = a.ID
+		topic = a.Prompt
+	} else if pending, err := s.DB.ListPendingAssignments(lang); err == nil && len(pending) > 0 {
+		// Backward compatibility for old clients that do not send an ID.
 		topic = pending[0].Prompt
 	}
 
@@ -152,8 +180,10 @@ func (s *Server) handleAssignmentSubmit(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Mark assignment as completed
-	if req.AssignmentID != "" {
-		s.DB.CompleteAssignment(req.AssignmentID, req.Answer, grade.Score, grade.Feedback)
+	if assignmentID > 0 {
+		if err := s.DB.CompleteAssignment(assignmentID, req.Answer, grade.Score, grade.Feedback); err != nil {
+			log.Warn("assignment", "complete assignment %d: %v", assignmentID, err)
+		}
 	}
 
 	writeJSON(w, grade)

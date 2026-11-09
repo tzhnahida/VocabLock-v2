@@ -503,6 +503,7 @@ class AppState extends ChangeNotifier {
     required String questionType,
     required String answer,
     String? audio,
+    bool study = false,
   }) async {
     final lang = activeLangCode;
     if (useMock) {
@@ -519,6 +520,7 @@ class AppState extends ChangeNotifier {
         answer: answer,
         language: lang,
         audio: audio,
+        study: study,
       );
     } catch (_) {
       return null;

@@ -18,7 +18,7 @@ enum _Phase { overview, learning, quiz, complete }
 class QuizSessionPage extends StatefulWidget {
   final Future<Map<String, dynamic>?> Function() onSessionStart;
   final Future<Question?> Function() onNextQuestion;
-  final Future<SubmitResult?> Function({required String questionId, required String subjectType, required int subjectId, required String questionType, required String answer, String? audio}) onSubmit;
+  final Future<SubmitResult?> Function({required String questionId, required String subjectType, required int subjectId, required String questionType, required String answer, String? audio, bool? study}) onSubmit;
   final Future<List<Word>> Function() onGetStudyWords;
   final Future<List<GrammarPoint>> Function()? onGetStudyGrammar;
   final Future<SessionSummary?> Function()? onSummarize;
@@ -253,13 +253,15 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
         questionType: 'read_word',
         answer: '',
         audio: audio,
+        study: true,
       );
     } catch (_) {}
     if (!mounted) return;
     _answered++;
     final passed = result != null && result.correct;
     // If the pronounce provider can't assess this word (e.g. not in Julius dict),
-    // auto-pass — SM-2 was already updated by the backend fallback.
+    // mark it read for this study session only. The backend no longer advances
+    // SM-2 for system errors.
     final forcePass = result != null && !result.correct
         && (result.source == 'assess_error' || result.source == 'no_provider');
     if (passed) _correct++;
