@@ -127,6 +127,10 @@ func (s *Server) handleTTSText(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, "invalid request body")
 		return
 	}
+	if len(req.Text) > maxTTSChars {
+		writeError(w, 400, "text is too long")
+		return
+	}
 
 	if req.Voice == "" {
 		if lc, ok := s.Config.Languages[s.Config.App.ActiveLang]; ok {

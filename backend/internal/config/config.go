@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/tzhnahida/VocabLock/internal/log"
 	"gopkg.in/yaml.v3"
@@ -161,6 +162,14 @@ type Config struct {
 	Languages map[string]*LanguageConfig // key = language code
 }
 
+// secretsConfig is stored separately from app.yaml so config dumps/backups
+// do not leak provider API keys.
+type secretsConfig struct {
+	AI struct {
+		APIKey string `yaml:"api_key"`
+	} `yaml:"ai"`
+}
+
 func Load(configDir string) (*Config, error) {
 	cfg := &Config{
 		App: AppConfig{
@@ -188,6 +197,24 @@ func Load(configDir string) (*Config, error) {
 
 	// app.yaml (optional — defaults above are sufficient for auto-test mode)
 	_ = loadYAML(filepath.Join(configDir, "app.yaml"), &cfg.App)
+	legacyAPIKey := cfg.App.AI.APIKey
+
+	// secrets.yaml (optional — takes precedence over a legacy key in app.yaml)
+	var sec secretsConfig
+	if err := loadYAML(filepath.Join(configDir, "secrets.yaml"), &sec); err != nil && !os.IsNotExist(err) {
+		log.Warn("config", "secrets.yaml: %v", err)
+	}
+	if sec.AI.APIKey != "" {
+		cfg.App.AI.APIKey = sec.AI.APIKey
+	}
+
+	// Migrate a legacy plaintext key out of app.yaml on first load. This keeps
+	// existing installs working while moving the secret to secrets.yaml.
+	if legacyAPIKey != "" {
+		if err := cfg.SaveAppConfig(configDir); err != nil {
+			log.Warn("config", "migrate API key to secrets.yaml: %v", err)
+		}
+	}
 
 	// Env var overrides (keeps secrets out of committed yaml)
 	if v := os.Getenv("VOCABLOCK_AI_KEY"); v != "" {
@@ -319,15 +346,43 @@ func BuiltinLanguage(code string) *LanguageConfig {
 }
 
 func (c *Config) SaveAppConfig(configDir string) error {
-	data, err := yaml.Marshal(&c.App)
+	apiKey := strings.TrimSpace(c.App.AI.APIKey)
+
+	// app.yaml never contains the API key.
+	app := c.App
+	app.AI.APIKey = ""
+	data, err := yaml.Marshal(&app)
 	if err != nil {
 		return fmt.Errorf("marshal app config: %w", err)
 	}
+
+	secretsPath := filepath.Join(configDir, "secrets.yaml")
+	if apiKey != "" {
+		var sec secretsConfig
+		sec.AI.APIKey = apiKey
+		sdata, err := yaml.Marshal(&sec)
+		if err != nil {
+			return fmt.Errorf("marshal secrets: %w", err)
+		}
+		if err := writePrivateFile(secretsPath, sdata); err != nil {
+			return fmt.Errorf("write secrets.yaml: %w", err)
+		}
+	} else if err := os.Remove(secretsPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove secrets.yaml: %w", err)
+	}
+
 	path := filepath.Join(configDir, "app.yaml")
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := writePrivateFile(path, data); err != nil {
 		return fmt.Errorf("write app.yaml: %w", err)
 	}
 	return nil
+}
+
+func writePrivateFile(path string, data []byte) error {
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		return err
+	}
+	return os.Chmod(path, 0600)
 }
 
 func loadYAML(path string, v interface{}) error {

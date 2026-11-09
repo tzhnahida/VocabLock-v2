@@ -521,6 +521,14 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, "invalid request body")
 		return
 	}
+	if len(req.Answer) > maxQuizAnswer {
+		writeError(w, 400, "answer is too long")
+		return
+	}
+	if len(req.Audio) > maxQuizAudioBase64 {
+		writeError(w, 400, "audio is too large")
+		return
+	}
 
 	// Default subject_type for backward compat with old clients
 	if req.SubjectType == "" {

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"crypto/subtle"
 	"net/http"
 	"strings"
 	"time"
@@ -23,7 +24,26 @@ func withMiddleware(next http.Handler, authToken string) http.Handler {
 	h = authMiddleware(h, authToken)
 	h = recoveryMiddleware(h)
 	h = loggingMiddleware(h)
+	h = bodyLimitMiddleware(h)
 	return h
+}
+
+// maxRequestBodyBytes bounds every request body. Individual handlers may
+// enforce tighter limits on text fields they pass to AI/TTS/disk.
+const maxRequestBodyBytes = 16 << 20
+
+func bodyLimitMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodyBytes)
+		next.ServeHTTP(w, r)
+	})
+}
+
+func tokenEqual(got, want string) bool {
+	if got == "" || want == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(got), []byte(want)) == 1
 }
 
 func recoveryMiddleware(next http.Handler) http.Handler {
@@ -56,13 +76,16 @@ func authMiddleware(next http.Handler, token string) http.Handler {
 		}
 
 		auth := r.Header.Get("Authorization")
-		if strings.HasPrefix(auth, "Bearer ") && strings.TrimPrefix(auth, "Bearer ") == token {
+		if strings.HasPrefix(auth, "Bearer ") && tokenEqual(strings.TrimPrefix(auth, "Bearer "), token) {
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		// Audio/media URLs use query-param auth (system player can't set headers)
-		if r.URL.Query().Get("token") == token {
+		// Audio/media URLs use query-param auth (system player can't set headers).
+		// Scope it to static media reads so the token cannot authorize API calls.
+		if (r.Method == http.MethodGet || r.Method == http.MethodHead) &&
+			strings.HasPrefix(r.URL.Path, "/data/audio/") &&
+			tokenEqual(r.URL.Query().Get("token"), token) {
 			next.ServeHTTP(w, r)
 			return
 		}

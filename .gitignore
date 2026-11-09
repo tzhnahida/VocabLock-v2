@@ -27,6 +27,7 @@ build/bin/
 *.pem
 *.key
 backend/configs/app.yaml
+backend/configs/secrets.yaml
 backend/configs/convo*.yaml
 
 # Runtime data

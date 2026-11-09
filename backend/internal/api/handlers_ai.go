@@ -25,6 +25,21 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(req.Message) > maxAIChatMessage {
+		writeError(w, 400, "message is too long")
+		return
+	}
+	if len(req.History) > maxAIChatHistory {
+		writeError(w, 400, "history is too long")
+		return
+	}
+	for _, m := range req.History {
+		if len(m.Content) > maxAIChatHistoryItem {
+			writeError(w, 400, "history message is too long")
+			return
+		}
+	}
+
 	log.Debug("ai/chat", "request: len=%d history=%d", len(req.Message), len(req.History))
 
 	if s.AI() == nil {
@@ -116,6 +131,10 @@ func (s *Server) handleAIProfileUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeError(w, 400, "invalid request body")
+		return
+	}
+	if len(req.Profile) > maxAITrainingProfile {
+		writeError(w, 400, "profile is too long")
 		return
 	}
 

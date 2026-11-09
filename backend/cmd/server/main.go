@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -215,7 +216,6 @@ func main() {
 		log.Info("server", "VocabLock v2 — first run")
 	}
 	log.Info("server", "http://127.0.0.1:%d", srv.Port)
-	log.Info("server", "token: %s", srv.Token)
 	log.Info("server", "mock: %v", cfg.App.MockMode)
 
 	sig := make(chan os.Signal, 1)
@@ -251,8 +251,9 @@ func spawnFlutter(port int, token string) int {
 
 	cmd := exec.Command(flutterExe,
 		"--api-port", fmt.Sprintf("%d", port),
-		"--auth-token", token,
+		"--auth-token-stdin",
 	)
+	cmd.Stdin = strings.NewReader(token + "\n")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {

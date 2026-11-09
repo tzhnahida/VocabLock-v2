@@ -118,6 +118,11 @@ func (s *Server) handleWordsCreate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, "word is required")
 		return
 	}
+	if len(req.Word) > maxWordField || len(req.Reading) > maxWordField ||
+		len(req.Meaning) > maxMeaningField || len(req.POS) > maxWordField || len(req.Language) > 16 {
+		writeError(w, 400, "word fields are too long")
+		return
+	}
 	if req.Language == "" {
 		req.Language = s.Config.App.ActiveLang
 	}
@@ -326,11 +331,21 @@ func (s *Server) handleWordsImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(words) > maxImportWords {
+		writeError(w, 400, "too many words in one import")
+		return
+	}
+
 	lang := s.Config.App.ActiveLang
 	log.Debug("words", "import: count=%d", len(words))
 	imported, skipped := 0, 0
 	for _, iw := range words {
 		if iw.Word == "" {
+			skipped++
+			continue
+		}
+		if len(iw.Word) > maxWordField || len(iw.Reading) > maxWordField ||
+			len(iw.Meaning) > maxMeaningField || len(iw.POS) > maxWordField || len(iw.Language) > 16 {
 			skipped++
 			continue
 		}
@@ -622,6 +637,16 @@ func (s *Server) handleWordsTags(w http.ResponseWriter, r *http.Request) {
 	if err := readJSON(r, &req); err != nil {
 		writeError(w, 400, "invalid request body")
 		return
+	}
+	if len(req.Tags) > maxTags {
+		writeError(w, 400, "too many tags")
+		return
+	}
+	for _, tag := range req.Tags {
+		if len(tag) > maxTagChars {
+			writeError(w, 400, "tag is too long")
+			return
+		}
 	}
 	tagsJSON, err := json.Marshal(req.Tags)
 	if err != nil {

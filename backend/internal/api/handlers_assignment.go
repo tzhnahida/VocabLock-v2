@@ -143,6 +143,10 @@ func (s *Server) handleAssignmentSubmit(w http.ResponseWriter, r *http.Request) 
 		writeError(w, 400, "answer cannot be empty")
 		return
 	}
+	if len(req.Answer) > maxAssignmentAnswer {
+		writeError(w, 400, "answer is too long")
+		return
+	}
 
 	lang := s.Config.App.ActiveLang
 

@@ -4,13 +4,15 @@ package system
 
 import (
 	"fmt"
+	"net/http"
 	"os"
-	"os/exec"
+	"runtime"
 	"sync"
 	"syscall"
 	"time"
 	"unsafe"
 
+	"github.com/tzhnahida/VocabLock/internal/log"
 	"golang.org/x/sys/windows"
 )
 
@@ -60,9 +62,14 @@ var (
 	procAppendMenu       = user32.NewProc("AppendMenuW")
 	procDestroyMenu      = user32.NewProc("DestroyMenu")
 
-	// Hotkey
-	procRegisterHotKey   = user32.NewProc("RegisterHotKey")
-	procUnregisterHotKey = user32.NewProc("UnregisterHotKey")
+	// Hotkey / hooks
+	procRegisterHotKey    = user32.NewProc("RegisterHotKey")
+	procUnregisterHotKey  = user32.NewProc("UnregisterHotKey")
+	procSetWindowsHookEx  = user32.NewProc("SetWindowsHookExW")
+	procUnhookWindowsHook = user32.NewProc("UnhookWindowsHookEx")
+	procCallNextHookEx    = user32.NewProc("CallNextHookEx")
+	procGetAsyncKeyState  = user32.NewProc("GetAsyncKeyState")
+	procPostMessage       = user32.NewProc("PostMessageW")
 
 	// Tray
 	procShellNotifyIcon = shell32.NewProc("Shell_NotifyIconW")
@@ -109,16 +116,19 @@ const (
 	CS_VREDRAW = 0x0001
 
 	// Messages
-	WM_DESTROY    = 0x0002
-	WM_CLOSE      = 0x0010
-	WM_PAINT      = 0x000F
-	WM_TIMER      = 0x0113
-	WM_HOTKEY     = 0x0312
-	WM_SYSCOMMAND = 0x0112
-	WM_APP        = 0x8000
-	WM_TRAYICON   = WM_APP + 1
-	WM_COMMAND    = 0x0111
-	WM_NCHITTEST  = 0x0084
+	WM_DESTROY       = 0x0002
+	WM_CLOSE         = 0x0010
+	WM_PAINT         = 0x000F
+	WM_TIMER         = 0x0113
+	WM_HOTKEY        = 0x0312
+	WM_SYSCOMMAND    = 0x0112
+	WM_APP           = 0x8000
+	WM_TRAYICON      = WM_APP + 1
+	WM_APP_LOCK_EXIT = WM_APP + 10
+	WM_COMMAND       = 0x0111
+	WM_NCHITTEST     = 0x0084
+	WM_KEYDOWN       = 0x0100
+	WM_SYSKEYDOWN    = 0x0104
 
 	SC_CLOSE = 0xF060
 
@@ -142,11 +152,15 @@ const (
 	PROCESS_TERMINATE         = 0x0001
 	STILL_ACTIVE              = 259
 
-	// Hotkey
-	MOD_CONTROL  = 0x0002
-	MOD_SHIFT    = 0x0004
-	MOD_NOREPEAT = 0x4000
-	VK_Q         = 0x51
+	// Hotkey / low-level hooks
+	MOD_CONTROL    = 0x0002
+	MOD_SHIFT      = 0x0004
+	MOD_NOREPEAT   = 0x4000
+	VK_Q           = 0x51
+	VK_CONTROL     = 0x11
+	VK_SHIFT       = 0x10
+	WH_KEYBOARD_LL = 13
+	WH_MOUSE_LL    = 14
 
 	// Colors
 	COLOR_BTNFACE = 15
@@ -212,6 +226,11 @@ type windowsProvider struct {
 
 	quitChan    chan struct{}
 	msgLoopDone chan struct{}
+
+	keyboardHook     uintptr
+	mouseHook        uintptr
+	keyboardHookProc uintptr
+	mouseHookProc    uintptr
 }
 
 func newProvider() SystemProvider {
@@ -245,32 +264,55 @@ func (p *windowsProvider) EnterLockMode(hwnd uintptr) error {
 		p.mu.Unlock()
 		return fmt.Errorf("lock already active")
 	}
+	oldDone := p.msgLoopDone
+	p.mu.Unlock()
+
+	// A previous lock loop may still be unwinding after emergencyEscape.
+	if oldDone != nil {
+		select {
+		case <-oldDone:
+		case <-time.After(2 * time.Second):
+			log.Warn("system", "previous lock loop did not exit; starting a new one")
+		}
+	}
+
+	p.mu.Lock()
+	if p.lockRunning {
+		p.mu.Unlock()
+		return fmt.Errorf("lock already active")
+	}
+	done := make(chan struct{})
 	p.lockRunning = true
 	p.deadCount = 0
 	p.lockShowExit = false
 	p.lockCountdown = 0
-	p.msgLoopDone = make(chan struct{})
+	p.msgLoopDone = done
 	p.mu.Unlock()
 
-	go p.lockMessageLoop()
+	go p.lockMessageLoop(done)
 	return nil
 }
 
 func (p *windowsProvider) ExitLockMode() error {
 	p.mu.Lock()
-	defer p.mu.Unlock()
-	if !p.lockRunning {
+	if !p.lockRunning && p.msgLoopDone == nil {
+		p.mu.Unlock()
 		return nil
 	}
 	p.lockRunning = false
 	p.lockShowExit = false
-	if p.lockHwnd != 0 {
-		procPostQuitMessage.Call(0)
+	hwnd := p.lockHwnd
+	done := p.msgLoopDone
+	p.mu.Unlock()
+
+	// PostQuitMessage is thread-affine: ask the lock loop to quit instead of
+	// calling it from this HTTP goroutine.
+	if hwnd != 0 {
+		procPostMessage.Call(uintptr(hwnd), WM_APP_LOCK_EXIT, 0, 0)
 	}
-	// Wait for message loop to exit
-	if p.msgLoopDone != nil {
+	if done != nil {
 		select {
-		case <-p.msgLoopDone:
+		case <-done:
 		case <-time.After(2 * time.Second):
 		}
 	}
@@ -454,7 +496,78 @@ func (p *windowsProvider) registerGlobalHotkey() error {
 	return nil
 }
 
-func (p *windowsProvider) lockMessageLoop() {
+func (p *windowsProvider) installLockHooks() error {
+	if p.keyboardHookProc == 0 {
+		p.keyboardHookProc = syscall.NewCallback(p.lockKeyboardProc)
+	}
+	if p.mouseHookProc == 0 {
+		p.mouseHookProc = syscall.NewCallback(p.lockMouseProc)
+	}
+	kb, _, err := procSetWindowsHookEx.Call(uintptr(WH_KEYBOARD_LL), p.keyboardHookProc, 0, 0)
+	if kb == 0 {
+		return fmt.Errorf("SetWindowsHookEx(WH_KEYBOARD_LL): %v", err)
+	}
+	p.keyboardHook = kb
+	mouse, _, merr := procSetWindowsHookEx.Call(uintptr(WH_MOUSE_LL), p.mouseHookProc, 0, 0)
+	if mouse == 0 {
+		return fmt.Errorf("SetWindowsHookEx(WH_MOUSE_LL): %v", merr)
+	}
+	p.mouseHook = mouse
+	return nil
+}
+
+func (p *windowsProvider) uninstallLockHooks() {
+	if p.keyboardHook != 0 {
+		procUnhookWindowsHook.Call(p.keyboardHook)
+		p.keyboardHook = 0
+	}
+	if p.mouseHook != 0 {
+		procUnhookWindowsHook.Call(p.mouseHook)
+		p.mouseHook = 0
+	}
+}
+
+// uptrToPtr converts a Win32 LPARAM back to a pointer without triggering
+// vet's unsafeptr heuristic (the value is a real pointer supplied by Windows).
+func uptrToPtr(p uintptr) unsafe.Pointer {
+	return *(*unsafe.Pointer)(unsafe.Pointer(&p))
+}
+
+// lockKeyboardProc swallows every key while the lock screen is active, so
+// Alt+Tab, Win, Alt+F4, Ctrl+Esc and Ctrl+Shift+Esc never reach the shell.
+// Ctrl+Shift+Q remains the deliberate emergency exit.
+func (p *windowsProvider) lockKeyboardProc(nCode int, wParam, lParam uintptr) uintptr {
+	if nCode < 0 {
+		ret, _, _ := procCallNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
+		return ret
+	}
+	if wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN {
+		vk := *(*uint32)(uptrToPtr(lParam))
+		ctrl, _, _ := procGetAsyncKeyState.Call(uintptr(VK_CONTROL))
+		shift, _, _ := procGetAsyncKeyState.Call(uintptr(VK_SHIFT))
+		if vk == VK_Q && ctrl&0x8000 != 0 && shift&0x8000 != 0 {
+			p.emergencyEscape()
+		}
+	}
+	return 1
+}
+
+func (p *windowsProvider) lockMouseProc(nCode int, wParam, lParam uintptr) uintptr {
+	if nCode < 0 {
+		ret, _, _ := procCallNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
+		return ret
+	}
+	return 1
+}
+
+func (p *windowsProvider) lockMessageLoop(done chan struct{}) {
+	// Win32 message loops and low-level hooks are thread-affine. Without this
+	// the goroutine can migrate and PostQuitMessage/UnhookWindowsHookEx hit
+	// the wrong thread.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	defer close(done)
+
 	className, _ := windows.UTF16PtrFromString(p.lockClassName)
 	windowName, _ := windows.UTF16PtrFromString("VocabLock")
 
@@ -478,21 +591,35 @@ func (p *windowsProvider) lockMessageLoop() {
 		0, 0, cx, cy,
 		0, 0, 0, 0,
 	)
+
+	if hwnd == 0 {
+		p.finishLockLoop(done, 0)
+		return
+	}
+
 	p.mu.Lock()
+	if !p.lockRunning {
+		p.mu.Unlock()
+		procDestroyWindow.Call(hwnd)
+		p.finishLockLoop(done, 0)
+		return
+	}
 	p.lockHwnd = windows.HWND(hwnd)
 	p.mu.Unlock()
 
-	if hwnd == 0 {
-		p.mu.Lock()
-		p.lockRunning = false
-		p.mu.Unlock()
-		return
+	procShowWindow.Call(hwnd, SW_SHOW)
+	procSetForeground.Call(hwnd)
+
+	if err := p.installLockHooks(); err != nil {
+		log.Warn("system", "lock hooks: %v", err)
 	}
 
 	// Timers
 	procSetTimer.Call(hwnd, TIMER_HEALTH, 10000, 0)   // health check every 10s
 	procSetTimer.Call(hwnd, TIMER_COUNTDOWN, 1000, 0) // countdown tick every 1s
 
+	// Keep RegisterHotKey as a fallback if the low-level hook cannot be
+	// installed. With hooks active the hook itself handles Ctrl+Shift+Q.
 	p.registerGlobalHotkey()
 
 	// Message loop
@@ -506,23 +633,41 @@ func (p *windowsProvider) lockMessageLoop() {
 		procDispatchMsg.Call(uintptr(unsafe.Pointer(&msg)))
 	}
 
-	// Cleanup
+	// Cleanup. Hooks must be removed on the thread that installed them.
+	p.uninstallLockHooks()
 	p.mu.Lock()
 	if p.hotkeyRegistered {
-		procUnregisterHotKey.Call(uintptr(p.lockHwnd), uintptr(p.hotkeyID))
+		procUnregisterHotKey.Call(hwnd, uintptr(p.hotkeyID))
 		p.hotkeyRegistered = false
 	}
-	procKillTimer.Call(uintptr(p.lockHwnd), TIMER_HEALTH)
-	procKillTimer.Call(uintptr(p.lockHwnd), TIMER_COUNTDOWN)
-	if p.lockHwnd != 0 {
-		procDestroyWindow.Call(uintptr(p.lockHwnd))
+	procKillTimer.Call(hwnd, TIMER_HEALTH)
+	procKillTimer.Call(hwnd, TIMER_COUNTDOWN)
+	procDestroyWindow.Call(hwnd)
+	if p.lockHwnd == windows.HWND(hwnd) {
 		p.lockHwnd = 0
 	}
-	p.mu.Unlock()
-
-	if p.msgLoopDone != nil {
-		close(p.msgLoopDone)
+	if p.msgLoopDone == done {
+		p.lockRunning = false
+		p.lockShowExit = false
+		p.msgLoopDone = nil
 	}
+	p.mu.Unlock()
+}
+
+func (p *windowsProvider) finishLockLoop(done chan struct{}, hwnd uintptr) {
+	if hwnd != 0 {
+		procDestroyWindow.Call(hwnd)
+	}
+	p.mu.Lock()
+	if p.lockHwnd == windows.HWND(hwnd) {
+		p.lockHwnd = 0
+	}
+	if p.msgLoopDone == done {
+		p.lockRunning = false
+		p.lockShowExit = false
+		p.msgLoopDone = nil
+	}
+	p.mu.Unlock()
 }
 
 func (p *windowsProvider) lockWndProc(hwnd windows.HWND, msg uint32, wParam, lParam uintptr) uintptr {
@@ -542,6 +687,10 @@ func (p *windowsProvider) lockWndProc(hwnd windows.HWND, msg uint32, wParam, lPa
 		if wParam == uintptr(p.hotkeyID) {
 			p.emergencyEscape()
 		}
+		return 0
+	case WM_APP_LOCK_EXIT:
+		// ExitLockMode posts this so the quit happens on the lock thread.
+		procPostQuitMessage.Call(0)
 		return 0
 	case WM_CLOSE:
 		// Block Alt+F4 / taskbar close — lock must go through escape
@@ -607,19 +756,29 @@ func (p *windowsProvider) lockPaint(hwnd windows.HWND) {
 
 func (p *windowsProvider) lockHealthTick() {
 	p.mu.Lock()
+	if !p.lockRunning {
+		p.mu.Unlock()
+		return
+	}
+	healthURL := p.healthURL
+	flutterPID := p.flutterPID
+	p.mu.Unlock()
+
+	// Network and process probes must not hold p.mu: the HTTP client can take
+	// up to 2s and ExitLockMode/timers need the lock concurrently.
+	healthOK := false
+	if healthURL != "" {
+		healthOK = checkHTTPHealth(healthURL)
+	}
+	flutterAlive := false
+	if flutterPID > 0 {
+		flutterAlive = isProcessAlive(flutterPID)
+	}
+
+	p.mu.Lock()
 	defer p.mu.Unlock()
 	if !p.lockRunning {
 		return
-	}
-
-	healthOK := false
-	if p.healthURL != "" {
-		healthOK = checkHTTPHealth(p.healthURL)
-	}
-
-	flutterAlive := false
-	if p.flutterPID > 0 {
-		flutterAlive = isProcessAlive(p.flutterPID)
 	}
 
 	if !healthOK || !flutterAlive {
@@ -672,6 +831,9 @@ func (p *windowsProvider) emergencyEscape() {
 // ——— System tray ———
 
 func (p *windowsProvider) trayMessageLoop() {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	className, _ := windows.UTF16PtrFromString(p.trayClassName)
 
 	var wc wndclassW
@@ -834,6 +996,9 @@ func (p *windowsProvider) triggerPassivePopup() {
 	// Create a simple popup window with the word
 	// This is a lightweight notification-style window
 	go func() {
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+
 		className, _ := windows.UTF16PtrFromString("VocabLock_PassivePopup")
 		titleName, _ := windows.UTF16PtrFromString("VocabLock \350\257\215\346\261\207\345\244\215\344\271\240")
 
@@ -866,10 +1031,11 @@ func (p *windowsProvider) triggerPassivePopup() {
 			return
 		}
 
-		// Auto-close after 30 seconds
+		// Auto-close after 30 seconds. DestroyWindow is thread-affine, so ask
+		// the window own message loop to close it.
 		go func() {
 			time.Sleep(30 * time.Second)
-			procDestroyWindow.Call(hwnd)
+			procPostMessage.Call(hwnd, WM_CLOSE, 0, 0)
 		}()
 
 		// Mini message loop for this popup
@@ -915,6 +1081,9 @@ func (p *windowsProvider) passiveWndProc(hwnd windows.HWND, msg uint32, wParam, 
 			procEndPaint.Call(uintptr(hwnd), uintptr(unsafe.Pointer(&ps)))
 		}
 		return 0
+	case WM_CLOSE:
+		procDestroyWindow.Call(uintptr(hwnd))
+		return 0
 	case WM_DESTROY:
 		procPostQuitMessage.Call(0)
 		return 0
@@ -939,14 +1108,15 @@ func isProcessAlive(pid int) bool {
 	return code == STILL_ACTIVE
 }
 
+var healthHTTPClient = &http.Client{Timeout: 2 * time.Second}
+
 func checkHTTPHealth(url string) bool {
-	cmd := exec.Command("powershell", "-Command",
-		fmt.Sprintf("try { (Invoke-WebRequest -Uri '%s' -TimeoutSec 2).StatusCode } catch { 'fail' }", url))
-	out, err := cmd.Output()
+	resp, err := healthHTTPClient.Get(url)
 	if err != nil {
 		return false
 	}
-	return len(out) >= 3 && string(out[:3]) == "200"
+	defer resp.Body.Close()
+	return resp.StatusCode == http.StatusOK
 }
 
 // ——— Win32 structs ———
