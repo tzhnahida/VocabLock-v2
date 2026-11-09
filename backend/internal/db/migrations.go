@@ -161,6 +161,32 @@ func (d *Database) migrate() error {
 			return fmt.Errorf("add subject_id column: %w", err)
 		}
 	}
+	if _, err := d.DB.Exec(`ALTER TABLE review_log ADD COLUMN language TEXT NOT NULL DEFAULT ''`); err != nil {
+		if !strings.Contains(err.Error(), "duplicate column") {
+			return fmt.Errorf("add language column: %w", err)
+		}
+	}
+	if _, err := d.DB.Exec(`ALTER TABLE review_log ADD COLUMN phonemes_json TEXT NOT NULL DEFAULT ''`); err != nil {
+		if !strings.Contains(err.Error(), "duplicate column") {
+			return fmt.Errorf("add phonemes_json column: %w", err)
+		}
+	}
+	if _, err := d.DB.Exec(`ALTER TABLE review_log ADD COLUMN error_category TEXT NOT NULL DEFAULT ''`); err != nil {
+		if !strings.Contains(err.Error(), "duplicate column") {
+			return fmt.Errorf("add error_category column: %w", err)
+		}
+	}
+	if _, err := d.DB.Exec(`ALTER TABLE review_log ADD COLUMN dispute INTEGER NOT NULL DEFAULT 0`); err != nil {
+		if !strings.Contains(err.Error(), "duplicate column") {
+			return fmt.Errorf("add dispute column: %w", err)
+		}
+	}
+	if _, err := d.DB.Exec(`CREATE INDEX IF NOT EXISTS idx_review_log_subject ON review_log(subject_type, subject_id)`); err != nil {
+		return fmt.Errorf("add review_log subject index: %w", err)
+	}
+	if _, err := d.DB.Exec(`CREATE INDEX IF NOT EXISTS idx_review_log_source ON review_log(source, created_at)`); err != nil {
+		return fmt.Errorf("add review_log source index: %w", err)
+	}
 
 	// Phase 5: student_state table for AI-evaluated persistent level
 	if _, err := d.DB.Exec(`

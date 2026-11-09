@@ -78,10 +78,10 @@ var (
 	procTerminateProcess = kernel32.NewProc("TerminateProcess")
 
 	// Registry
-	procRegOpenKeyEx  = advapi32.NewProc("RegOpenKeyExW")
-	procRegSetValueEx = advapi32.NewProc("RegSetValueExW")
+	procRegOpenKeyEx   = advapi32.NewProc("RegOpenKeyExW")
+	procRegSetValueEx  = advapi32.NewProc("RegSetValueExW")
 	procRegDeleteValue = advapi32.NewProc("RegDeleteValueW")
-	procRegCloseKey   = advapi32.NewProc("RegCloseKey")
+	procRegCloseKey    = advapi32.NewProc("RegCloseKey")
 )
 
 const (
@@ -127,11 +127,11 @@ const (
 	SM_CYSCREEN = 1
 
 	// Tray
-	NIM_ADD    = 0x00000000
-	NIM_DELETE = 0x00000002
-	NIF_MESSAGE = 0x00000001
-	NIF_ICON   = 0x00000002
-	NIF_TIP    = 0x00000004
+	NIM_ADD         = 0x00000000
+	NIM_DELETE      = 0x00000002
+	NIF_MESSAGE     = 0x00000001
+	NIF_ICON        = 0x00000002
+	NIF_TIP         = 0x00000004
 	IDI_APPLICATION = 32512
 
 	// Mutex
@@ -143,10 +143,10 @@ const (
 	STILL_ACTIVE              = 259
 
 	// Hotkey
-	MOD_CONTROL = 0x0002
-	MOD_SHIFT   = 0x0004
+	MOD_CONTROL  = 0x0002
+	MOD_SHIFT    = 0x0004
 	MOD_NOREPEAT = 0x4000
-	VK_Q        = 0x51
+	VK_Q         = 0x51
 
 	// Colors
 	COLOR_BTNFACE = 15
@@ -157,12 +157,12 @@ const (
 	DT_WORDBREAK = 0x00000010
 
 	// Window long (int32, cast through uintptr)
-	gwlStyleConst  = ^uintptr(15) // -16 as uintptr
+	gwlStyleConst = ^uintptr(15) // -16 as uintptr
 	// Hit test
 	htTransparentConst = ^uintptr(0) // -1 as uintptr
 
 	// Track popup
-	TPM_RETURNCMD = 0x0100
+	TPM_RETURNCMD   = 0x0100
 	TPM_RIGHTBUTTON = 0x0002
 
 	// Timer
@@ -179,39 +179,39 @@ const (
 	KEY_SET_VALUE     = 0x0002
 
 	// Font
-	FW_NORMAL = 400
+	FW_NORMAL         = 400
 	CLEARTYPE_QUALITY = 5
 )
 
 type windowsProvider struct {
-	mu               sync.Mutex
-	instanceMutex    windows.Handle
-	lockClassName    string
-	lockHwnd         windows.HWND
-	lockRunning      bool
+	mu            sync.Mutex
+	instanceMutex windows.Handle
+	lockClassName string
+	lockHwnd      windows.HWND
+	lockRunning   bool
 
-	trayClassName    string
-	trayHwnd         windows.HWND
-	trayCreated      bool
-	trayOnShow       func()
-	trayOnQuit       func()
+	trayClassName string
+	trayHwnd      windows.HWND
+	trayCreated   bool
+	trayOnShow    func()
+	trayOnQuit    func()
 
 	hotkeyID         int32
 	hotkeyRegistered bool
 
 	// Runtime info set after server start
-	healthURL        string
-	flutterPID       int
-	deadCount        int
-	lockShowExit     bool
-	lockCountdown    int
+	healthURL     string
+	flutterPID    int
+	deadCount     int
+	lockShowExit  bool
+	lockCountdown int
 
 	// Passive quiz
-	passiveInterval  int // minutes
-	passiveRunning   bool
+	passiveInterval int // minutes
+	passiveRunning  bool
 
-	quitChan         chan struct{}
-	msgLoopDone      chan struct{}
+	quitChan    chan struct{}
+	msgLoopDone chan struct{}
 }
 
 func newProvider() SystemProvider {
@@ -490,8 +490,8 @@ func (p *windowsProvider) lockMessageLoop() {
 	}
 
 	// Timers
-	procSetTimer.Call(hwnd, TIMER_HEALTH, 10000, 0)    // health check every 10s
-	procSetTimer.Call(hwnd, TIMER_COUNTDOWN, 1000, 0)    // countdown tick every 1s
+	procSetTimer.Call(hwnd, TIMER_HEALTH, 10000, 0)   // health check every 10s
+	procSetTimer.Call(hwnd, TIMER_COUNTDOWN, 1000, 0) // countdown tick every 1s
 
 	p.registerGlobalHotkey()
 
@@ -996,17 +996,17 @@ type paintstructW struct {
 }
 
 type notifyIconDataW struct {
-	cbSize           uint32
-	hWnd             windows.HWND
-	uID              uint32
-	uFlags           uint32
-	uCallbackMessage uint32
-	hIcon            windows.Handle
-	szTip            [128]uint16
-	dwState          uint32
-	dwStateMask      uint32
-	szInfo           [256]uint16
+	cbSize            uint32
+	hWnd              windows.HWND
+	uID               uint32
+	uFlags            uint32
+	uCallbackMessage  uint32
+	hIcon             windows.Handle
+	szTip             [128]uint16
+	dwState           uint32
+	dwStateMask       uint32
+	szInfo            [256]uint16
 	uTimeoutOrVersion uint32
-	szInfoTitle      [64]uint16
-	dwInfoFlags      uint32
+	szInfoTitle       [64]uint16
+	dwInfoFlags       uint32
 }

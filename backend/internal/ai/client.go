@@ -8,16 +8,36 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/tzhnahida/VocabLock/internal/log"
 )
 
 type Client struct {
-	http    *http.Client
-	baseURL string
-	apiKey  string
-	model   string
+	http            *http.Client
+	baseURL         string
+	apiKey          string
+	model           string
+	disableThinking bool
+
+	mu    sync.Mutex
+	usage UsageTotals
+}
+
+// UsageTotals 累计本次进程内的真实 token 用量 (由 API 的 usage 字段回报)。
+type UsageTotals struct {
+	Calls      int
+	Prompt     int
+	Completion int
+	Cached     int // prompt_cache_hit_tokens
+}
+
+// Usage 返回累计用量 (并发安全)。
+func (c *Client) Usage() UsageTotals {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.usage
 }
 
 type Config struct {
@@ -25,25 +45,43 @@ type Config struct {
 	APIKey  string `json:"api_key" yaml:"api_key"`
 	Model   string `json:"model" yaml:"model"`
 	Timeout time.Duration
+	// DisableThinking 打开非思考模式 ({"thinking":{"type":"disabled"}})。
+	// 必要性: 思考模式**默认开启**且 effort=high, 而思考模式下 temperature 直接失效
+	// (官方: 设置不报错但不生效) —— 拟人对话的"系统骰子 + 温度"变化全靠 temperature,
+	// 不开这个开关等于整套随机性被静默吞掉, 且思维链按输出价计费、延迟秒级。
+	DisableThinking bool
 }
 
 type Message struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
+	// ⚠️ tool_calls / tool_call_id 是**带工具对话**必需的:
+	// 少了它们, 第二轮请求会因为"assistant 说了要调工具但没有这个字段"被 API 拒。
+	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
+	ToolCallID string     `json:"tool_call_id,omitempty"`
 }
 
 type chatRequest struct {
-	Model       string    `json:"model"`
-	Messages    []Message `json:"messages"`
-	Temperature float64   `json:"temperature,omitempty"`
+	Model       string            `json:"model"`
+	Messages    []Message         `json:"messages"`
+	Temperature float64           `json:"temperature,omitempty"`
+	Thinking    map[string]string `json:"thinking,omitempty"`
+	Tools       []ToolSpec        `json:"tools,omitempty"`
 }
 
 type chatResponse struct {
 	Choices []struct {
 		Message struct {
-			Content string `json:"content"`
+			Content   string     `json:"content"`
+			ToolCalls []ToolCall `json:"tool_calls"`
 		} `json:"message"`
+		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
+	Usage struct {
+		PromptTokens     int `json:"prompt_tokens"`
+		CompletionTokens int `json:"completion_tokens"`
+		PromptCacheHit   int `json:"prompt_cache_hit_tokens"`
+	} `json:"usage"`
 }
 
 func NewClient(cfg Config) *Client {
@@ -55,9 +93,10 @@ func NewClient(cfg Config) *Client {
 			Transport: transport,
 			Timeout:   cfg.Timeout,
 		},
-		baseURL: cfg.BaseURL,
-		apiKey:  cfg.APIKey,
-		model:   cfg.Model,
+		baseURL:         cfg.BaseURL,
+		apiKey:          cfg.APIKey,
+		model:           cfg.Model,
+		disableThinking: cfg.DisableThinking,
 	}
 }
 
@@ -115,6 +154,9 @@ func (c *Client) chatOnce(ctx context.Context, messages []Message, temperature f
 		Messages:    messages,
 		Temperature: temperature,
 	}
+	if c.disableThinking {
+		reqBody.Thinking = map[string]string{"type": "disabled"}
+	}
 
 	body, err := json.Marshal(reqBody)
 	if err != nil {
@@ -151,6 +193,13 @@ func (c *Client) chatOnce(ctx context.Context, messages []Message, temperature f
 	if len(cr.Choices) == 0 {
 		return "", fmt.Errorf("no choices in response")
 	}
+
+	c.mu.Lock()
+	c.usage.Calls++
+	c.usage.Prompt += cr.Usage.PromptTokens
+	c.usage.Completion += cr.Usage.CompletionTokens
+	c.usage.Cached += cr.Usage.PromptCacheHit
+	c.mu.Unlock()
 
 	return cr.Choices[0].Message.Content, nil
 }

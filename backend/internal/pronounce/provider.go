@@ -14,9 +14,9 @@ import (
 
 // Result is the JSON output expected from a pronunciation assessment binary.
 type Result struct {
-	Score    float64         `json:"score"`
-	Phonemes []PhonemeScore  `json:"phonemes"`
-	Detail   string          `json:"detail,omitempty"`
+	Score    float64        `json:"score"`
+	Phonemes []PhonemeScore `json:"phonemes"`
+	Detail   string         `json:"detail,omitempty"`
 }
 
 // PhonemeScore is per-phoneme pronunciation quality.

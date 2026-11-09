@@ -16,7 +16,7 @@ type Assignment struct {
 	ID        string         `json:"id"`
 	Type      AssignmentType `json:"type"`
 	Prompt    string         `json:"prompt"`
-	Context   string         `json:"context"`   // words/grammar points to use
+	Context   string         `json:"context"`    // words/grammar points to use
 	WordCount int            `json:"word_count"` // target word count (essay), 0 = not applicable
 }
 
@@ -28,18 +28,18 @@ type AssignmentSubmission struct {
 
 // AssignmentGrade is the AI grading result.
 type AssignmentGrade struct {
-	Original  string              `json:"original"`
-	Corrected string              `json:"corrected"`
-	Score     float64             `json:"score"` // 0.0–1.0
-	Feedback  string              `json:"feedback"`
-	Errors    []AssignmentError   `json:"errors"`
+	Original  string            `json:"original"`
+	Corrected string            `json:"corrected"`
+	Score     float64           `json:"score"` // 0.0–1.0
+	Feedback  string            `json:"feedback"`
+	Errors    []AssignmentError `json:"errors"`
 }
 
 // AssignmentError describes a single mistake.
 type AssignmentError struct {
-	Type       string `json:"type"`       // grammar/spelling/word_choice/style
-	Original   string `json:"original"`   // the problematic text fragment
-	Correction string `json:"correction"` // suggested fix
+	Type        string `json:"type"`        // grammar/spelling/word_choice/style
+	Original    string `json:"original"`    // the problematic text fragment
+	Correction  string `json:"correction"`  // suggested fix
 	Explanation string `json:"explanation"` // brief note
 }
 
@@ -47,11 +47,11 @@ type AssignmentError struct {
 // 1 unit ≈ 10 seconds.
 var TimeWeights = map[string]int{
 	// Quiz types
-	"choice":       1,
-	"fill":         1,
-	"pronounce":    1,
-	"spelling":     2,
-	"listening":    2,
+	"choice":        1,
+	"fill":          1,
+	"pronounce":     1,
+	"spelling":      2,
+	"listening":     2,
 	"grammar":       5,
 	"reading_comp":  8,
 	"read_word":     2,

@@ -3,9 +3,9 @@ package api
 import (
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/tzhnahida/VocabLock/internal/api/mock"
+	"github.com/tzhnahida/VocabLock/internal/clock"
 	"github.com/tzhnahida/VocabLock/internal/db"
 	"github.com/tzhnahida/VocabLock/internal/engine"
 	"github.com/tzhnahida/VocabLock/internal/log"
@@ -23,7 +23,8 @@ func (s *Server) handleSystemStatus(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleSystemLock(w http.ResponseWriter, r *http.Request) {
 	log.Debug("system", "lock")
 	if s.Mock {
-		mock.HandleSystemLock(w, r); return
+		mock.HandleSystemLock(w, r)
+		return
 	}
 	if s.System != nil {
 		s.System.FullscreenFlutterWindow()
@@ -44,7 +45,8 @@ func (s *Server) handleSystemLock(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleSystemUnlock(w http.ResponseWriter, r *http.Request) {
 	log.Debug("system", "unlock")
 	if s.Mock {
-		mock.HandleSystemUnlock(w, r); return
+		mock.HandleSystemUnlock(w, r)
+		return
 	}
 	if s.System != nil {
 		s.System.ExitLockMode()
@@ -68,7 +70,7 @@ func (s *Server) handleSystemEscape(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	todayKey := time.Now().Format("2006-01-02")
+	todayKey := clock.Today()
 	s.escapeMu.Lock()
 	if s.escapeDate != todayKey {
 		s.escapeDate = todayKey
@@ -85,10 +87,10 @@ func (s *Server) handleSystemEscape(w http.ResponseWriter, r *http.Request) {
 		if s.escapePasswordUsed >= max {
 			s.escapeMu.Unlock()
 			writeJSON(w, map[string]interface{}{
-				"allowed":  false,
-				"reason":   "daily password escape limit reached",
-				"used":     s.escapePasswordUsed,
-				"max":      max,
+				"allowed": false,
+				"reason":  "daily password escape limit reached",
+				"used":    s.escapePasswordUsed,
+				"max":     max,
 			})
 			return
 		}
@@ -117,10 +119,10 @@ func (s *Server) handleSystemEscape(w http.ResponseWriter, r *http.Request) {
 		if s.escapeClickUsed >= max {
 			s.escapeMu.Unlock()
 			writeJSON(w, map[string]interface{}{
-				"allowed":  false,
-				"reason":   "daily click escape limit reached",
-				"used":     s.escapeClickUsed,
-				"max":      max,
+				"allowed": false,
+				"reason":  "daily click escape limit reached",
+				"used":    s.escapeClickUsed,
+				"max":     max,
 			})
 			return
 		}
@@ -147,7 +149,8 @@ func (s *Server) performEscape(w http.ResponseWriter) {
 
 func (s *Server) handleSystemPassiveQ(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleSystemPassiveQ(w, r); return
+		mock.HandleSystemPassiveQ(w, r)
+		return
 	}
 	// Return a random word card for passive display widget
 	if s.DB != nil {
@@ -170,7 +173,8 @@ func (s *Server) handleSystemPassiveQ(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleSystemPassiveSubmit(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleSystemPassiveSubmit(w, r); return
+		mock.HandleSystemPassiveSubmit(w, r)
+		return
 	}
 
 	var req struct {
@@ -188,7 +192,7 @@ func (s *Server) handleSystemPassiveSubmit(w http.ResponseWriter, r *http.Reques
 		if err == nil && word != nil {
 			// Light SM-2 boost for passive recall
 			quality := engine.QualityFromPassiveRecall(req.Recall)
-			now := time.Now()
+			now := clock.Now()
 			sm2 := engine.SM2(word.EasinessFactor, word.Interval, word.Repetitions, quality, now, s.Config.App.Sm2MaxIntervalDays)
 			if sm2 != nil {
 				word.EasinessFactor = sm2.EasinessFactor
@@ -219,7 +223,8 @@ func (s *Server) handleSystemPassiveSubmit(w http.ResponseWriter, r *http.Reques
 
 func (s *Server) handleSystemQuit(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleSystemQuit(w, r); return
+		mock.HandleSystemQuit(w, r)
+		return
 	}
 	writeJSON(w, map[string]bool{"quitting": true})
 
@@ -228,4 +233,48 @@ func (s *Server) handleSystemQuit(w http.ResponseWriter, r *http.Request) {
 		s.Shutdown()
 		os.Exit(0)
 	}()
+}
+
+// handleDebugLog accepts log lines from the Flutter frontend so they
+// appear in the unified Go server output stream.
+func (s *Server) handleDebugLog(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Level    string   `json:"level"`
+		Message  string   `json:"message"`
+		Messages []string `json:"messages"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		_ = err
+	}
+	emit := func(msg string) {
+		switch req.Level {
+		case "warn":
+			log.Warn("flutter", "%s", msg)
+		case "error":
+			log.Error("flutter", "%s", msg)
+		default:
+			log.Debug("flutter", "%s", msg)
+		}
+	}
+	if req.Message != "" {
+		emit(req.Message)
+	}
+	for _, msg := range req.Messages {
+		if msg != "" {
+			emit(msg)
+		}
+	}
+	w.WriteHeader(204)
+}
+
+// handleSystemRestart re-wires providers and restarts Flutter.
+// Called by Flutter after onboarding completes so that TTS/Dict/Pronounce
+// pick up the newly configured active language.
+func (s *Server) handleSystemRestart(w http.ResponseWriter, r *http.Request) {
+	if s.RestartFunc == nil {
+		writeError(w, 500, "restart not available")
+		return
+	}
+	s.RestartFunc()
+	writeJSON(w, map[string]interface{}{"restarted": true})
 }

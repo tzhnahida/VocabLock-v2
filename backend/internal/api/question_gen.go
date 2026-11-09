@@ -25,11 +25,10 @@ func (s *Server) aiGenerateGrammarQuestion(ctx context.Context, gp *db.GrammarPo
 		return nil, fmt.Errorf("load prompt: %w", err)
 	}
 
-	explLang := "en"
+	explLang := s.aiExplLang(s.Config.App.ActiveLang)
 	teacherRole := "Language Teacher"
 	level := s.getStudentLevel(s.Config.App.ActiveLang)
 	if lc, ok := s.Config.Languages[s.Config.App.ActiveLang]; ok {
-		explLang = lc.PromptContext.ExplanationLang
 		teacherRole = lc.PromptContext.TeacherRole
 	}
 
@@ -96,11 +95,10 @@ func (s *Server) aiGenerateQuestion(ctx context.Context, word *engine.WordInfo, 
 		return nil, fmt.Errorf("load prompt: %w", err)
 	}
 
-	explLang := "en"
+	explLang := s.aiExplLang(s.Config.App.ActiveLang)
 	teacherRole := "Language Teacher"
 	level := s.getStudentLevel(s.Config.App.ActiveLang)
 	if lc, ok := s.Config.Languages[s.Config.App.ActiveLang]; ok {
-		explLang = lc.PromptContext.ExplanationLang
 		teacherRole = lc.PromptContext.TeacherRole
 	}
 

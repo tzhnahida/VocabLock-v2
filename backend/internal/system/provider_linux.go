@@ -46,6 +46,6 @@ func (p *linuxProvider) FullscreenFlutterWindow() error {
 func (p *linuxProvider) RestoreFlutterWindow() error {
 	return fmt.Errorf("not implemented")
 }
-func (p *linuxProvider) SetPassiveInterval(minutes int)                {}
-func (p *linuxProvider) StartPassiveQuiz()                             {}
-func (p *linuxProvider) StopPassiveQuiz()                              {}
+func (p *linuxProvider) SetPassiveInterval(minutes int) {}
+func (p *linuxProvider) StartPassiveQuiz()              {}
+func (p *linuxProvider) StopPassiveQuiz()               {}

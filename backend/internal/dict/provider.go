@@ -19,8 +19,8 @@ type LookupResult struct {
 	Reading string `json:"reading"`
 	Meaning string `json:"meaning"`
 	POS     string `json:"pos"`
-	Level  string `json:"level,omitempty"` // optional: N5, N4, HSK1, etc.
-	Detail string `json:"detail,omitempty"` // extension fields JSON
+	Level   string `json:"level,omitempty"`  // optional: N5, N4, HSK1, etc.
+	Detail  string `json:"detail,omitempty"` // extension fields JSON
 }
 
 type Provider struct {

@@ -1,5 +1,5 @@
 version: "2.2"
-temperature: 0.6
+temperature: 0.5  # lowered from 0.6: less output drift, diversity preserved by daily-seeded sampling
 system: |
   You are {{.TeacherRole}}. Your ONLY job is to suggest target-language words that a student should learn next.
 

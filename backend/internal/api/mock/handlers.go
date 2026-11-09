@@ -1,10 +1,27 @@
 package mock
 
-import "net/http"
+import (
+	"net/http"
+	"sync"
+)
 
 // ——— Quiz mock handlers ———
 
+// Stateful mock session: the real backend eventually serves a "completed"
+// response once the daily target is met. The old mock NEVER completed, so
+// the completion screen and session summary were unreachable during
+// Flutter UI development.
+const mockSessionQuestions = 2
+
+var (
+	mockNextMu   sync.Mutex
+	mockNextSeen = map[string]int{}
+)
+
 func HandleQuizSessionStart(w http.ResponseWriter, r *http.Request) {
+	mockNextMu.Lock()
+	mockNextSeen = map[string]int{} // fresh session
+	mockNextMu.Unlock()
 	writeJSON(w, `{"new_words":3,"new_grammar":1,"review_words":15,"review_grammar":2}`)
 }
 
@@ -17,6 +34,14 @@ func HandleQuizNext(w http.ResponseWriter, r *http.Request, defaultLang string) 
 	if lang == "" {
 		lang = defaultLang
 	}
+	mockNextMu.Lock()
+	mockNextSeen[lang]++
+	done := mockNextSeen[lang] >= mockSessionQuestions
+	mockNextMu.Unlock()
+	if done {
+		writeJSON(w, `{"completed":true,"message":"Daily target met","reviewed":8,"daily_target":20,"daily_target_met":true}`)
+		return
+	}
 	writeJSON(w, quizQuestion(lang))
 }
 
@@ -26,6 +51,29 @@ func HandleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 
 func HandleQuizTodayStats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, `{"reviewed":8,"correct":7,"accuracy":0.875}`)
+}
+
+// HandleQuizSummarize returns a plausible session summary + plan so the
+// Flutter summary view is exercisable in mock mode (the real endpoint
+// requires AI).
+func HandleQuizSummarize(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, `{
+  "summary": {
+    "today_summary": {
+      "overall": "今天完成了 8 题，正确率 87%，表现稳定。",
+      "strengths": "词汇选择题全部答对",
+      "weaknesses": "发音题需要更多跟读练习"
+    },
+    "suggestions": ["明天保持每日 20 分钟学习", "重点复习 drink 相关词汇"]
+  },
+  "plan": {
+    "id": 1,
+    "direction": "general",
+    "direction_confidence": 0.8,
+    "plan_json": "",
+    "created_at": "2026-09-02T00:00:00Z"
+  }
+}`)
 }
 
 func HandleQuizComplete(w http.ResponseWriter, r *http.Request) {

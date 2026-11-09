@@ -16,7 +16,8 @@ import (
 
 func (s *Server) handleWordsList(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleWordsList(w, r, s.Config.App.ActiveLang); return
+		mock.HandleWordsList(w, r, s.Config.App.ActiveLang)
+		return
 	}
 	if s.DB == nil {
 		writeError(w, 500, "database not available")
@@ -64,7 +65,8 @@ func (s *Server) handleWordsList(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleWordsGet(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleWordsGet(w, r); return
+		mock.HandleWordsGet(w, r)
+		return
 	}
 	if s.DB == nil {
 		writeError(w, 500, "database not available")
@@ -92,7 +94,8 @@ func (s *Server) handleWordsGet(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleWordsCreate(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleWordsCreate(w, r); return
+		mock.HandleWordsCreate(w, r)
+		return
 	}
 	if s.DB == nil {
 		writeError(w, 500, "database not available")
@@ -152,7 +155,8 @@ func (s *Server) handleWordsCreate(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleWordsUpdate(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleWordsUpdate(w, r); return
+		mock.HandleWordsUpdate(w, r)
+		return
 	}
 	if s.DB == nil {
 		writeError(w, 500, "database not available")
@@ -211,7 +215,8 @@ func (s *Server) handleWordsUpdate(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleWordsDelete(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleWordsDelete(w, r); return
+		mock.HandleWordsDelete(w, r)
+		return
 	}
 	if s.DB == nil {
 		writeError(w, 500, "database not available")
@@ -236,7 +241,8 @@ func (s *Server) handleWordsDelete(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleWordsReset(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleWordsReset(w, r); return
+		mock.HandleWordsReset(w, r)
+		return
 	}
 	if s.DB == nil {
 		writeError(w, 500, "database not available")
@@ -262,7 +268,8 @@ func (s *Server) handleWordsReset(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleWordsExport(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleWordsExport(w, r); return
+		mock.HandleWordsExport(w, r)
+		return
 	}
 	if s.DB == nil {
 		writeError(w, 500, "database not available")
@@ -299,7 +306,8 @@ func (s *Server) handleWordsExport(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleWordsImport(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleWordsImport(w, r); return
+		mock.HandleWordsImport(w, r)
+		return
 	}
 	if s.DB == nil {
 		writeError(w, 500, "database not available")
@@ -344,7 +352,8 @@ func (s *Server) handleWordsImport(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleWordsExpand(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleWordsExpand(w, r); return
+		mock.HandleWordsExpand(w, r)
+		return
 	}
 	if s.DB == nil {
 		writeError(w, 500, "database not available")
@@ -377,6 +386,16 @@ func (s *Server) handleWordsExpand(w http.ResponseWriter, r *http.Request) {
 
 	log.Debug("words", "expand: count=%d", req.Count)
 
+	// Don't pile up expansions — if one is already running, reject
+	if s.isExpanding() {
+		writeJSON(w, map[string]interface{}{
+			"verified":       0,
+			"pending_review": 0,
+			"message":        "expansion already in progress",
+		})
+		return
+	}
+
 	extraCtx := ""
 	if len(req.Context) > 0 {
 		extraCtx = strings.Join(req.Context, ", ")
@@ -384,6 +403,22 @@ func (s *Server) handleWordsExpand(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
 	defer cancel()
+
+	if !s.tryStartExpanding() {
+		writeJSON(w, map[string]interface{}{
+			"verified":       0,
+			"pending_review": 0,
+			"message":        "expansion already in progress",
+		})
+		return
+	}
+	defer s.stopExpanding()
+	// Cap requested count to actual gap so multiple expansion paths
+	// don't collectively exceed the daily target.
+	if gapCount, _ := s.planExpandParams(lang); gapCount > 0 && gapCount < req.Count {
+		log.Debug("words", "expand: capping count=%d to gap=%d", req.Count, gapCount)
+		req.Count = gapCount
+	}
 
 	verified, pending, err := s.expandWords(ctx, lang, req.Count, extraCtx)
 	if err != nil {
@@ -395,9 +430,18 @@ func (s *Server) handleWordsExpand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Expose decision context so the UI can explain "why these words".
+	planDir := ""
+	if p, err := s.DB.GetActivePlan(lang); err == nil {
+		planDir = p.Direction
+	}
+	_, existingTotal := s.collectExistingWords(lang)
+
 	writeJSON(w, map[string]interface{}{
 		"verified":       verified,
 		"pending_review": pending,
+		"direction":      planDir,
+		"context_words":  existingTotal,
 		"message":        fmt.Sprintf("Added %d verified + %d pending review", verified, pending),
 	})
 }
@@ -429,7 +473,8 @@ func extractJSON(s string) string {
 // handleWordsPendingReview lists words with pending_review status.
 func (s *Server) handleWordsPendingReview(w http.ResponseWriter, r *http.Request) {
 	if s.DB == nil {
-		writeError(w, 500, "database not available"); return
+		writeError(w, 500, "database not available")
+		return
 	}
 	lang := r.URL.Query().Get("language")
 	if lang == "" {
@@ -452,7 +497,8 @@ func (s *Server) handleWordsPendingReview(w http.ResponseWriter, r *http.Request
 func (s *Server) handleWordsPendingAccept(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
-		writeError(w, 400, "invalid word id"); return
+		writeError(w, 400, "invalid word id")
+		return
 	}
 
 	var req struct {
@@ -462,16 +508,20 @@ func (s *Server) handleWordsPendingAccept(w http.ResponseWriter, r *http.Request
 		Level   string `json:"level"`
 	}
 	if err := readJSON(r, &req); err != nil {
-		writeError(w, 400, "invalid request body"); return
+		writeError(w, 400, "invalid request body")
+		return
 	}
 	if strings.TrimSpace(req.Reading) == "" {
-		writeError(w, 400, "reading is required"); return
+		writeError(w, 400, "reading is required")
+		return
 	}
 	if strings.TrimSpace(req.Meaning) == "" {
-		writeError(w, 400, "meaning is required"); return
+		writeError(w, 400, "meaning is required")
+		return
 	}
 	if strings.TrimSpace(req.POS) == "" {
-		writeError(w, 400, "pos is required"); return
+		writeError(w, 400, "pos is required")
+		return
 	}
 
 	word, err := s.DB.GetWord(id)
@@ -502,10 +552,18 @@ func (s *Server) handleWordsPendingAccept(w http.ResponseWriter, r *http.Request
 	dictDetailJSON := ""
 	if dictEntry != nil {
 		// Dict data supplements but doesn't override user input
-		if dictReading == "" { dictReading = dictEntry.Reading }
-		if dictMeaning == "" { dictMeaning = dictEntry.Meaning }
-		if dictPOS == "" { dictPOS = dictEntry.POS }
-		if dictLevel == "" { dictLevel = dictEntry.Level }
+		if dictReading == "" {
+			dictReading = dictEntry.Reading
+		}
+		if dictMeaning == "" {
+			dictMeaning = dictEntry.Meaning
+		}
+		if dictPOS == "" {
+			dictPOS = dictEntry.POS
+		}
+		if dictLevel == "" {
+			dictLevel = dictEntry.Level
+		}
 		dictDetailJSON = dictEntry.Detail
 	}
 
@@ -537,7 +595,8 @@ func (s *Server) handleWordsPendingAccept(w http.ResponseWriter, r *http.Request
 func (s *Server) handleWordsPendingReject(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
-		writeError(w, 400, "invalid word id"); return
+		writeError(w, 400, "invalid word id")
+		return
 	}
 	if err := s.DB.SetWordStatus(id, "rejected"); err != nil {
 		writeError(w, 500, "reject word: "+err.Error())
@@ -549,17 +608,20 @@ func (s *Server) handleWordsPendingReject(w http.ResponseWriter, r *http.Request
 // handleWordsTags updates tags for a word.
 func (s *Server) handleWordsTags(w http.ResponseWriter, r *http.Request) {
 	if s.DB == nil {
-		writeError(w, 500, "database not available"); return
+		writeError(w, 500, "database not available")
+		return
 	}
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
-		writeError(w, 400, "invalid word id"); return
+		writeError(w, 400, "invalid word id")
+		return
 	}
 	var req struct {
 		Tags []string `json:"tags"`
 	}
 	if err := readJSON(r, &req); err != nil {
-		writeError(w, 400, "invalid request body"); return
+		writeError(w, 400, "invalid request body")
+		return
 	}
 	tagsJSON, err := json.Marshal(req.Tags)
 	if err != nil {
@@ -571,4 +633,128 @@ func (s *Server) handleWordsTags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]interface{}{"id": id, "tags": req.Tags})
+}
+
+// handleWordsNew returns today's new words (next_review_at IS NULL, status='active').
+// Used by the study-before-test phase — only shows words the student hasn't seen yet.
+func (s *Server) handleWordsNew(w http.ResponseWriter, r *http.Request) {
+	if s.Mock {
+		mock.HandleWordsList(w, r, s.Config.App.ActiveLang)
+		return
+	}
+	if s.DB == nil {
+		writeError(w, 500, "database not available")
+		return
+	}
+	lang := r.URL.Query().Get("language")
+	if lang == "" {
+		lang = s.Config.App.ActiveLang
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+
+	words, total, err := s.DB.ListNewWords(lang, limit, offset)
+	if err != nil {
+		writeError(w, 500, "list new words: "+err.Error())
+		return
+	}
+	if words == nil {
+		words = []*db.Word{}
+	}
+	writeJSON(w, map[string]interface{}{
+		"words": words,
+		"total": total,
+	})
+}
+
+// handleWordsPendingAcceptAll batch-accepts pending_review words (⑥-a: the
+// quarantine wall stays; the batch button lets the student release AI words
+// in ONE action instead of approving them one by one).
+//
+// Per word: dict lookup fills reading/meaning/POS when available; otherwise
+// AI generates the missing fields (student explicitly opted in by pressing
+// the batch button — the strict dict-first policy of auto-expansion does not
+// apply here). Words that still end up without a meaning are skipped — they
+// cannot be quizzed and stay pending for individual completion.
+func (s *Server) handleWordsPendingAcceptAll(w http.ResponseWriter, r *http.Request) {
+	if s.Mock {
+		writeJSON(w, map[string]interface{}{"activated": 0, "skipped": 0})
+		return
+	}
+	if s.DB == nil {
+		writeError(w, 500, "database not available")
+		return
+	}
+	lang := s.Config.App.ActiveLang
+	words, err := s.DB.ListPendingReview(lang)
+	if err != nil {
+		writeError(w, 500, "list pending: "+err.Error())
+		return
+	}
+
+	activated, skipped := 0, 0
+	var skippedWords []string
+	for _, pw := range words {
+		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+		dictEntry := s.lookupDict(ctx, pw.Word)
+		cancel()
+
+		reading, meaning, pos, lvl := pw.Reading, pw.Meaning, pw.POS, pw.Level
+		detail := pw.Detail
+		if detail == "" {
+			detail = "{}"
+		}
+		if dictEntry != nil {
+			reading, meaning, pos, lvl = dictEntry.Reading, dictEntry.Meaning, dictEntry.POS, dictEntry.Level
+			detail = dictEntry.Detail
+		}
+		if s.AI() != nil {
+			ctx2, cancel2 := context.WithTimeout(r.Context(), 30*time.Second)
+			aiDetail := s.generateDetail(ctx2, pw.Word, reading, meaning, pos, lvl, lang)
+			cancel2()
+			if aiDetail != "" && aiDetail != "{}" {
+				detail = mergeJSON(detail, aiDetail)
+			}
+			if reading == "" {
+				reading = extractFieldFromDetail(aiDetail, "reading")
+			}
+			if meaning == "" {
+				meaning = extractFieldFromDetail(aiDetail, "meaning")
+			}
+			if pos == "" {
+				pos = extractFieldFromDetail(aiDetail, "pos")
+			}
+			if lvl == "" {
+				lvl = extractFieldFromDetail(aiDetail, "level")
+			}
+		}
+		// Give the AI-generated example (stored in detail) a chance to be the
+		// meaning source of last resort — no, a sentence is not a meaning.
+		if meaning == "" {
+			skipped++
+			skippedWords = append(skippedWords, pw.Word)
+			continue
+		}
+
+		pw.Reading, pw.Meaning, pw.POS, pw.Level = reading, meaning, pos, lvl
+		pw.Detail = detail
+		pw.Status = "active"
+		pw.Source = "ai_expansion_user"
+		pw.Confidence = "low"
+		if err := s.DB.UpdateWord(pw); err != nil {
+			log.Warn("words", "accept-all update %q: %v", pw.Word, err)
+			skipped++
+			continue
+		}
+		activated++
+	}
+
+	writeJSON(w, map[string]interface{}{
+		"activated":     activated,
+		"skipped":       skipped,
+		"skipped_words": skippedWords,
+	})
 }

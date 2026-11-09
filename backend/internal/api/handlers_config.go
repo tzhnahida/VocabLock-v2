@@ -23,36 +23,36 @@ func (s *Server) handleConfigGet(w http.ResponseWriter, r *http.Request) {
 		ttsProvider := lc.TTS.Provider
 		dictProvider := lc.Dict.Provider
 		langDetails[code] = map[string]interface{}{
-			"display_name": lc.Lang.DisplayName,
-			"native_name":  lc.Lang.NativeName,
-			"tts_provider": ttsProvider,
-			"tts_voice":    ttsVoice,
+			"display_name":  lc.Lang.DisplayName,
+			"native_name":   lc.Lang.NativeName,
+			"tts_provider":  ttsProvider,
+			"tts_voice":     ttsVoice,
 			"dict_provider": dictProvider,
 		}
 	}
 
 	writeJSON(w, map[string]interface{}{
-		"active_lang":          s.Config.App.ActiveLang,
-		"interface_lang":       s.Config.App.InterfaceLang,
-		"mock_mode":            s.Config.App.MockMode,
-		"daily_target":         s.Config.App.DailyTarget,
-		"min_accuracy":         s.Config.App.MinAccuracy,
-		"passive_enabled":      s.Config.App.PassiveEnabled,
-		"passive_min_interval": s.Config.App.PassiveMinInterval,
-		"passive_max_interval": s.Config.App.PassiveMaxInterval,
+		"active_lang":           s.Config.App.ActiveLang,
+		"interface_lang":        s.Config.App.InterfaceLang,
+		"mock_mode":             s.Config.App.MockMode,
+		"daily_target":          s.Config.App.DailyTarget,
+		"min_accuracy":          s.Config.App.MinAccuracy,
+		"passive_enabled":       s.Config.App.PassiveEnabled,
+		"passive_min_interval":  s.Config.App.PassiveMinInterval,
+		"passive_max_interval":  s.Config.App.PassiveMaxInterval,
 		"escape_password_limit": s.Config.App.EscapePasswordLimit,
-		"escape_click_limit":   s.Config.App.EscapeClickLimit,
-		"auto_start":           s.Config.App.AutoStart,
-		"auto_expand_words":    s.Config.App.AutoExpandWords,
-		"expand_batch_size":    s.Config.App.ExpandBatchSize,
+		"escape_click_limit":    s.Config.App.EscapeClickLimit,
+		"auto_start":            s.Config.App.AutoStart,
+		"auto_expand_words":     s.Config.App.AutoExpandWords,
+		"expand_batch_size":     s.Config.App.ExpandBatchSize,
 		"sm2_max_interval_days": s.Config.App.Sm2MaxIntervalDays,
-		"session_time_budget":  s.Config.App.SessionTimeBudget,
-		"max_slow_type_ratio":  s.Config.App.MaxSlowTypeRatio,
-		"theme":                s.Config.App.Theme,
-		"model":                s.Config.App.AI.Model,
-		"base_url":             s.Config.App.AI.BaseURL,
-		"languages":            langs,
-		"language_details":     langDetails,
+		"session_time_budget":   s.Config.App.SessionTimeBudget,
+		"max_slow_type_ratio":   s.Config.App.MaxSlowTypeRatio,
+		"theme":                 s.Config.App.Theme,
+		"model":                 s.Config.App.AI.Model,
+		"base_url":              s.Config.App.AI.BaseURL,
+		"languages":             langs,
+		"language_details":      langDetails,
 		"assignment": map[string]interface{}{
 			"cadence_days":    s.Config.App.Assignment.CadenceDays,
 			"cadence_count":   s.Config.App.Assignment.CadenceCount,
@@ -72,6 +72,9 @@ func (s *Server) handleConfigGetKey(w http.ResponseWriter, r *http.Request) {
 	switch key {
 	case "active_lang":
 		value = s.Config.App.ActiveLang
+	case "interface_lang":
+		value = s.Config.App.InterfaceLang
+		log.Debug("config", "GET config/interface_lang = %q", s.Config.App.InterfaceLang)
 	case "daily_target":
 		value = s.Config.App.DailyTarget
 	case "languages":
@@ -142,6 +145,17 @@ func (s *Server) handleConfigUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// daily_time_target (minutes; 0 = disabled). Was previously sent by the
+	// onboarding UI but silently dropped — the time-based unlock never worked.
+	if v, ok := req["daily_time_target"]; ok {
+		switch n := v.(type) {
+		case float64:
+			if n >= 0 && n <= 600 {
+				s.Config.App.DailyTimeTarget = int(n)
+			}
+		}
+	}
+
 	if v, ok := req["theme"]; ok {
 		if theme, ok := v.(string); ok && theme != "" {
 			s.Config.App.Theme = theme
@@ -193,6 +207,19 @@ func (s *Server) handleConfigUpdate(w http.ResponseWriter, r *http.Request) {
 	if v, ok := req["max_slow_type_ratio"]; ok {
 		if n, ok := v.(float64); ok && n >= 0 && n <= 1 {
 			s.Config.App.MaxSlowTypeRatio = n
+		}
+	}
+
+	if v, ok := req["auto_start"]; ok {
+		if b, ok := v.(bool); ok && b != s.Config.App.AutoStart {
+			s.Config.App.AutoStart = b
+			if s.System != nil {
+				if err := s.System.SetAutoStart(b); err != nil {
+					log.Warn("config", "set auto-start: %v", err)
+				} else {
+					log.Info("config", "auto-start: %v", b)
+				}
+			}
 		}
 	}
 
@@ -264,7 +291,8 @@ func (s *Server) tryLoadLanguageTemplate(code string) *config.LanguageConfig {
 
 func (s *Server) handleConfigPassword(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleConfigPassword(w, r); return
+		mock.HandleConfigPassword(w, r)
+		return
 	}
 	writeNotImplemented(w)
 }

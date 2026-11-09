@@ -1,15 +1,19 @@
 package db
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/tzhnahida/VocabLock/internal/clock"
+)
 
 type TrainingPlan struct {
-	ID                 int64   `json:"id"`
-	Language           string  `json:"language"`
-	Direction          string  `json:"direction"`
+	ID                  int64   `json:"id"`
+	Language            string  `json:"language"`
+	Direction           string  `json:"direction"`
 	DirectionConfidence float64 `json:"direction_confidence"`
-	PlanJSON           string  `json:"plan_json"`
-	IsActive           bool    `json:"is_active"`
-	CreatedAt          string  `json:"created_at"`
+	PlanJSON            string  `json:"plan_json"`
+	IsActive            bool    `json:"is_active"`
+	CreatedAt           string  `json:"created_at"`
 }
 
 func (d *Database) InsertTrainingPlan(lang, direction string, confidence float64, planJSON string) (int64, error) {
@@ -62,10 +66,10 @@ func (d *Database) GetSessionLogs(language string, limit int) ([]*ReviewLog, err
 		FROM review_log r
 		LEFT JOIN words w ON r.subject_type = 'word' AND r.subject_id = w.id
 		LEFT JOIN grammar_points g ON r.subject_type = 'grammar' AND r.subject_id = g.id
-		WHERE (w.language = ? OR g.language = ?) AND date(r.created_at) = date('now','localtime')
+		WHERE (w.language = ? OR g.language = ?) AND date(r.created_at) = ?
 		ORDER BY r.created_at ASC
 		LIMIT ?
-	`, language, language, limit)
+	`, language, language, clock.Today(), limit)
 	if err != nil {
 		return nil, fmt.Errorf("get session logs: %w", err)
 	}

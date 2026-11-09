@@ -6,12 +6,22 @@ import (
 )
 
 func TestSelectQuestionType_NewWord(t *testing.T) {
-	// New word, never reviewed
-	qt := SelectQuestionType(nil, 2.5, 0, 0, []QuestionType{
-		TypeChoice, TypeFill, TypePronounce, TypeSpelling, TypeListening, TypeReadingComp, TypeGrammar,
-	}, true, false)
-	if qt != TypeChoice {
-		t.Errorf("new word should get choice, got %s", qt)
+	// New word, never reviewed → tier 0 (recognition + shadowing).
+	// The pick is randomized (rand.Intn over candidates), so the old
+	// "must be choice" assertion was flaky by design — assert the
+	// sampled set belongs to tier 0 and shows variety instead.
+	types := []QuestionType{TypeChoice, TypeFill, TypePronounce, TypeSpelling, TypeListening, TypeReadingComp, TypeGrammar}
+	tier0 := map[QuestionType]bool{TypeChoice: true, TypePronounce: true, TypeMeaning: true, TypeReadWord: true}
+	seen := make(map[QuestionType]int)
+	for i := 0; i < 50; i++ {
+		qt := SelectQuestionType(nil, 2.5, 0, 0, types, true, false)
+		seen[qt]++
+		if !tier0[qt] {
+			t.Errorf("new word got %s — not a tier-0 type", qt)
+		}
+	}
+	if len(seen) < 2 {
+		t.Errorf("expected variety across tier-0 types, got only %v", seen)
 	}
 }
 
@@ -71,7 +81,7 @@ func TestSelectQuestionType_MatureStage(t *testing.T) {
 
 func TestSelectQuestionType_StrugglingWord(t *testing.T) {
 	now := time.Now()
-	next := now.AddDate(0, 0, 5)   // mid stage by interval
+	next := now.AddDate(0, 0, 5) // mid stage by interval
 	types := []QuestionType{TypeChoice, TypeFill, TypePronounce}
 
 	// EF=1.4 (< 1.5) should drop tier 2 → tier 1
@@ -130,11 +140,11 @@ func TestSelectQuestionType_RespectsAvailableTypes(t *testing.T) {
 
 func TestComputeTier(t *testing.T) {
 	tests := []struct {
-		name   string
-		next   *time.Time
+		name     string
+		next     *time.Time
 		interval int
-		reps    int
-		want    int
+		reps     int
+		want     int
 	}{
 		{"new word", nil, 0, 0, 0},
 		{"first review", timePtr(time.Now().AddDate(0, 0, 1)), 1, 0, 1},

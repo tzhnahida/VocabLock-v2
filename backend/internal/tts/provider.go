@@ -13,9 +13,9 @@ import (
 )
 
 type Provider struct {
-	cfg    config.TTSProvider
-	name   string
-	cache  *Cache
+	cfg   config.TTSProvider
+	name  string
+	cache *Cache
 }
 
 func NewProvider(name string, cfg config.TTSProvider, cacheDir string) (*Provider, error) {

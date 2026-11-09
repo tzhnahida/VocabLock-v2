@@ -49,8 +49,8 @@ func loggingMiddleware(next http.Handler) http.Handler {
 
 func authMiddleware(next http.Handler, token string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// /health is the only unauthenticated endpoint
-		if r.URL.Path == "/health" {
+		// Unauthenticated endpoints
+		if r.URL.Path == "/health" || strings.HasPrefix(r.URL.Path, "/api/v1/debug/log") {
 			next.ServeHTTP(w, r)
 			return
 		}

@@ -10,7 +10,8 @@ import (
 
 func (s *Server) handleStatsHeatmap(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleStatsHeatmap(w, r); return
+		mock.HandleStatsHeatmap(w, r)
+		return
 	}
 	if s.DB == nil {
 		writeError(w, 500, "database not available")
@@ -38,7 +39,8 @@ func (s *Server) handleStatsHeatmap(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleStatsStreak(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleStatsStreak(w, r); return
+		mock.HandleStatsStreak(w, r)
+		return
 	}
 	if s.DB == nil {
 		writeError(w, 500, "database not available")
@@ -58,7 +60,8 @@ func (s *Server) handleStatsStreak(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleStatsDailyReport(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleStatsDailyReport(w, r); return
+		mock.HandleStatsDailyReport(w, r)
+		return
 	}
 	if s.DB == nil {
 		writeError(w, 500, "database not available")
@@ -83,4 +86,31 @@ func (s *Server) handleStatsDailyReport(w http.ResponseWriter, r *http.Request) 
 		"words_correct":  correct,
 		"accuracy":       accuracy,
 	})
+}
+
+// handleStatsDiagnostics returns learning-quality signals for the AI/quality
+// audit loop: error-category distribution, weak phonemes, AI-vs-deterministic
+// disagreement, per-type error rates and vocabulary coverage.
+func (s *Server) handleStatsDiagnostics(w http.ResponseWriter, r *http.Request) {
+	if s.Mock {
+		writeJSON(w, map[string]interface{}{"message": "mock mode: no diagnostics"})
+		return
+	}
+	if s.DB == nil {
+		writeError(w, 500, "database not available")
+		return
+	}
+	days := 30
+	if v := r.URL.Query().Get("days"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 365 {
+			days = n
+		}
+	}
+	lang := s.Config.App.ActiveLang
+	diag, err := s.DB.Diagnostics(lang, days)
+	if err != nil {
+		writeError(w, 500, "diagnostics: "+err.Error())
+		return
+	}
+	writeJSON(w, diag)
 }

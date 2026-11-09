@@ -192,11 +192,10 @@ func (s *Server) generateAssignment(ctx context.Context, lang string, aType engi
 	}
 
 	teacherRole := "Language Teacher"
-	explLang := "en"
+	explLang := s.aiExplLang(lang)
 	level := s.getStudentLevel(lang)
 	if lc, ok := s.Config.Languages[lang]; ok {
 		teacherRole = lc.PromptContext.TeacherRole
-		explLang = lc.PromptContext.ExplanationLang
 	}
 
 	// Get recent words for context
@@ -266,11 +265,10 @@ func (s *Server) gradeAssignment(ctx context.Context, lang, topic, answer string
 	}
 
 	teacherRole := "Language Teacher"
-	explLang := "en"
+	explLang := s.aiExplLang(lang)
 	level := s.getStudentLevel(lang)
 	if lc, ok := s.Config.Languages[lang]; ok {
 		teacherRole = lc.PromptContext.TeacherRole
-		explLang = lc.PromptContext.ExplanationLang
 	}
 
 	messages, err := pt.BuildMessages(&ai.PromptVars{
@@ -278,8 +276,8 @@ func (s *Server) gradeAssignment(ctx context.Context, lang, topic, answer string
 		ExplanationLang: explLang,
 		Level:           level,
 		UserSubmission:  answer,
-		Language:  lang,
-		Topic:		topic,
+		Language:        lang,
+		Topic:           topic,
 	})
 	if err != nil {
 		return nil, err
@@ -308,11 +306,10 @@ func (s *Server) aiCadenceRecommend(ctx context.Context, lang string) (map[strin
 	}
 
 	teacherRole := "Language Teacher"
-	explLang := "en"
+	explLang := s.aiExplLang(lang)
 	level := s.getStudentLevel(lang)
 	if lc, ok := s.Config.Languages[lang]; ok {
 		teacherRole = lc.PromptContext.TeacherRole
-		explLang = lc.PromptContext.ExplanationLang
 	}
 
 	// Collect session data for cadence recommendation

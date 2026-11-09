@@ -13,9 +13,9 @@ import (
 var promptFS embed.FS
 
 type PromptTemplate struct {
-	Version     string `yaml:"version"`
-	System      string `yaml:"system"`
-	User        string `yaml:"user"`
+	Version     string  `yaml:"version"`
+	System      string  `yaml:"system"`
+	User        string  `yaml:"user"`
 	Temperature float64 `yaml:"temperature"`
 }
 
@@ -33,27 +33,27 @@ type PromptVars struct {
 	ExtraContext    string
 	QuestionType    string
 	// Assignment fields
-	AssignmentType string
-	Topic          string
-	WordList       string // comma-separated words to use
+	AssignmentType     string
+	Topic              string
+	WordList           string // comma-separated words to use
 	GrammarPoint       string
 	GrammarTitle       string
 	GrammarExplanation string
 	GrammarExample     string
-	ExistingWords    string // comma-separated known words
-	ExistingGrammar  string // comma-separated existing grammar titles
-	VocabSummary     string // categorized vocabulary summary (nouns: X, verbs: Y, etc.)
-	QueryResult      string // word availability check results (e.g. "猫=yes, 犬=no")
-	ExampleFeedback   string // feedback when AI example contains unknown words
-	WordCount         int
-	ExpandCount      int    // target number of words AI should generate
-	DuplicateWords   string // duplicates from previous AI round
-	UserSubmission   string
+	ExistingWords      string // comma-separated known words
+	ExistingGrammar    string // comma-separated existing grammar titles
+	VocabSummary       string // categorized vocabulary summary (nouns: X, verbs: Y, etc.)
+	QueryResult        string // word availability check results (e.g. "猫=yes, 犬=no")
+	ExampleFeedback    string // feedback when AI example contains unknown words
+	WordCount          int
+	ExpandCount        int    // target number of words AI should generate
+	DuplicateWords     string // duplicates from previous AI round
+	UserSubmission     string
 	// Summary/plan fields
-	SessionStats   string // JSON blob of today's stats
-	YesterdayPlan  string
-	WeakPoints     string
-	TrendData      string
+	SessionStats  string // JSON blob of today's stats
+	YesterdayPlan string
+	WeakPoints    string
+	TrendData     string
 }
 
 func LoadPrompt(name string) (*PromptTemplate, error) {

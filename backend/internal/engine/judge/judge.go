@@ -9,8 +9,8 @@ type Source string
 
 const (
 	SourceExact         Source = "exact"
-	SourceRegex        Source = "regex"
-	SourceAI           Source = "ai"
+	SourceRegex         Source = "regex"
+	SourceAI            Source = "ai"
 	SourceRegexFallback Source = "regex_fallback"
 )
 
@@ -27,6 +27,12 @@ type Result struct {
 	Score    float64 `json:"score"`
 	Feedback string  `json:"feedback"`
 	Source   Source  `json:"source"`
+	// ErrorCategory classifies a WRONG verdict for diagnostics:
+	// "similarity" (user's answer close to expected — typical typos/
+	// confusion pairs), "empty" (no answer / don't know), "" (correct).
+	// Deterministic heuristic today; the AI tier can override with a
+	// richer category in a future prompt change.
+	ErrorCategory string `json:"error_category"`
 }
 
 // Exact compares the user answer exactly against the expected answer.
@@ -92,8 +98,13 @@ func Regex(userAnswer, expected string, strictness Strictness) *Result {
 // expected is a list of acceptable answers (e.g. [word, reading] for fill questions).
 // The primary answer (index 0) is used for the AI tier; exact and regex try all candidates.
 func Judge(userAnswer string, expected []string, strictness Strictness, aiJudge func(user, expected string) (*Result, error)) *Result {
+	// Empty/blank answer = "I don't know" — fail immediately, skip AI
+	if strings.TrimSpace(userAnswer) == "" {
+		return &Result{Correct: false, Score: 0.0, Feedback: "No answer provided", Source: SourceRegex, ErrorCategory: "empty"}
+	}
+
 	if len(expected) == 0 {
-		return &Result{Correct: false, Score: 0.0, Feedback: "No expected answer", Source: SourceRegex}
+		return &Result{Correct: false, Score: 0.0, Feedback: "No expected answer", Source: SourceRegex, ErrorCategory: "other"}
 	}
 
 	// Tier 1: exact — try each expected answer
@@ -115,7 +126,12 @@ func Judge(userAnswer string, expected []string, strictness Strictness, aiJudge 
 		best = &Result{Correct: false, Score: 0.0, Feedback: "Incorrect", Source: SourceRegex}
 	}
 
-	// If regex is high-confidence, return immediately
+	// If regex is high-confidence, return immediately.
+	// NOTE: with the default (Normal) strictness Regex scores substring
+	// matches 0.9, so this branch never fires for them — by design they
+	// still go to the AI tier for verification (see judge_test.go
+	// TestJudgeRegexScore09CallsAI). The comment above the original code
+	// described 0.9 as returning here; it does not.
 	if best.Score > 0.9 {
 		return best
 	}
@@ -126,13 +142,42 @@ func Judge(userAnswer string, expected []string, strictness Strictness, aiJudge 
 		aiR, err := aiJudge(userAnswer, primaryExpected)
 		if err == nil && aiR != nil {
 			aiR.Source = SourceAI
+			if aiR.ErrorCategory == "" {
+				aiR.ErrorCategory = classifyError(userAnswer, primaryExpected)
+			}
 			return aiR
 		}
 		// AI failed — fall back to regex
 		best.Source = SourceRegexFallback
 	}
-
+	if best.ErrorCategory == "" {
+		best.ErrorCategory = classifyError(userAnswer, primaryExpected)
+	}
 	return best
+}
+
+// classifyError is a deterministic heuristic for diagnostics:
+// near-miss answers (high string similarity to the expected answer) are
+// "similarity" (typographic/confusable) — 82% of L2 errors are close
+// misses; everything else wrong is "other". Empty answers are "empty".
+func classifyError(user, expected string) string {
+	ua := normalize(user)
+	if ua == "" {
+		return "empty"
+	}
+	ea := normalize(expected)
+	dist := levenshtein([]rune(ua), []rune(ea))
+	maxLen := len([]rune(ea))
+	if len([]rune(ua)) > maxLen {
+		maxLen = len([]rune(ua))
+	}
+	if maxLen == 0 {
+		return "other"
+	}
+	if 1.0-float64(dist)/float64(maxLen) >= 0.6 {
+		return "similarity"
+	}
+	return "other"
 }
 
 func normalize(s string) string {

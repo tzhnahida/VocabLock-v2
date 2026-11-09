@@ -1,8 +1,8 @@
 package api
 
 import (
-	"encoding/json"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -93,7 +93,7 @@ func (s *Server) EnsureBootstrap(lang string) {
 	}
 
 	if total == 0 {
-		if s.AI() != nil {
+		if s.AI() != nil && s.DictProvider != nil {
 			// AI available 閳?generate initial words from plan direction
 			expandCount, extraCtx := s.planExpandParams(lang)
 			if expandCount <= 0 {
@@ -112,12 +112,17 @@ func (s *Server) EnsureBootstrap(lang string) {
 						loadSeedWords(s, lang)
 					} else {
 						log.Debug("bootstrap", "AI generated %d verified + %d pending words", verified, pending)
+						go s.fillMissingDetails(lang)
 					}
-					gc, gErr := s.expandGrammar(context.Background(), lang, 3)
-					if gErr != nil {
-						log.Error("bootstrap", "grammar expansion failed: %v", gErr)
-					} else {
-						log.Debug("bootstrap", "AI generated %d grammar points", gc)
+					gc := 0
+					if langHasGrammarType(lang, s.Config) {
+						var gErr error
+						gc, gErr = s.expandGrammar(context.Background(), lang, 3)
+						if gErr != nil {
+							log.Error("bootstrap", "grammar expansion failed: %v", gErr)
+						} else {
+							log.Debug("bootstrap", "AI generated %d grammar points", gc)
+						}
 					}
 					log.Info("bootstrap", "done: lang=%s words=%d grammar=%d", lang, verified+pending, gc)
 					s.markBootstrapDone()
@@ -139,7 +144,7 @@ func (s *Server) EnsureBootstrap(lang string) {
 	}
 
 	// Fill missing detail fields for words that lack them (runs in background)
-	if s.AI() != nil {
+	if s.AI() != nil && s.DictProvider != nil {
 		go s.fillMissingDetails(lang)
 	}
 
@@ -147,8 +152,10 @@ func (s *Server) EnsureBootstrap(lang string) {
 	// No config-loaded grammar seeds 閳?ja.yaml tells AI HOW, not WHAT.
 }
 
-// fillMissingDetails finds words that have reading/meaning but no detail JSON,
-// and fills them via AI in the background.
+// fillMissingDetails fills missing reading/meaning/detail for words in the
+// background. For words lacking reading/meaning, it tries dict lookup first;
+// if found, AI generates the detail JSON. Covers both bootstrap leftovers and
+// pending-review words that the earlier batch retry missed.
 func (s *Server) fillMissingDetails(lang string) {
 	if s.AI() == nil || s.DB == nil {
 		return
@@ -160,9 +167,38 @@ func (s *Server) fillMissingDetails(lang string) {
 	_, level, _, _ := s.expandLangContext(lang)
 	filled := 0
 	for _, w := range words {
-		if w.Meaning == "" || (w.Detail != "" && w.Detail != "{}" && len(w.Detail) > 10) {
+		// Skip words that are already fully populated
+		if w.Meaning != "" && w.Detail != "" && w.Detail != "{}" && len(w.Detail) > 10 {
 			continue
 		}
+
+		// If missing reading/meaning, try dict lookup first
+		if w.Reading == "" || w.Meaning == "" {
+			if s.DictProvider != nil {
+				ctx2, cancel2 := context.WithTimeout(context.Background(), 10*time.Second)
+				entry := s.lookupDict(ctx2, w.Word)
+				cancel2()
+				if entry != nil {
+					if w.Reading == "" {
+						w.Reading = entry.Reading
+					}
+					if w.Meaning == "" {
+						w.Meaning = entry.Meaning
+					}
+					if w.POS == "" {
+						w.POS = entry.POS
+					}
+					if w.Level == "" {
+						w.Level = entry.Level
+					}
+				}
+			}
+			// Still no meaning after dict → can't generate useful detail
+			if w.Meaning == "" {
+				continue
+			}
+		}
+
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		aiDetail := s.generateDetail(ctx, w.Word, w.Reading, w.Meaning, w.POS, level, lang)
 		cancel()

@@ -14,11 +14,13 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 
 	// Quiz
 	mux.HandleFunc("POST "+prefix+"/quiz/session/start", s.handleQuizSessionStart)
+	mux.HandleFunc("POST "+prefix+"/quiz/session/continue", s.handleQuizSessionContinue)
 	mux.HandleFunc("GET "+prefix+"/quiz/progress", s.handleQuizProgress)
 	mux.HandleFunc("GET "+prefix+"/quiz/next", s.handleQuizNext)
 	mux.HandleFunc("POST "+prefix+"/quiz/submit", s.handleQuizSubmit)
 	mux.HandleFunc("GET "+prefix+"/quiz/today-stats", s.handleQuizTodayStats)
 	mux.HandleFunc("POST "+prefix+"/quiz/complete", s.handleQuizComplete)
+	mux.HandleFunc("POST "+prefix+"/quiz/dispute", s.handleQuizDispute)
 
 	// Session
 	mux.HandleFunc("POST "+prefix+"/quiz/summarize", s.handleQuizSummarize)
@@ -32,6 +34,8 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 
 	// Words
 	mux.HandleFunc("GET "+prefix+"/words", s.handleWordsList)
+	// Today's new words for study-before-test phase
+	mux.HandleFunc("GET "+prefix+"/words/new", s.handleWordsNew)
 	mux.HandleFunc("GET "+prefix+"/words/{id}", s.handleWordsGet)
 	mux.HandleFunc("POST "+prefix+"/words", s.handleWordsCreate)
 	mux.HandleFunc("PUT "+prefix+"/words/{id}", s.handleWordsUpdate)
@@ -42,6 +46,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST "+prefix+"/words/expand", s.handleWordsExpand)
 	mux.HandleFunc("GET "+prefix+"/words/pending-review", s.handleWordsPendingReview)
 	mux.HandleFunc("POST "+prefix+"/words/pending-review/{id}/accept", s.handleWordsPendingAccept)
+	mux.HandleFunc("POST "+prefix+"/words/pending-review/accept-all", s.handleWordsPendingAcceptAll)
 	mux.HandleFunc("POST "+prefix+"/words/pending-review/{id}/reject", s.handleWordsPendingReject)
 	mux.HandleFunc("PUT "+prefix+"/words/{id}/tags", s.handleWordsTags)
 	mux.HandleFunc("GET "+prefix+"/grammar-points", s.handleGrammarPointsList)
@@ -63,6 +68,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 
 	// Stats
 	mux.HandleFunc("GET "+prefix+"/stats/heatmap", s.handleStatsHeatmap)
+	mux.HandleFunc("GET "+prefix+"/stats/diagnostics", s.handleStatsDiagnostics)
 	mux.HandleFunc("GET "+prefix+"/stats/streak", s.handleStatsStreak)
 	mux.HandleFunc("GET "+prefix+"/stats/daily-report", s.handleStatsDailyReport)
 
@@ -74,6 +80,8 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST "+prefix+"/system/passive-submit", s.handleSystemPassiveSubmit)
 	mux.HandleFunc("POST "+prefix+"/system/quit", s.handleSystemQuit)
 	mux.HandleFunc("POST "+prefix+"/system/escape", s.handleSystemEscape)
+	mux.HandleFunc("POST "+prefix+"/system/restart", s.handleSystemRestart)
+	mux.HandleFunc("POST "+prefix+"/debug/log", s.handleDebugLog)
 
 	// Config
 	mux.HandleFunc("GET "+prefix+"/config", s.handleConfigGet)
@@ -81,27 +89,27 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("PUT "+prefix+"/config", s.handleConfigUpdate)
 	mux.HandleFunc("POST "+prefix+"/config/password", s.handleConfigPassword)
 
-		// Config — AI
-		mux.HandleFunc("GET "+prefix+"/config/ai", s.handleConfigAI)
-		mux.HandleFunc("PUT "+prefix+"/config/ai", s.handleConfigAIUpdate)
+	// Config — AI
+	mux.HandleFunc("GET "+prefix+"/config/ai", s.handleConfigAI)
+	mux.HandleFunc("PUT "+prefix+"/config/ai", s.handleConfigAIUpdate)
 
-		// Config — TTS providers
-		mux.HandleFunc("GET "+prefix+"/config/tts", s.handleConfigTTSList)
-		mux.HandleFunc("POST "+prefix+"/config/tts", s.handleConfigTTSSave)
-		mux.HandleFunc("GET "+prefix+"/config/tts/{name}", s.handleConfigTTSGet)
-		mux.HandleFunc("PUT "+prefix+"/config/tts/{name}", s.handleConfigTTSSave)
-		mux.HandleFunc("DELETE "+prefix+"/config/tts/{name}", s.handleConfigTTSDelete)
+	// Config — TTS providers
+	mux.HandleFunc("GET "+prefix+"/config/tts", s.handleConfigTTSList)
+	mux.HandleFunc("POST "+prefix+"/config/tts", s.handleConfigTTSSave)
+	mux.HandleFunc("GET "+prefix+"/config/tts/{name}", s.handleConfigTTSGet)
+	mux.HandleFunc("PUT "+prefix+"/config/tts/{name}", s.handleConfigTTSSave)
+	mux.HandleFunc("DELETE "+prefix+"/config/tts/{name}", s.handleConfigTTSDelete)
 
-		// Config — Dict providers
-		mux.HandleFunc("GET "+prefix+"/config/dict", s.handleConfigDictList)
-		mux.HandleFunc("POST "+prefix+"/config/dict", s.handleConfigDictSave)
-		mux.HandleFunc("GET "+prefix+"/config/dict/{name}", s.handleConfigDictGet)
-		mux.HandleFunc("PUT "+prefix+"/config/dict/{name}", s.handleConfigDictSave)
-		mux.HandleFunc("DELETE "+prefix+"/config/dict/{name}", s.handleConfigDictDelete)
+	// Config — Dict providers
+	mux.HandleFunc("GET "+prefix+"/config/dict", s.handleConfigDictList)
+	mux.HandleFunc("POST "+prefix+"/config/dict", s.handleConfigDictSave)
+	mux.HandleFunc("GET "+prefix+"/config/dict/{name}", s.handleConfigDictGet)
+	mux.HandleFunc("PUT "+prefix+"/config/dict/{name}", s.handleConfigDictSave)
+	mux.HandleFunc("DELETE "+prefix+"/config/dict/{name}", s.handleConfigDictDelete)
 
-		// Config — Language
-		mux.HandleFunc("GET "+prefix+"/config/language/{code}", s.handleConfigLanguageGet)
-		mux.HandleFunc("PUT "+prefix+"/config/language/{code}", s.handleConfigLanguageUpdate)
+	// Config — Language
+	mux.HandleFunc("GET "+prefix+"/config/language/{code}", s.handleConfigLanguageGet)
+	mux.HandleFunc("PUT "+prefix+"/config/language/{code}", s.handleConfigLanguageUpdate)
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {

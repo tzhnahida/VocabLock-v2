@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -14,13 +15,14 @@ import (
 	"github.com/tzhnahida/VocabLock/internal/log"
 
 	"github.com/tzhnahida/VocabLock/internal/ai"
+	"github.com/tzhnahida/VocabLock/internal/clock"
 	"github.com/tzhnahida/VocabLock/internal/config"
 	"github.com/tzhnahida/VocabLock/internal/db"
 	"github.com/tzhnahida/VocabLock/internal/dict"
 	"github.com/tzhnahida/VocabLock/internal/engine"
 	"github.com/tzhnahida/VocabLock/internal/pronounce"
-	"github.com/tzhnahida/VocabLock/internal/tts"
 	"github.com/tzhnahida/VocabLock/internal/system"
+	"github.com/tzhnahida/VocabLock/internal/tts"
 )
 
 type cachedQuestion struct {
@@ -35,19 +37,19 @@ var slowTypes = map[string]bool{
 }
 
 type Server struct {
-	http   *http.Server
-	Port   int
-	Token  string
+	http      *http.Server
+	Port      int
+	Token     string
 	Mock      bool
 	Config    *config.Config
 	configMu  sync.RWMutex // guards Config field writes during concurrent bootstrap reads
-	ConfigDir string // path to configs/ directory
-	DB     *db.Database
+	ConfigDir string       // path to configs/ directory
+	DB        *db.Database
 
 	// Optional — nil means not configured, handlers fall back gracefully
-	aiValue         atomic.Value // *ai.Client, safe for concurrent access
-	TTSProvider     *tts.Provider
-	DictProvider    *dict.Provider
+	aiValue           atomic.Value // *ai.Client, safe for concurrent access
+	TTSProvider       *tts.Provider
+	DictProvider      *dict.Provider
 	PronounceProvider *pronounce.Provider
 
 	// Question cache for AI-generated questions (maps question_id → cachedQuestion)
@@ -82,6 +84,125 @@ type Server struct {
 	escapeDate         string
 	escapePasswordUsed int
 	escapeClickUsed    int
+
+	// Restart support — set by main after Flutter is spawned
+	FlutterPID int
+	// RestartFunc re-wires providers in place (config reload + TTS/Dict/
+	// Pronounce re-init). It does NOT kill/restart the Flutter process —
+	// the comment on the old code claimed otherwise.
+	RestartFunc func()
+
+	// Session time accounting (stats only — NOT an unlock condition; the
+	// daily target is count-based, see DailyTargetMet). Elapsed time
+	// between question interactions accumulates into daily_stats.
+	timeMu         sync.Mutex
+	lastActivityAt time.Time
+}
+
+// sessionGapCapSec bounds a single inter-question gap when accumulating
+// study time — anything longer is treated as idle, not study.
+const sessionGapCapSec = 15 * 60
+
+// markActivity records the moment a question-interaction happens. Called
+// when a session goes READY so the study/learning phase counts as time.
+// Stats only; never gates unlock.
+func (s *Server) markActivity() {
+	s.timeMu.Lock()
+	defer s.timeMu.Unlock()
+	s.lastActivityAt = time.Now()
+}
+
+// consumeActivityElapsed returns the seconds since the last activity,
+// clamped to sessionGapCapSec, and resets the clock. Returns 0 if the
+// clock was never started (e.g. submit without session/start).
+func (s *Server) consumeActivityElapsed() int {
+	s.timeMu.Lock()
+	defer s.timeMu.Unlock()
+	if s.lastActivityAt.IsZero() {
+		s.lastActivityAt = time.Now()
+		return 0
+	}
+	elapsed := int(time.Since(s.lastActivityAt).Seconds())
+	s.lastActivityAt = time.Now()
+	if elapsed > sessionGapCapSec {
+		elapsed = sessionGapCapSec
+	}
+	if elapsed < 0 {
+		elapsed = 0
+	}
+	return elapsed
+}
+
+// aiExplLang returns the language the AI should use when speaking to the
+// student (explanations, chat, judging feedback, assignments, summaries).
+//
+// Priority: user interface language (InterfaceLang) > per-language
+// explanation-language config > "en".
+// FIX: the UI language was never propagated into the AI prompt layer —
+// users with an English UI studying Japanese got AI replies in the
+// language config's explanation language (e.g. Chinese) or the hardcoded
+// zh-CN default in chat.
+func (s *Server) aiExplLang(lang string) string {
+	if ui := strings.TrimSpace(s.Config.App.InterfaceLang); ui != "" {
+		return ui
+	}
+	if lc, ok := s.Config.Languages[lang]; ok && lc.PromptContext.ExplanationLang != "" {
+		return lc.PromptContext.ExplanationLang
+	}
+	return "en"
+}
+
+// DailyTargetMet reports whether today's learning target is satisfied.
+//
+// Semantics (design intent, 2026-09-02): the daily target is COUNT-based.
+// "Time" is only a UX conversion (e.g. 30 min ≈ 15 questions) — there is
+// NO wall-clock unlock. An earlier wiring made accumulated study time a
+// second unlock path (idle 20 min → unlock); that was removed — it was
+// not in the original design and let "studying" be faked by idling.
+//
+// Accuracy gate: once the student has answered anything, the target
+// additionally requires accuracy >= MinAccuracy (default 0.8) — this is
+// what the onboarding copy promises ("Accuracy >= 80% required to unlock")
+// and what the old code never enforced.
+//
+// Exported for use by cmd/server (main.go startup lock check).
+func (s *Server) DailyTargetMet(lang string) bool {
+	if s.DB == nil {
+		return false
+	}
+	reviewed, err := s.DB.GetUniqueSubjectsReviewed(lang)
+	if err != nil {
+		return false
+	}
+	if reviewed < s.Config.App.DailyTarget {
+		return false
+	}
+	// No answers yet → nothing to gate on.
+	if reviewed == 0 {
+		return true
+	}
+	_, correct, err := s.DB.GetTodayStats(lang)
+	if err != nil {
+		return false
+	}
+	accuracy := float64(correct) / float64(reviewed)
+	return accuracy >= s.Config.App.MinAccuracy
+}
+
+// langHasGrammarType reports whether the language's question types include
+// grammar (AI grammar questions & auto grammar expansion are only meaningful
+// when the student opted into them — sim §九 ⑦).
+func langHasGrammarType(lang string, cfg *config.Config) bool {
+	lc, ok := cfg.Languages[lang]
+	if !ok {
+		return false
+	}
+	for _, qt := range lc.QuestionTypes {
+		if qt == "grammar" {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Server) tryStartExpanding() bool {
@@ -243,15 +364,16 @@ func (s *Server) Shutdown() error {
 
 // sessionBudget tracks time and type usage during a single day session.
 type sessionBudget struct {
-	mu           sync.Mutex
-	date         string
-	timeUsed     int
-	slowCount    int
-	totalCount   int
-	typeWeights  map[string]int // cached from training plan's question_type_ratio
-	grammarFocus []string       // cached from training plan's grammar_focus
-	sessionDone    bool // true once quiz/complete was called today
-	sessionStarted bool // true once first READY was returned today
+	mu             sync.Mutex
+	date           string
+	timeUsed       int
+	slowCount      int
+	totalCount     int
+	typeWeights    map[string]int // cached from training plan's question_type_ratio
+	grammarFocus   []string       // cached from training plan's grammar_focus
+	sessionDone    bool           // true once quiz/complete was called today
+	sessionStarted bool           // true once first READY was returned today
+	forceContinue  bool           // student opted in past the soft cap (see hitSoftCap)
 }
 
 func (b *sessionBudget) reset() {
@@ -263,19 +385,63 @@ func (b *sessionBudget) reset() {
 	b.totalCount = 0
 	b.sessionDone = false
 	b.sessionStarted = false
+	b.forceContinue = false
+}
+
+// rolloverLocked resets the day-accumulated counters when the calendar day
+// changed. Callers must hold b.mu. (hitSoftCap previously lacked this check —
+// yesterday's totalCount kept the soft cap permanently triggered, see sim §九.)
+func (b *sessionBudget) rolloverLocked() {
+	today := clock.Today()
+	if b.date != today {
+		b.date = today
+		b.timeUsed = 0
+		b.slowCount = 0
+		b.totalCount = 0
+		b.forceContinue = false
+	}
+}
+
+// hitSoftCap reports whether today's session exceeded the soft cap (1.5×
+// daily target, min +10) without meeting the target. The day does not end
+// silently — the student chooses: continue training (POST /quiz/session/
+// continue) or stop (the completion screen shows the remaining gap).
+// Without this, a sub-80%-accuracy student was served an unbounded number
+// of questions every day (simulation S2: 100+/day).
+func (b *sessionBudget) hitSoftCap(dailyTarget int) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.rolloverLocked()
+	cap := dailyTarget + dailyTarget/2
+	if cap < dailyTarget+10 {
+		cap = dailyTarget + 10
+	}
+	return b.totalCount >= cap
+}
+
+func (b *sessionBudget) setForceContinue(v bool) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.forceContinue = v
+}
+
+func (b *sessionBudget) isForceContinue() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.forceContinue
 }
 
 func (b *sessionBudget) markSessionDone() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.sessionDone = true
-	b.date = time.Now().Format("2006-01-02")
+	b.date = clock.Today()
 }
 
 func (b *sessionBudget) isSessionDone() bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	today := time.Now().Format("2006-01-02")
+	today := clock.Today()
 	if b.date != today {
 		b.sessionDone = false
 	}
@@ -286,13 +452,13 @@ func (b *sessionBudget) markSessionStarted() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.sessionStarted = true
-	b.date = time.Now().Format("2006-01-02")
+	b.date = clock.Today()
 }
 
 func (b *sessionBudget) isSessionStarted() bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	today := time.Now().Format("2006-01-02")
+	today := clock.Today()
 	if b.date != today {
 		b.sessionStarted = false
 	}
@@ -327,13 +493,7 @@ func (b *sessionBudget) allowType(typeName string, timeBudgetMinutes int, maxSlo
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	today := time.Now().Format("2006-01-02")
-	if b.date != today {
-		b.date = today
-		b.timeUsed = 0
-		b.slowCount = 0
-		b.totalCount = 0
-	}
+	b.rolloverLocked()
 
 	weight := engine.TimeWeights[typeName]
 	if weight == 0 {
@@ -363,13 +523,7 @@ func (b *sessionBudget) recordType(typeName string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	today := time.Now().Format("2006-01-02")
-	if b.date != today {
-		b.date = today
-		b.timeUsed = 0
-		b.slowCount = 0
-		b.totalCount = 0
-	}
+	b.rolloverLocked()
 
 	weight := engine.TimeWeights[typeName]
 	if weight == 0 {
@@ -487,12 +641,14 @@ func (s *Server) startCacheCleanup() {
 }
 
 // markWordServed records a word as recently served to prevent double-serving.
+// Uses the injectable clock so the "recent" window is defined in application
+// time (simulation/time-travel friendly), not raw wall-clock.
 func (s *Server) markWordServed(wordID int64) {
 	s.servedWordIDsMu.Lock()
-	s.servedWordIDs[wordID] = time.Now()
+	s.servedWordIDs[wordID] = clock.Now()
 	// Clean expired entries (older than 10 seconds)
 	for id, t := range s.servedWordIDs {
-		if time.Since(t) > 10*time.Second {
+		if clock.Now().Sub(t) > 10*time.Second {
 			delete(s.servedWordIDs, id)
 		}
 	}
@@ -507,7 +663,7 @@ func (s *Server) wasRecentlyServed(wordID int64) bool {
 	if !ok {
 		return false
 	}
-	if time.Since(t) > 5*time.Second {
+	if clock.Now().Sub(t) > 5*time.Second {
 		delete(s.servedWordIDs, wordID)
 		return false
 	}
@@ -536,4 +692,3 @@ func (s *Server) isBootstrapDone() bool {
 func (s *Server) HasPronounce() bool {
 	return s.PronounceProvider != nil
 }
-

@@ -58,6 +58,7 @@ type Word struct {
 type ReviewLog struct {
 	ID             int64     `json:"id"`
 	WordID         int64     `json:"word_id"`      // deprecated, kept for old data
+	Language       string    `json:"language"`     // logging language (non-empty for post-2026-09 rows)
 	SubjectType    string    `json:"subject_type"` // "word" | "grammar"
 	SubjectID      int64     `json:"subject_id"`   // words.id or grammar_points.id
 	QuestionType   string    `json:"question_type"`
@@ -66,6 +67,9 @@ type ReviewLog struct {
 	Correct        bool      `json:"correct"`
 	Score          float64   `json:"score"`
 	Source         string    `json:"source"`
+	PhonemesJSON   string    `json:"phonemes_json"`  // structured phoneme scores (read-aloud)
+	ErrorCategory  string    `json:"error_category"` // 形似/音似/义混/... (judge enrichment)
+	Dispute        int       `json:"dispute"`        // student disputed the AI verdict
 	CreatedAt      time.Time `json:"created_at"`
 }
 

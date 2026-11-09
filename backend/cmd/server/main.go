@@ -25,6 +25,14 @@ func main() {
 	mockMode := flag.Bool("mock", false, "Run with mock handlers (no AI, no SQLite, no external processes)")
 	flag.Parse()
 
+	// Change working directory to the executable's directory so that ALL
+	// relative paths (configs/, data/, tts/*.py, dict/*.py, frontend/*.exe,
+	// etc.) work correctly regardless of how the process was started —
+	// double-click, terminal, or auto-start from the registry Run key.
+	if exe, err := os.Executable(); err == nil {
+		os.Chdir(filepath.Dir(exe))
+	}
+
 	configDir := "configs"
 	cfg, err := config.Load(configDir)
 	if err != nil {
@@ -73,6 +81,14 @@ func main() {
 	}
 	srv.System = systemProvider
 
+	// Refresh auto-start registry entry to point to the current executable path.
+	// If the user moved the install directory, the old entry would point to a dead path.
+	if cfg.App.AutoStart {
+		if err := systemProvider.SetAutoStart(true); err != nil {
+			log.Warn("system", "auto-start refresh: %v", err)
+		}
+	}
+
 	// Wire AI client (if configured)
 	srv.WireAI()
 
@@ -117,25 +133,49 @@ func main() {
 	srv.EnsureBootstrap(cfg.App.ActiveLang)
 
 	flutterPID := spawnFlutter(srv.Port, srv.Token)
+	healthURL := fmt.Sprintf("http://127.0.0.1:%d/health", srv.Port)
+	srv.FlutterPID = flutterPID
+	srv.RestartFunc = func() {
+		log.Info("system", "restart: re-wiring providers in-place (no Flutter restart)")
+		// Re-load language configs from disk (now includes languages/ja.yaml
+		// created by tryLoadLanguageTemplate during onboarding)
+		cfg2, err := config.Load(configDir)
+		if err == nil {
+			srv.Config = cfg2
+		}
+		// Re-wire all providers from fresh config
+		srv.WireTTS()
+		srv.WireDict()
+		srv.WirePronounce()
+		// Trigger bootstrap now that dict is ready (no-op if words already exist)
+		go srv.EnsureBootstrap(srv.Config.App.ActiveLang)
+		log.Info("system", "restart: done — TTS/Dict/Pronounce reloaded")
+	}
 
 	// Set runtime info for health monitoring
-	healthURL := fmt.Sprintf("http://127.0.0.1:%d/health", srv.Port)
 	systemProvider.SetServerInfo(healthURL, flutterPID)
 
 	// Wait for Flutter window to appear
 	time.Sleep(500 * time.Millisecond)
 
-	// Auto-lock if daily target not met
+	// Auto-lock if daily target not met (count- or time-based)
 	if database != nil {
 		reviewed, err := database.GetUniqueSubjectsReviewed(cfg.App.ActiveLang)
 		if err != nil {
 			log.Warn("system", "check daily target: %v", err)
 		}
-		log.Info("system", "startup check: reviewed=%d target=%d lang=%s", reviewed, cfg.App.DailyTarget, cfg.App.ActiveLang)
-		if reviewed < cfg.App.DailyTarget {
-			log.Info("system", "auto-lock: fullscreen + lock")
-			systemProvider.FullscreenFlutterWindow()
-			systemProvider.EnterLockMode(0)
+		spent, _ := database.GetTodayTimeSpent(cfg.App.ActiveLang)
+		log.Info("system", "startup check: reviewed=%d time_min=%d target=%d time_target=%d lang=%s",
+			reviewed, spent, cfg.App.DailyTarget, cfg.App.DailyTimeTarget, cfg.App.ActiveLang)
+		if !srv.DailyTargetMet(cfg.App.ActiveLang) {
+			nw, ng, rw, rg, _ := database.SessionCounts(cfg.App.ActiveLang)
+			if nw+ng+rw+rg > 0 {
+				log.Info("system", "auto-lock: fullscreen + lock")
+				systemProvider.FullscreenFlutterWindow()
+				systemProvider.EnterLockMode(0)
+			} else {
+				log.Info("system", "startup: no items — skip lock (reviewed=%d target=%d)", reviewed, cfg.App.DailyTarget)
+			}
 		} else {
 			log.Info("system", "daily target met — skip lock")
 		}

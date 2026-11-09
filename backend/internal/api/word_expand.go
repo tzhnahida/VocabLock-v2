@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/tzhnahida/VocabLock/internal/ai"
+	"github.com/tzhnahida/VocabLock/internal/clock"
 	"github.com/tzhnahida/VocabLock/internal/db"
 	"github.com/tzhnahida/VocabLock/internal/dict"
 	"github.com/tzhnahida/VocabLock/internal/log"
@@ -61,7 +62,6 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 		count = 50
 	}
 
-
 	// Collect existing words for dedup context
 	existingWords, totalCount := s.collectExistingWords(lang)
 
@@ -72,6 +72,15 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 	if extraContext == "" {
 		extraContext = s.buildRecentContext(lang)
 	}
+
+	// Expansion audit: record decision inputs so "why these words" is
+	// traceable (plan direction, dedup pool size, recent-word context).
+	planDir := ""
+	if p, err := s.DB.GetActivePlan(lang); err == nil {
+		planDir = p.Direction
+	}
+	log.Debug("expand", "audit: lang=%s count=%d dir=%q dedup=%d words recent=%d chars temp=0.5",
+		lang, count, planDir, totalCount, len(extraContext))
 
 	// Retry pending-review words before expanding new ones
 	if s.DB != nil {
@@ -86,13 +95,21 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 				aiDetail := s.generateDetail(ctx, pw.Word, dictEntry.Reading, dictEntry.Meaning, dictEntry.POS, dictEntry.Level, lang)
 				detail := mergeJSON(dictEntry.Detail, aiDetail)
 				pw.Reading = dictEntry.Reading
-				if pw.Reading == "" { pw.Reading = extractFieldFromDetail(aiDetail, "reading") }
+				if pw.Reading == "" {
+					pw.Reading = extractFieldFromDetail(aiDetail, "reading")
+				}
 				pw.Meaning = dictEntry.Meaning
-				if pw.Meaning == "" { pw.Meaning = extractFieldFromDetail(aiDetail, "meaning") }
+				if pw.Meaning == "" {
+					pw.Meaning = extractFieldFromDetail(aiDetail, "meaning")
+				}
 				pw.POS = dictEntry.POS
-				if pw.POS == "" { pw.POS = extractFieldFromDetail(aiDetail, "pos") }
+				if pw.POS == "" {
+					pw.POS = extractFieldFromDetail(aiDetail, "pos")
+				}
 				pw.Level = dictEntry.Level
-				if pw.Level == "" { pw.Level = extractFieldFromDetail(aiDetail, "level") }
+				if pw.Level == "" {
+					pw.Level = extractFieldFromDetail(aiDetail, "level")
+				}
 				pw.Detail = detail
 				pw.Status = "active"
 				pw.Source = "ai_expansion_dict"
@@ -189,13 +206,21 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 				aiDetail := s.generateDetail(ctx, e.Word, dictEntry.Reading, dictEntry.Meaning, dictEntry.POS, dictEntry.Level, lang)
 
 				reading := dictEntry.Reading
-				if reading == "" { reading = extractFieldFromDetail(aiDetail, "reading") }
+				if reading == "" {
+					reading = extractFieldFromDetail(aiDetail, "reading")
+				}
 				meaning := dictEntry.Meaning
-				if meaning == "" { meaning = extractFieldFromDetail(aiDetail, "meaning") }
+				if meaning == "" {
+					meaning = extractFieldFromDetail(aiDetail, "meaning")
+				}
 				pos := dictEntry.POS
-				if pos == "" { pos = extractFieldFromDetail(aiDetail, "pos") }
+				if pos == "" {
+					pos = extractFieldFromDetail(aiDetail, "pos")
+				}
 				lvl := dictEntry.Level
-				if lvl == "" { lvl = extractFieldFromDetail(aiDetail, "level") }
+				if lvl == "" {
+					lvl = extractFieldFromDetail(aiDetail, "level")
+				}
 
 				// Dict detail base + AI gap-fill (dict keys take priority)
 				detail := mergeJSON(dictEntry.Detail, aiDetail)
@@ -477,9 +502,9 @@ func (s *Server) expandGrammar(ctx context.Context, lang string, count int) (ins
 	teacherRole, level, explLang, targetLang := s.expandLangContext(lang)
 	_, extraCtx := s.planExpandParams(lang)
 
-// Build vocabulary summary (not full list — too large as vocab grows)
+	// Build vocabulary summary (not full list — too large as vocab grows)
 	vocabSummary := s.buildVocabSummary(lang)
-
+	// Expansion audit: record decision inputs so "why these words" is
 	pt, err := ai.LoadPrompt("expand_grammar")
 	if err != nil {
 		return 0, fmt.Errorf("load prompt: %w", err)
@@ -491,14 +516,14 @@ func (s *Server) expandGrammar(ctx context.Context, lang string, count int) (ins
 
 	for round := 0; round < 3; round++ {
 		messages, err := pt.BuildMessages(&ai.PromptVars{
-			TeacherRole:      teacherRole,
-			Language:         targetLang,
-			Level:            level,
-			ExplanationLang:  explLang,
-			VocabSummary:     vocabSummary,
-			ExtraContext:      extraCtx,
-			ExistingGrammar:   strings.Join(existingTitles, ", "),
-			QueryResult:       queryResult,
+			TeacherRole:     teacherRole,
+			Language:        targetLang,
+			Level:           level,
+			ExplanationLang: explLang,
+			VocabSummary:    vocabSummary,
+			ExtraContext:    extraCtx,
+			ExistingGrammar: strings.Join(existingTitles, ", "),
+			QueryResult:     queryResult,
 		})
 		if err != nil {
 			return 0, fmt.Errorf("build prompt: %w", err)
@@ -690,20 +715,39 @@ func (s *Server) buildVocabSummary(lang string) string {
 		}
 	}
 
+	// Daily-seeded sampling: same day → same sample (reproducible,
+	// debuggable); next day → fresh sample (preserves the anti-repetition
+	// intent of the old per-call shuffle). No fixed global seed.
+	daySeed := clock.Now().Unix()/86400*31 + int64(len(lang))
+	sr := rand.New(rand.NewSource(daySeed))
 	sample := func(list []string, max int) string {
-		if len(list) == 0 { return "" }
-		rand.Shuffle(len(list), func(i, j int) { list[i], list[j] = list[j], list[i] })
-		if len(list) > max { list = list[:max] }
+		if len(list) == 0 {
+			return ""
+		}
+		sr.Shuffle(len(list), func(i, j int) { list[i], list[j] = list[j], list[i] })
+		if len(list) > max {
+			list = list[:max]
+		}
 		return strings.Join(list, ", ")
 	}
 
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("Total: %d. ", total))
-	if nCount > 0 { b.WriteString(fmt.Sprintf("Nouns: %d (e.g. %s). ", nCount, sample(nouns, 15))) }
-	if vCount > 0 { b.WriteString(fmt.Sprintf("Verbs: %d (e.g. %s). ", vCount, sample(verbs, 10))) }
-	if aCount > 0 { b.WriteString(fmt.Sprintf("Adjectives: %d (e.g. %s). ", aCount, sample(adjs, 8))) }
-	if eCount > 0 { b.WriteString(fmt.Sprintf("Phrases: %d (e.g. %s). ", eCount, sample(phrases, 5))) }
-	if oCount > 0 { b.WriteString(fmt.Sprintf("Other: %d (e.g. %s).", oCount, sample(other, 5))) }
+	if nCount > 0 {
+		b.WriteString(fmt.Sprintf("Nouns: %d (e.g. %s). ", nCount, sample(nouns, 15)))
+	}
+	if vCount > 0 {
+		b.WriteString(fmt.Sprintf("Verbs: %d (e.g. %s). ", vCount, sample(verbs, 10)))
+	}
+	if aCount > 0 {
+		b.WriteString(fmt.Sprintf("Adjectives: %d (e.g. %s). ", aCount, sample(adjs, 8)))
+	}
+	if eCount > 0 {
+		b.WriteString(fmt.Sprintf("Phrases: %d (e.g. %s). ", eCount, sample(phrases, 5)))
+	}
+	if oCount > 0 {
+		b.WriteString(fmt.Sprintf("Other: %d (e.g. %s).", oCount, sample(other, 5)))
+	}
 	return b.String()
 }
 

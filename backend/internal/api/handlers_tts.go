@@ -15,7 +15,8 @@ import (
 
 func (s *Server) handleTTSWord(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleTTSWord(w, r); return
+		mock.HandleTTSWord(w, r)
+		return
 	}
 
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
@@ -104,7 +105,8 @@ func (s *Server) handleTTSWord(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleTTSText(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleTTSText(w, r); return
+		mock.HandleTTSText(w, r)
+		return
 	}
 
 	if s.TTSProvider == nil {

@@ -17,9 +17,9 @@ import (
 
 func (s *Server) handleConfigAI(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]interface{}{
-		"base_url":    s.Config.App.AI.BaseURL,
-		"model":       s.Config.App.AI.Model,
-		"configured":  s.Config.App.AI.APIKey != "",
+		"base_url":   s.Config.App.AI.BaseURL,
+		"model":      s.Config.App.AI.Model,
+		"configured": s.Config.App.AI.APIKey != "",
 	})
 }
 
@@ -33,7 +33,8 @@ func (s *Server) handleConfigAIUpdate(w http.ResponseWriter, r *http.Request) {
 		Model   string `json:"model"`
 	}
 	if err := readJSON(r, &req); err != nil {
-		writeError(w, 400, "invalid body"); return
+		writeError(w, 400, "invalid body")
+		return
 	}
 	if req.BaseURL != "" {
 		s.Config.App.AI.BaseURL = req.BaseURL
@@ -63,8 +64,8 @@ func (s *Server) handleConfigTTSList(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	writeJSON(w, map[string]interface{}{
-		"providers":     providers,
-		"cache_limit":   s.Config.TTS.TTS.CacheLimit,
+		"providers":      providers,
+		"cache_limit":    s.Config.TTS.TTS.CacheLimit,
 		"fallback_order": s.Config.TTS.TTS.FallbackOrder,
 	})
 }
@@ -73,7 +74,8 @@ func (s *Server) handleConfigTTSGet(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 	p, ok := s.Config.TTS.TTS.Providers[name]
 	if !ok {
-		writeError(w, 404, "provider not found"); return
+		writeError(w, 404, "provider not found")
+		return
 	}
 	writeJSON(w, map[string]interface{}{
 		"name":    name,
@@ -99,13 +101,15 @@ func (s *Server) handleConfigTTSSave(w http.ResponseWriter, r *http.Request) {
 		Voices map[string]string `json:"voices"`
 	}
 	if err := readJSON(r, &req); err != nil {
-		writeError(w, 400, "invalid body"); return
+		writeError(w, 400, "invalid body")
+		return
 	}
 	if req.Name != "" {
 		name = req.Name
 	}
 	if name == "" {
-		writeError(w, 400, "name required"); return
+		writeError(w, 400, "name required")
+		return
 	}
 
 	if isNew {
@@ -114,7 +118,8 @@ func (s *Server) handleConfigTTSSave(w http.ResponseWriter, r *http.Request) {
 	p := s.Config.TTS.TTS.Providers[name]
 	if req.Binary != "" {
 		if err := s.validateProviderBinary(req.Binary); err != nil {
-			writeError(w, 400, err.Error()); return
+			writeError(w, 400, err.Error())
+			return
 		}
 		p.Binary = req.Binary
 	}
@@ -132,7 +137,8 @@ func (s *Server) handleConfigTTSSave(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleConfigTTSDelete(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 	if _, ok := s.Config.TTS.TTS.Providers[name]; !ok {
-		writeError(w, 404, "provider not found"); return
+		writeError(w, 404, "provider not found")
+		return
 	}
 	delete(s.Config.TTS.TTS.Providers, name)
 	s.saveTTSConfig()
@@ -162,7 +168,8 @@ func (s *Server) handleConfigDictGet(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 	p, ok := s.Config.Dict.Dict.Providers[name]
 	if !ok {
-		writeError(w, 404, "provider not found"); return
+		writeError(w, 404, "provider not found")
+		return
 	}
 	writeJSON(w, map[string]interface{}{
 		"name":        name,
@@ -190,13 +197,15 @@ func (s *Server) handleConfigDictSave(w http.ResponseWriter, r *http.Request) {
 		ExamLevels *bool    `json:"exam_levels"`
 	}
 	if err := readJSON(r, &req); err != nil {
-		writeError(w, 400, "invalid body"); return
+		writeError(w, 400, "invalid body")
+		return
 	}
 	if req.Name != "" {
 		name = req.Name
 	}
 	if name == "" {
-		writeError(w, 400, "name required"); return
+		writeError(w, 400, "name required")
+		return
 	}
 
 	if isNew {
@@ -208,7 +217,8 @@ func (s *Server) handleConfigDictSave(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Binary != "" {
 		if err := s.validateProviderBinary(req.Binary); err != nil {
-			writeError(w, 400, err.Error()); return
+			writeError(w, 400, err.Error())
+			return
 		}
 		p.Binary = req.Binary
 	}
@@ -226,7 +236,8 @@ func (s *Server) handleConfigDictSave(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleConfigDictDelete(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 	if _, ok := s.Config.Dict.Dict.Providers[name]; !ok {
-		writeError(w, 404, "provider not found"); return
+		writeError(w, 404, "provider not found")
+		return
 	}
 	delete(s.Config.Dict.Dict.Providers, name)
 	s.saveDictConfig()
@@ -259,7 +270,8 @@ func (s *Server) handleConfigLanguageGet(w http.ResponseWriter, r *http.Request)
 			})
 			return
 		}
-		writeError(w, 404, "language not found"); return
+		writeError(w, 404, "language not found")
+		return
 	}
 	writeJSON(w, map[string]interface{}{
 		"code":             code,
@@ -282,7 +294,8 @@ func (s *Server) handleConfigLanguageUpdate(w http.ResponseWriter, r *http.Reque
 	code := r.PathValue("code")
 	lc, ok := s.Config.Languages[code]
 	if !ok {
-		writeError(w, 404, "language not found"); return
+		writeError(w, 404, "language not found")
+		return
 	}
 	var req struct {
 		TTSProvider   string   `json:"tts_provider"`
@@ -291,7 +304,8 @@ func (s *Server) handleConfigLanguageUpdate(w http.ResponseWriter, r *http.Reque
 		QuestionTypes []string `json:"question_types"`
 	}
 	if err := readJSON(r, &req); err != nil {
-		writeError(w, 400, "invalid body"); return
+		writeError(w, 400, "invalid body")
+		return
 	}
 	if req.TTSProvider != "" {
 		lc.TTS.Provider = req.TTSProvider
@@ -312,12 +326,12 @@ func (s *Server) handleConfigLanguageUpdate(w http.ResponseWriter, r *http.Reque
 // safeSystemBinaries lists interpreter binaries that may be resolved from PATH.
 // These are the backbone for dict/TTS/pronounce scripts.
 var safeSystemBinaries = map[string]bool{
-	"python":       true,
-	"python3":      true,
-	"python.exe":   true,
-	"powershell":   true,
-	"pwsh":         true,
-	"pwsh.exe":     true,
+	"python":     true,
+	"python3":    true,
+	"python.exe": true,
+	"powershell": true,
+	"pwsh":       true,
+	"pwsh.exe":   true,
 }
 
 // projectRoot returns the backend directory (parent of ConfigDir).
@@ -367,13 +381,13 @@ func (s *Server) validateProviderBinary(binary string) error {
 // ——— save helpers ———
 
 func (s *Server) saveTTSConfig() {
-	s.saveYAML(s.ConfigDir + "/tts.yaml", &struct {
+	s.saveYAML(s.ConfigDir+"/tts.yaml", &struct {
 		TTS interface{} `yaml:"tts"`
 	}{s.Config.TTS.TTS})
 }
 
 func (s *Server) saveDictConfig() {
-	s.saveYAML(s.ConfigDir + "/dict.yaml", &struct {
+	s.saveYAML(s.ConfigDir+"/dict.yaml", &struct {
 		Dict interface{} `yaml:"dict"`
 	}{s.Config.Dict.Dict})
 }

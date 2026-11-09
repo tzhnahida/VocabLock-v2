@@ -3,6 +3,8 @@ package db
 import (
 	"database/sql"
 	"fmt"
+
+	"github.com/tzhnahida/VocabLock/internal/clock"
 )
 
 type grammarScanner struct {
@@ -180,10 +182,10 @@ func (d *Database) GetReviewGrammarPoints(language string, limit int) ([]*Gramma
 		SELECT `+grammarColumns+`
 		FROM grammar_points
 		WHERE language = ? AND status = 'active'
-		  AND (next_review_at IS NULL OR next_review_at <= datetime('now','localtime'))
+		  AND (next_review_at IS NULL OR next_review_at <= ?)
 		ORDER BY next_review_at ASC NULLS FIRST
 		LIMIT ?
-	`, language, limit)
+	`, language, clock.TodayTS(), limit)
 	if err != nil {
 		return nil, fmt.Errorf("get review grammar points: %w", err)
 	}

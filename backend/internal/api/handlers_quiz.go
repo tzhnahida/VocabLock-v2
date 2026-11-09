@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tzhnahida/VocabLock/internal/clock"
+
 	"github.com/tzhnahida/VocabLock/internal/ai"
 	"github.com/tzhnahida/VocabLock/internal/api/mock"
 	"github.com/tzhnahida/VocabLock/internal/config"
@@ -57,6 +59,11 @@ func (s *Server) handleQuizProgress(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeError(w, 500, "query progress: "+err.Error())
 		return
+	}
+	// Time-based target can also complete the day.
+	if s.DailyTargetMet(lang) {
+		remaining = 0
+		log.Debug("quiz", "progress: target met (reviewed=%d time_min=%d)", reviewed, s.Config.App.DailyTimeTarget)
 	}
 
 	writeJSON(w, map[string]interface{}{
@@ -123,13 +130,14 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 
 	// Check if daily target already met — today's learning is done.
 	// Use unique subjects (not total attempts) so repeated answers on the
-	// same word don't prematurely mark the session as complete.
+	// same word don't prematurely mark the session as complete. The
+	// time-based target (daily_time_target) can also satisfy the day.
 	reviewed, err := s.DB.GetUniqueSubjectsReviewed(lang)
 	if err != nil {
 		log.Warn("quiz", "get unique subjects for session start: %v", err)
 		reviewed = 0
 	}
-	if reviewed >= s.Config.App.DailyTarget {
+	if s.DailyTargetMet(lang) {
 		writeJSON(w, map[string]interface{}{
 			"new_words":       0,
 			"new_grammar":     0,
@@ -151,7 +159,7 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 	// while totalAvailable was still below DailyTarget.
 	//
 	// User requirement: "AI没出完单词和题目不许进入"
-	// → ALWAYS block when expansion is running, regardless of counts.
+	// → ALWAYS block while expansion is running, regardless of counts.
 	expanding := s.isExpanding()
 	log.Debug("session", "counts: nw=%d ng=%d rw=%d rg=%d total=%d target=%d expanding=%v",
 		nw, ng, rw, rg, totalAvailable, s.Config.App.DailyTarget, expanding)
@@ -168,34 +176,53 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Not expanding. If total below target AND no reviews done today,
-	// trigger expansion. Skip expansion when the user is re-entering
-	// after already completing some questions — don't generate new
-	// words for a session that's already in progress.
-	if totalAvailable < s.Config.App.DailyTarget && s.AI() != nil && reviewed == 0 {
-		if s.tryStartExpanding() {
-			log.Debug("session", "TRIGGER expansion: total=%d < target=%d", totalAvailable, s.Config.App.DailyTarget)
-			go func() {
-				defer s.stopExpanding()
-				expandCount, extraCtx := s.planExpandParams(lang)
-				log.Debug("expand", "session/start goroutine: count=%d extraCtx=%s", expandCount, extraCtx)
-				v, p, err := s.expandWords(context.Background(), lang, expandCount, extraCtx)
-				if err != nil {
-					log.Error("expand", "session/start ERROR: %v", err)
-				} else {
-					log.Debug("expand", "session/start DONE: %d verified + %d pending", v, p)
-				}
-			}()
+	// ── 准入语义(仿真 §九 2026-09-03)──
+	// Admission is about "is there anything to learn", NOT "is the pool big
+	// enough to hit the target". The old gate (totalAvailable < DailyTarget
+	// → preparing) dead-locked zero-AI users in a permanent "AI preparing"
+	// spinner and refused to serve sessions that had 1-19 due items.
+	//
+	//   totalAvailable > 0  → always READY (pool < target just means the
+	//                          day may end "not met", not that learning is
+	//                          forbidden)
+	//   totalAvailable == 0 + AI  → trigger expansion, preparing (the ONLY
+	//                          legitimate spinner: words are being made)
+	//   totalAvailable == 0 + no AI → "empty": true (frontend shows an
+	//                          empty-state CTA: import words / configure AI)
+	if totalAvailable == 0 {
+		if s.AI() != nil && reviewed == 0 {
+			if s.tryStartExpanding() {
+				log.Debug("session", "TRIGGER expansion: empty vault, target=%d", s.Config.App.DailyTarget)
+				go func() {
+					defer s.stopExpanding()
+					expandCount, extraCtx := s.planExpandParams(lang)
+					log.Debug("expand", "session/start goroutine: count=%d extraCtx=%s", expandCount, extraCtx)
+					v, p, err := s.expandWords(context.Background(), lang, expandCount, extraCtx)
+					if err != nil {
+						log.Error("expand", "session/start ERROR: %v", err)
+					} else {
+						log.Debug("expand", "session/start DONE: %d verified + %d pending", v, p)
+					}
+				}()
+			}
+			log.Debug("session", "return preparing=true (empty vault, AI filling)")
+			writeJSON(w, map[string]interface{}{
+				"new_words":      0,
+				"new_grammar":    0,
+				"review_words":   0,
+				"review_grammar": 0,
+				"preparing":      true,
+			})
+			return
 		}
-		// Block regardless — either we started expanding (block until done)
-		// or someone else did (block until they finish).
-		log.Debug("session", "return preparing=true (total=%d < target=%d)", totalAvailable, s.Config.App.DailyTarget)
+		// Nothing to learn and no way to make more: honest empty state.
+		log.Debug("session", "EMPTY vault (no items, no AI) — user needs to import words")
 		writeJSON(w, map[string]interface{}{
 			"new_words":      0,
 			"new_grammar":    0,
 			"review_words":   0,
 			"review_grammar": 0,
-			"preparing":      true,
+			"empty":          true,
 		})
 		return
 	}
@@ -203,58 +230,16 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 	// Cache plan's question type weights for this session
 	s.cachePlanWeights(lang)
 
-	// Final safety net: re-query counts to catch races where words were
-	// deleted or expansion completed but didn't add enough unique words.
-	// Only applies to the first session of the day (reviewed == 0).
-	if totalAvailable < s.Config.App.DailyTarget {
-		nw2, ng2, rw2, rg2, _ := s.DB.SessionCounts(lang)
-		fresh := nw2 + ng2 + rw2 + rg2
-		if fresh >= s.Config.App.DailyTarget {
-			log.Debug("session", "READY (refreshed): nw=%d ng=%d rw=%d rg=%d", nw2, ng2, rw2, rg2)
-			writeJSON(w, map[string]interface{}{
-				"new_words":      nw2,
-				"new_grammar":    ng2,
-				"review_words":   rw2,
-				"review_grammar": rg2,
-			})
-			return
-		}
-		// Try one more expansion only if first session.
-		if reviewed == 0 && s.AI() != nil && s.tryStartExpanding() {
-			go func() {
-				defer s.stopExpanding()
-				expandCount, extraCtx := s.planExpandParams(lang)
-				v, p, err := s.expandWords(context.Background(), lang, expandCount, extraCtx)
-				if err != nil {
-					log.Error("expand", "final retry ERROR: %v", err)
-				} else {
-					log.Debug("expand", "final retry DONE: %d verified + %d pending", v, p)
-				}
-			}()
-		}
-		// If already reviewed today, just return what's available.
-		if reviewed > 0 {
-			log.Debug("session", "re-entry with available: nw=%d ng=%d rw=%d rg=%d", nw, ng, rw, rg)
-			writeJSON(w, map[string]interface{}{
-				"new_words":      nw,
-				"new_grammar":    ng,
-				"review_words":   rw,
-				"review_grammar": rg,
-			})
-			return
-		}
-		log.Debug("session", "BLOCK (final): total=%d fresh=%d < target=%d", totalAvailable, fresh, s.Config.App.DailyTarget)
-		writeJSON(w, map[string]interface{}{
-			"new_words":      0,
-			"new_grammar":    0,
-			"review_words":   0,
-			"review_grammar": 0,
-			"preparing":      true,
-		})
-		return
+	// Daily-target framing for the session overview: the UI must show the
+	// REAL requirement (remaining to unlock) not the whole due pool — a
+	// 76-due review queue would otherwise render as "90 questions today".
+	dailyRem := s.Config.App.DailyTarget - reviewed
+	if dailyRem < 0 {
+		dailyRem = 0
 	}
 
 	log.Debug("session", "READY: nw=%d ng=%d rw=%d rg=%d", nw, ng, rw, rg)
+	s.markActivity() // stats-only: study-time accounting (no unlock semantics)
 
 	// Pre-warm TTS for new study words in background so audio is
 	// cached before the user reaches the learning screen.
@@ -263,10 +248,12 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 	}
 
 	writeJSON(w, map[string]interface{}{
-		"new_words":      nw,
-		"new_grammar":    ng,
-		"review_words":   rw,
-		"review_grammar": rg,
+		"new_words":       nw,
+		"new_grammar":     ng,
+		"review_words":    rw,
+		"review_grammar":  rg,
+		"daily_remaining": dailyRem,
+		"daily_target":    s.Config.App.DailyTarget,
 	})
 }
 
@@ -286,13 +273,14 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 
 	// ── Daily target cap ──────────────────────────────────────
 	// Stop serving questions once the user has reviewed enough unique
-	// subjects today. Without this check the session could serve 80+
-	// questions when SM-2 accumulates many due items on the same day.
+	// subjects today (or met the time target). Without this check the
+	// session could serve 80+ questions when SM-2 accumulates many due
+	// items on the same day.
 	reviewed, err := s.DB.GetUniqueSubjectsReviewed(lang)
 	if err != nil {
 		log.Warn("quiz", "get unique subjects for next: %v", err)
-	} else if reviewed >= s.Config.App.DailyTarget {
-		log.Debug("quiz", "daily target met: reviewed=%d >= target=%d", reviewed, s.Config.App.DailyTarget)
+	} else if s.DailyTargetMet(lang) {
+		log.Debug("quiz", "daily target met: reviewed=%d time_min=%d", reviewed, s.Config.App.DailyTimeTarget)
 		writeJSON(w, map[string]interface{}{
 			"completed":        true,
 			"message":          "Daily target met",
@@ -305,13 +293,25 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 			s.System.RestoreFlutterWindow()
 		}
 		return
+	} else if s.sessionBudget.hitSoftCap(s.Config.App.DailyTarget) && !s.sessionBudget.isForceContinue() {
+		// Soft cap (simulation §九 ②): stop FORCING questions when the day
+		// has clearly exceeded the target without meeting it. The student
+		// can deliberately continue via POST /quiz/session/continue; the
+		// completion screen offers both actions instead of an endless grind.
+		log.Debug("quiz", "soft cap reached: answered=%d target=%d met=false", s.sessionBudget.totalCount, s.Config.App.DailyTarget)
+		writeJSON(w, map[string]interface{}{
+			"completed":         true,
+			"message":           "Session cap reached — review the rest tomorrow, or continue deliberately",
+			"reviewed":          reviewed,
+			"daily_target":      s.Config.App.DailyTarget,
+			"daily_target_met":  false,
+			"session_exhausted": true,
+		})
+		return
 	}
 
 	// Resolve explanation language (e.g. "zh-CN", "ko", "en") for prompt i18n
-	explLang := "en"
-	if lc, ok := s.Config.Languages[lang]; ok && lc.PromptContext.ExplanationLang != "" {
-		explLang = lc.PromptContext.ExplanationLang
-	}
+	explLang := s.aiExplLang(lang)
 
 	// Get words and grammar points due for review
 	words, err := s.DB.GetReviewWords(lang, 10)
@@ -514,6 +514,7 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 		QuestionType string `json:"question_type"`
 		Answer       string `json:"answer"`
 		Audio        string `json:"audio,omitempty"`
+		Dispute      bool   `json:"dispute,omitempty"` // student disputes the AI verdict
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -631,7 +632,7 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 
 	// Update SM-2 on the right table
 	quality := engine.QualityFromScore(result.Score)
-	now := time.Now()
+	now := clock.Now()
 
 	switch req.SubjectType {
 	case "grammar":
@@ -686,6 +687,7 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 		qType = "choice"
 	}
 	logEntry := &db.ReviewLog{
+		Language:       s.Config.App.ActiveLang,
 		SubjectType:    req.SubjectType,
 		SubjectID:      req.SubjectID,
 		QuestionType:   qType,
@@ -694,18 +696,22 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 		Correct:        result.Correct,
 		Score:          result.Score,
 		Source:         string(result.Source),
+		ErrorCategory:  result.ErrorCategory,
+	}
+	if req.Dispute {
+		logEntry.Dispute = 1
 	}
 	if req.SubjectType == "word" {
 		logEntry.WordID = req.SubjectID
 	}
-	s.DB.InsertReviewLog(logEntry)
+	logID, _ := s.DB.InsertReviewLog(logEntry)
 
 	// Update daily stats for heatmap / streak
 	correctCount := 0
 	if result.Correct {
 		correctCount = 1
 	}
-	s.DB.UpsertDailyStats(now.Format("2006-01-02"), s.Config.App.ActiveLang, 1, correctCount, 0)
+	s.DB.UpsertDailyStats(now.Format("2006-01-02"), s.Config.App.ActiveLang, 1, correctCount, s.consumeActivityElapsed())
 
 	var nextReviewAt *time.Time
 	if word != nil {
@@ -714,10 +720,9 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 		nextReviewAt = grammar.NextReviewAt
 	}
 
-	// Auto-unlock if daily target met
+	// Auto-unlock if daily target met (count- or time-based)
 	if s.System != nil && result.Correct {
-		reviewed, _ := s.DB.GetUniqueSubjectsReviewed(s.Config.App.ActiveLang)
-		if reviewed >= s.Config.App.DailyTarget {
+		if s.DailyTargetMet(s.Config.App.ActiveLang) {
 			log.Info("quiz", "daily target met — auto-unlocking")
 			s.System.ExitLockMode()
 			s.System.RestoreFlutterWindow()
@@ -730,7 +735,34 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 		"feedback":       result.Feedback,
 		"source":         result.Source,
 		"next_review_at": nextReviewAt,
+		"log_id":         logID,
 	})
+}
+
+// handleQuizDispute marks a review_log entry as disputed by the student
+// ("I think this was graded wrong"). No SM-2 side effects — the stamp is
+// pure diagnostics/feedback for AI calibration.
+func (s *Server) handleQuizDispute(w http.ResponseWriter, r *http.Request) {
+	if s.Mock {
+		writeJSON(w, map[string]interface{}{"ok": true})
+		return
+	}
+	if s.DB == nil {
+		writeError(w, 500, "database not available")
+		return
+	}
+	var req struct {
+		LogID int64 `json:"log_id"`
+	}
+	if err := readJSON(r, &req); err != nil || req.LogID <= 0 {
+		writeError(w, 400, "log_id is required")
+		return
+	}
+	if err := s.DB.MarkDispute(req.LogID); err != nil {
+		writeError(w, 500, "mark dispute: "+err.Error())
+		return
+	}
+	writeJSON(w, map[string]interface{}{"ok": true})
 }
 
 func (s *Server) handleQuizTodayStats(w http.ResponseWriter, r *http.Request) {
@@ -762,6 +794,18 @@ func (s *Server) handleQuizTodayStats(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleQuizSessionContinue lets the student deliberately opt back IN after
+// the soft cap (see sessionBudget.hitSoftCap): "I know I haven't met the
+// target — keep serving questions anyway."
+func (s *Server) handleQuizSessionContinue(w http.ResponseWriter, r *http.Request) {
+	if s.Mock {
+		writeJSON(w, map[string]interface{}{"ok": true})
+		return
+	}
+	s.sessionBudget.setForceContinue(true)
+	writeJSON(w, map[string]interface{}{"ok": true, "continue": true})
+}
+
 func (s *Server) handleQuizComplete(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
 		mock.HandleQuizComplete(w, r)
@@ -775,7 +819,11 @@ func (s *Server) handleQuizComplete(w http.ResponseWriter, r *http.Request) {
 		reviewed = 0
 	}
 
-	targetMet := reviewed >= s.Config.App.DailyTarget
+	targetMet := s.DailyTargetMet(lang)
+	adjusted := false
+	if !targetMet && reviewed > 0 {
+		adjusted = s.maybeAdjustDailyTarget(lang)
+	}
 	if targetMet {
 		s.sessionBudget.markSessionDone()
 		if s.System != nil {
@@ -790,7 +838,55 @@ func (s *Server) handleQuizComplete(w http.ResponseWriter, r *http.Request) {
 		"daily_target_met": targetMet,
 		"reviewed":         reviewed,
 		"daily_target":     s.Config.App.DailyTarget,
+		"target_adjusted":  adjusted,
 	})
+}
+
+// maybeAdjustDailyTarget softens the daily target when the student has
+// genuinely tried (answered yesterday and today) but failed to meet it on
+// 3 consecutive days. Local fallback for zero-AI setups (the AI plan path
+// already adapts via tomorrow.word_count). The ACCURACY GATE IS NEVER
+// LOWERED — quality bar stays fixed; only the workload scale moves.
+func (s *Server) maybeAdjustDailyTarget(lang string) bool {
+	if s.DB == nil {
+		return false
+	}
+	guarded, err := s.DB.GetRecentUniqueDaily(lang, 3)
+	if err != nil || len(guarded) < 3 {
+		return false // insufficient history (missed a day = streak broken)
+	}
+	byDate := map[string]*db.DailyUnique{}
+	for i := range guarded {
+		byDate[guarded[i].Date] = &guarded[i]
+	}
+	for i := 0; i < 3; i++ {
+		dayStr := clock.Now().AddDate(0, 0, -i).Format("2006-01-02")
+		d := byDate[dayStr]
+		if d == nil || d.Unique == 0 {
+			return false // a day with no session breaks the streak
+		}
+		// Met semantics mirror DailyTargetMet: unique >= target AND accuracy >= min.
+		acc := float64(d.Correct) / float64(d.Unique)
+		if d.Unique >= s.Config.App.DailyTarget && acc >= s.Config.App.MinAccuracy {
+			return false // met at least one day → no adjustment
+		}
+	}
+	newTarget := int(float64(s.Config.App.DailyTarget) * 0.8)
+	if newTarget < 10 {
+		newTarget = 10
+	}
+	if newTarget >= s.Config.App.DailyTarget {
+		return false
+	}
+	old := s.Config.App.DailyTarget
+	s.Config.App.DailyTarget = newTarget
+	if s.ConfigDir != "" {
+		if err := s.Config.SaveAppConfig(s.ConfigDir); err != nil {
+			log.Warn("quiz", "save adjusted daily target: %v", err)
+		}
+	}
+	log.Info("quiz", "daily target adjusted (3 consecutive unmet days): %d → %d", old, newTarget)
+	return true
 }
 
 // ——— read-aloud submit ———
@@ -809,7 +905,7 @@ func (s *Server) recordReadAloudFallback(stype string, sid int64) {
 		return
 	}
 	quality := 2
-	now := time.Now()
+	now := clock.Now()
 	sm2 := engine.SM2(word.EasinessFactor, word.Interval, word.Repetitions, quality, now, s.Config.App.Sm2MaxIntervalDays)
 	if sm2 != nil {
 		word.EasinessFactor = sm2.EasinessFactor
@@ -924,9 +1020,20 @@ func (s *Server) handleReadAloudSubmit(w http.ResponseWriter, r *http.Request, q
 }
 
 // writeReadAloudResult records SM-2, review log, and returns the result JSON.
+// categoryForReadAloud tags read-aloud verdicts for diagnostics.
+func categoryForReadAloud(source string, correct bool) string {
+	if source == "skipped" {
+		return "empty"
+	}
+	if !correct {
+		return "pronunciation"
+	}
+	return ""
+}
+
 func (s *Server) writeReadAloudResult(w http.ResponseWriter, stype string, sid int64, qtype string, correct bool, score float64, phonemes []pronounce.PhonemeScore, targetText, source string) {
 	quality := engine.QualityFromScore(score)
-	now := time.Now()
+	now := clock.Now()
 
 	var nextReviewAt *time.Time
 	if stype == "word" && s.DB != nil {
@@ -957,6 +1064,7 @@ func (s *Server) writeReadAloudResult(w http.ResponseWriter, stype string, sid i
 	}
 
 	logEntry := &db.ReviewLog{
+		Language:       s.Config.App.ActiveLang,
 		SubjectType:    stype,
 		SubjectID:      sid,
 		QuestionType:   qtype,
@@ -965,22 +1073,27 @@ func (s *Server) writeReadAloudResult(w http.ResponseWriter, stype string, sid i
 		Correct:        correct,
 		Score:          score,
 		Source:         source,
+		ErrorCategory:  categoryForReadAloud(source, correct),
+	}
+	if len(phonemes) > 0 {
+		if b, err := json.Marshal(phonemes); err == nil {
+			logEntry.PhonemesJSON = string(b)
+		}
 	}
 	if stype == "word" {
 		logEntry.WordID = sid
 	}
-	s.DB.InsertReviewLog(logEntry)
+	raLogID, _ := s.DB.InsertReviewLog(logEntry)
 
 	correctCount := 0
 	if correct {
 		correctCount = 1
 	}
-	s.DB.UpsertDailyStats(now.Format("2006-01-02"), s.Config.App.ActiveLang, 1, correctCount, 0)
+	s.DB.UpsertDailyStats(now.Format("2006-01-02"), s.Config.App.ActiveLang, 1, correctCount, s.consumeActivityElapsed())
 
-	// Auto-unlock if daily target met
+	// Auto-unlock if daily target met (count- OR time-based)
 	if s.System != nil && correct {
-		reviewed, _ := s.DB.GetUniqueSubjectsReviewed(s.Config.App.ActiveLang)
-		if reviewed >= s.Config.App.DailyTarget {
+		if s.DailyTargetMet(s.Config.App.ActiveLang) {
 			log.Info("quiz", "daily target met (read-aloud) — auto-unlocking")
 			s.System.ExitLockMode()
 			s.System.RestoreFlutterWindow()
@@ -1007,6 +1120,7 @@ func (s *Server) writeReadAloudResult(w http.ResponseWriter, stype string, sid i
 		"correct":        correct,
 		"score":          score,
 		"phonemes":       phonemes,
+		"log_id":         raLogID,
 		"feedback":       feedback,
 		"source":         source,
 		"next_review_at": nextReviewAt,
@@ -1092,11 +1206,8 @@ func (s *Server) makeAIJudge(qType string, word *db.Word) func(user, expected st
 			return nil, err
 		}
 
-		// Determine explanation language from active language config
-		explLang := "en"
-		if lc, ok := s.Config.Languages[s.Config.App.ActiveLang]; ok {
-			explLang = lc.PromptContext.ExplanationLang
-		}
+		// Determine explanation language: UI language takes precedence
+		explLang := s.aiExplLang(s.Config.App.ActiveLang)
 
 		messages, err := pt.BuildMessages(&ai.PromptVars{
 			Word:            word.Word,

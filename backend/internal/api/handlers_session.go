@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/tzhnahida/VocabLock/internal/ai"
+	"github.com/tzhnahida/VocabLock/internal/api/mock"
 	"github.com/tzhnahida/VocabLock/internal/db"
 	"github.com/tzhnahida/VocabLock/internal/log"
 )
@@ -15,9 +16,7 @@ import (
 // handleQuizSummarize triggers AI analysis of today's session.
 func (s *Server) handleQuizSummarize(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		writeJSON(w, map[string]interface{}{
-			"message": "mock mode: no summary available",
-		})
+		mock.HandleQuizSummarize(w, r)
 		return
 	}
 	if s.AI() == nil {
@@ -97,13 +96,17 @@ func (s *Server) handleQuizSummarize(w http.ResponseWriter, r *http.Request) {
 						log.Error("expand", "summarize goroutine ERROR: %v", err)
 					} else {
 						log.Debug("expand", "summarize goroutine DONE: %d verified + %d pending", v, p)
+						go s.fillMissingDetails(lang)
 					}
 				}()
 			}
 		}
-		// Also expand grammar points if running low
+		// Also expand grammar points if running low — only when the language
+		// config actually enables grammar questions (sim §九 ⑦: without this
+		// check AI grammar points were injected into languages whose question
+		// types exclude grammar, silently mixing unrequested content).
 		_, gTotal, _ := s.DB.ListGrammarPoints(lang, 1, 0)
-		if gTotal < 5 {
+		if gTotal < 5 && langHasGrammarType(lang, s.Config) {
 			log.Debug("expand", "summarize grammar: gTotal=%d, expanding 2", gTotal)
 			go s.expandGrammar(context.Background(), lang, 2)
 		}
@@ -148,10 +151,12 @@ func (s *Server) handleQuizPlan(w http.ResponseWriter, r *http.Request) {
 // handleQuizDirection sets the learning direction.
 func (s *Server) handleQuizDirection(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		writeJSON(w, map[string]interface{}{"direction": "general", "set": true}); return
+		writeJSON(w, map[string]interface{}{"direction": "general", "set": true})
+		return
 	}
 	if s.DB == nil {
-		writeError(w, 500, "database not available"); return
+		writeError(w, 500, "database not available")
+		return
 	}
 	var req struct {
 		Direction string `json:"direction"`
@@ -189,10 +194,10 @@ func buildSessionStats(logs []*db.ReviewLog) string {
 		accuracy = float64(correct) / float64(total)
 	}
 	stats := map[string]interface{}{
-		"total":         total,
-		"correct":       correct,
-		"accuracy":      accuracy,
-		"by_type":       typeCount,
+		"total":    total,
+		"correct":  correct,
+		"accuracy": accuracy,
+		"by_type":  typeCount,
 	}
 	b, _ := json.Marshal(stats)
 	return string(b)
@@ -251,9 +256,14 @@ func (s *Server) runPlan(ctx context.Context, lang, stats string, summary map[st
 	teacherRole, explLang, level := s.langContext(lang)
 
 	weakPoints := ""
-	if w, ok := summary["today_summary"].(map[string]interface{})["weaknesses"]; ok {
-		b, _ := json.Marshal(w)
-		weakPoints = string(b)
+	// today_summary may be absent from the AI response — assert safely.
+	// The old single-expression assertion panicked (nil map assertion) and
+	// killed the whole summarize request when the key was missing.
+	if ts, ok := summary["today_summary"].(map[string]interface{}); ok {
+		if w, ok2 := ts["weaknesses"]; ok2 {
+			b, _ := json.Marshal(w)
+			weakPoints = string(b)
+		}
 	}
 
 	// Derive trend data from session stats accuracy
@@ -310,10 +320,13 @@ func (s *Server) runPlan(ctx context.Context, lang, stats string, summary map[st
 	planJSON, _ := json.Marshal(result)
 	s.DB.InsertTrainingPlan(lang, direction, confidence, string(planJSON))
 
-	// Persist AI-evaluated student level from plan response
-	if diff, ok := result["tomorrow"].(map[string]interface{})["difficulty"].(string); ok && diff != "" {
-		if s.DB != nil {
-			s.DB.SetStudentLevel(lang, diff)
+	// Persist AI-evaluated student level from plan response.
+	// Same nil-map-assertion hazard: assert "tomorrow" separately.
+	if tm, ok := result["tomorrow"].(map[string]interface{}); ok {
+		if diff, ok2 := tm["difficulty"].(string); ok2 && diff != "" {
+			if s.DB != nil {
+				s.DB.SetStudentLevel(lang, diff)
+			}
 		}
 	}
 
@@ -356,11 +369,10 @@ func parsePlanTomorrow(planJSON string) *planTomorrow {
 
 func (s *Server) langContext(lang string) (teacherRole, explLang, level string) {
 	teacherRole = "Language Teacher"
-	explLang = "en"
+	explLang = s.aiExplLang(lang)
 	level = s.getStudentLevel(lang)
 	if lc, ok := s.Config.Languages[lang]; ok {
 		teacherRole = lc.PromptContext.TeacherRole
-		explLang = lc.PromptContext.ExplanationLang
 	}
 	return
 }

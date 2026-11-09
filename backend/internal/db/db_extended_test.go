@@ -3,6 +3,7 @@ package db
 import (
 	"fmt"
 	"testing"
+	"time"
 )
 
 func TestWordStatusDefaults(t *testing.T) {
@@ -178,5 +179,53 @@ func TestAssignmentCadence(t *testing.T) {
 	last = d.LastAssignmentDate("en")
 	if last.IsZero() {
 		t.Error("last should not be zero after marking")
+	}
+}
+
+func TestGetTodayTimeSpent(t *testing.T) {
+	d := openTestDB(t)
+	date := time.Now().Format("2006-01-02")
+	lang := "ja"
+
+	// No record yet → 0
+	spent, err := d.GetTodayTimeSpent(lang)
+	if err != nil {
+		t.Fatalf("empty lookup error: %v", err)
+	}
+	if spent != 0 {
+		t.Fatalf("expected 0 minutes for empty day, got %d", spent)
+	}
+
+	// Accumulate 150s → 2 minutes (integer truncation)
+	if err := d.UpsertDailyStats(date, lang, 1, 1, 150); err != nil {
+		t.Fatalf("upsert: %v", err)
+	}
+	spent, err = d.GetTodayTimeSpent(lang)
+	if err != nil {
+		t.Fatalf("lookup error: %v", err)
+	}
+	if spent != 2 {
+		t.Fatalf("expected 2 minutes after 150s, got %d", spent)
+	}
+
+	// Accumulate again: +300s → 7 minutes total
+	if err := d.UpsertDailyStats(date, lang, 1, 0, 300); err != nil {
+		t.Fatalf("upsert#2: %v", err)
+	}
+	spent, err = d.GetTodayTimeSpent(lang)
+	if err != nil {
+		t.Fatalf("lookup#2 error: %v", err)
+	}
+	if spent != 7 {
+		t.Fatalf("expected 7 minutes after +300s, got %d", spent)
+	}
+
+	// Another language is isolated
+	spent, err = d.GetTodayTimeSpent("en")
+	if err != nil {
+		t.Fatalf("en lookup error: %v", err)
+	}
+	if spent != 0 {
+		t.Fatalf("expected 0 minutes for en, got %d", spent)
 	}
 }

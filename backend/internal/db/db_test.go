@@ -221,7 +221,7 @@ func TestInsertReviewLog(t *testing.T) {
 	log := &ReviewLog{
 		WordID: id, SubjectType: "word", SubjectID: id,
 		QuestionType: "choice",
-		UserAnswer: "hello", ExpectedAnswer: "你好",
+		UserAnswer:   "hello", ExpectedAnswer: "你好",
 		Correct: true, Score: 1.0, Source: "exact",
 	}
 

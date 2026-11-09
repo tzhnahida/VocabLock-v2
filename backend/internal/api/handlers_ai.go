@@ -12,12 +12,13 @@ import (
 
 func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleAIChat(w, r); return
+		mock.HandleAIChat(w, r)
+		return
 	}
 
 	var req struct {
-		Message  string         `json:"message"`
-		History  []ai.Message   `json:"history"`
+		Message string       `json:"message"`
+		History []ai.Message `json:"history"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -28,8 +29,8 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 
 	if s.AI() == nil {
 		writeJSON(w, map[string]interface{}{
-			"reply":  "AI chat requires API key configuration. Set ai.api_key in app.yaml.",
-			"model":  "none",
+			"reply": "AI chat requires API key configuration. Set ai.api_key in app.yaml.",
+			"model": "none",
 		})
 		return
 	}
@@ -41,10 +42,11 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	explLang := "zh-CN"
+	// UI language takes precedence over the language config (aiExplLang),
+	// so a translated interface gets AI replies in the same language.
 	teacherRole := "语言教师"
+	explLang := s.aiExplLang(s.Config.App.ActiveLang)
 	if lc, ok := s.Config.Languages[s.Config.App.ActiveLang]; ok {
-		explLang = lc.PromptContext.ExplanationLang
 		teacherRole = lc.PromptContext.TeacherRole
 	}
 
@@ -89,7 +91,8 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleAIProfile(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleAIProfile(w, r); return
+		mock.HandleAIProfile(w, r)
+		return
 	}
 
 	writeJSON(w, map[string]interface{}{
@@ -101,7 +104,8 @@ func (s *Server) handleAIProfile(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleAIProfileUpdate(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
-		mock.HandleAIProfileUpdate(w, r); return
+		mock.HandleAIProfileUpdate(w, r)
+		return
 	}
 
 	var req struct {

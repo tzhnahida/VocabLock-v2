@@ -17,8 +17,8 @@ type Cache struct {
 }
 
 type cacheEntry struct {
-	key   string
-	path  string
+	key    string
+	path   string
 	format string
 }
 

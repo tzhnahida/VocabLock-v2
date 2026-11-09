@@ -3,6 +3,8 @@ package db
 import (
 	"fmt"
 	"time"
+
+	"github.com/tzhnahida/VocabLock/internal/clock"
 )
 
 func (d *Database) UpsertDailyStats(date, language string, reviewed, correct, timeSec int) error {
@@ -56,9 +58,9 @@ func (d *Database) GetStreak(language string) (int, error) {
 func (d *Database) GetHeatmap(days int, language string) (map[string]int, error) {
 	rows, err := d.DB.Query(`
 		SELECT date, words_reviewed FROM daily_stats
-		WHERE date >= date('now','localtime', ?) AND language = ?
+		WHERE date >= ? AND language = ?
 		ORDER BY date ASC
-	`, fmt.Sprintf("-%d days", days), language)
+	`, clock.Now().AddDate(0, 0, -days).Format("2006-01-02"), language)
 	if err != nil {
 		return nil, fmt.Errorf("get heatmap: %w", err)
 	}

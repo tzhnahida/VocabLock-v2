@@ -7,17 +7,17 @@ import (
 
 // Assignment tracks an after-class assignment.
 type Assignment struct {
-	ID         int64     `json:"id"`
-	Language   string    `json:"language"`
-	Type       string    `json:"type"`
-	Prompt     string    `json:"prompt"`
-	Context    string    `json:"context"`
-	Answer     string    `json:"answer"`
-	Score      float64   `json:"score"`
-	Feedback   string    `json:"feedback"`
-	Status     string    `json:"status"` // pending / completed
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ID        int64     `json:"id"`
+	Language  string    `json:"language"`
+	Type      string    `json:"type"`
+	Prompt    string    `json:"prompt"`
+	Context   string    `json:"context"`
+	Answer    string    `json:"answer"`
+	Score     float64   `json:"score"`
+	Feedback  string    `json:"feedback"`
+	Status    string    `json:"status"` // pending / completed
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func (d *Database) InsertAssignment(lang, aType, prompt, context string) (int64, error) {

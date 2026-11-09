@@ -12,31 +12,32 @@ import (
 // ——— App config ———
 
 type AppConfig struct {
-	ActiveLang    string   `yaml:"active_lang"`
-	InterfaceLang string   `yaml:"interface_lang"`
-	MockMode      bool     `yaml:"mock_mode"`
-	Server      struct {
+	ActiveLang    string `yaml:"active_lang"`
+	InterfaceLang string `yaml:"interface_lang"`
+	MockMode      bool   `yaml:"mock_mode"`
+	Server        struct {
 		Host string `yaml:"host"`
 	} `yaml:"server"`
-	DailyTarget         int      `yaml:"daily_target"`
-	MinAccuracy         float64  `yaml:"min_accuracy"`
-	PassiveEnabled      bool     `yaml:"passive_enabled"`
-	PassiveMinInterval  int      `yaml:"passive_min_interval"`
-	PassiveMaxInterval  int      `yaml:"passive_max_interval"`
-	EscapePassword      string   `yaml:"escape_password"`
-	EscapePasswordLimit int      `yaml:"escape_password_limit"`
-	EscapeClickLimit    int      `yaml:"escape_click_limit"`
-	AutoStart           bool     `yaml:"auto_start"`
-	AutoExpandWords     bool     `yaml:"auto_expand_words"`
-	ExpandBatchSize     int      `yaml:"expand_batch_size"`
-	Theme               string   `yaml:"theme"`
+	DailyTarget         int     `yaml:"daily_target"`
+	DailyTimeTarget     int     `yaml:"daily_time_target"` // minutes per day; unlock when time spent >= this
+	MinAccuracy         float64 `yaml:"min_accuracy"`
+	PassiveEnabled      bool    `yaml:"passive_enabled"`
+	PassiveMinInterval  int     `yaml:"passive_min_interval"`
+	PassiveMaxInterval  int     `yaml:"passive_max_interval"`
+	EscapePassword      string  `yaml:"escape_password"`
+	EscapePasswordLimit int     `yaml:"escape_password_limit"`
+	EscapeClickLimit    int     `yaml:"escape_click_limit"`
+	AutoStart           bool    `yaml:"auto_start"`
+	AutoExpandWords     bool    `yaml:"auto_expand_words"`
+	ExpandBatchSize     int     `yaml:"expand_batch_size"`
+	Theme               string  `yaml:"theme"`
 	// Assignment cadence
-	Assignment          AssignmentConfig `yaml:"assignment"`
+	Assignment AssignmentConfig `yaml:"assignment"`
 	// Time budget
-	SessionTimeBudget   int     `yaml:"session_time_budget"` // minutes
-	MaxSlowTypeRatio    float64 `yaml:"max_slow_type_ratio"` // 0.0–1.0
-	Sm2MaxIntervalDays  int     `yaml:"sm2_max_interval_days"` // default 180
-	AI                  AIConfig `yaml:"ai"`
+	SessionTimeBudget  int      `yaml:"session_time_budget"`   // minutes
+	MaxSlowTypeRatio   float64  `yaml:"max_slow_type_ratio"`   // 0.0–1.0
+	Sm2MaxIntervalDays int      `yaml:"sm2_max_interval_days"` // default 180
+	AI                 AIConfig `yaml:"ai"`
 }
 
 // ——— AI config ———
@@ -51,17 +52,17 @@ type AIConfig struct {
 
 type TTSConfig struct {
 	TTS struct {
-		CacheLimit     int               `yaml:"cache_limit"`
-		FallbackOrder  []string          `yaml:"fallback_order"`
-		Providers      map[string]TTSProvider `yaml:"providers"`
+		CacheLimit    int                    `yaml:"cache_limit"`
+		FallbackOrder []string               `yaml:"fallback_order"`
+		Providers     map[string]TTSProvider `yaml:"providers"`
 	} `yaml:"tts"`
 }
 
 type TTSProvider struct {
-	Binary  string            `yaml:"binary"`
-	Args    []string          `yaml:"args"`
-	Format  string            `yaml:"format"`
-	Voices  map[string]string `yaml:"voices"`
+	Binary string            `yaml:"binary"`
+	Args   []string          `yaml:"args"`
+	Format string            `yaml:"format"`
+	Voices map[string]string `yaml:"voices"`
 }
 
 // ——— Dict config ———
@@ -73,11 +74,11 @@ type DictConfig struct {
 }
 
 type DictProvider struct {
-	Lang       string   `yaml:"lang"`
-	Binary     string   `yaml:"binary"`
-	Args       []string `yaml:"args"`
-	Format     string   `yaml:"format"`
-	ExamLevels bool     `yaml:"exam_levels"` // dict returns level field (JLPT/HSK/etc.)
+	Lang        string   `yaml:"lang"`
+	Binary      string   `yaml:"binary"`
+	Args        []string `yaml:"args"`
+	Format      string   `yaml:"format"`
+	ExamLevels  bool     `yaml:"exam_levels"` // dict returns level field (JLPT/HSK/etc.)
 	HealthCheck struct {
 		Skip   bool     `yaml:"skip"`
 		Custom []string `yaml:"custom"`
@@ -131,10 +132,10 @@ type LanguageConfig struct {
 		ExplanationLang   string            `yaml:"explanation_lang"`
 		LevelDescriptions map[string]string `yaml:"level_descriptions"`
 	} `yaml:"prompt_context"`
-	WordFieldsBase []WordFieldDef  `yaml:"word_fields_base"`
-	WordFieldsDLC     []WordFieldDLC  `yaml:"word_fields_dlc"`
-	GrammarFieldsBase []WordFieldDef  `yaml:"grammar_fields_base"`
-	GrammarFieldsDLC  []WordFieldDLC  `yaml:"grammar_fields_dlc"`
+	WordFieldsBase    []WordFieldDef `yaml:"word_fields_base"`
+	WordFieldsDLC     []WordFieldDLC `yaml:"word_fields_dlc"`
+	GrammarFieldsBase []WordFieldDef `yaml:"grammar_fields_base"`
+	GrammarFieldsDLC  []WordFieldDLC `yaml:"grammar_fields_dlc"`
 }
 
 type WordFieldDef struct {
@@ -163,9 +164,9 @@ type Config struct {
 func Load(configDir string) (*Config, error) {
 	cfg := &Config{
 		App: AppConfig{
-			ActiveLang:     "",
-			InterfaceLang:  "",
-			DailyTarget:    20,
+			ActiveLang:          "",
+			InterfaceLang:       "",
+			DailyTarget:         20,
 			MinAccuracy:         0.8,
 			PassiveEnabled:      true,
 			PassiveMinInterval:  25,

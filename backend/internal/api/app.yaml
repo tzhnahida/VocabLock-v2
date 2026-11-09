@@ -4,6 +4,7 @@ mock_mode: false
 server:
     host: 127.0.0.1
 daily_target: 50
+daily_time_target: 0
 min_accuracy: 0
 passive_enabled: false
 passive_min_interval: 0

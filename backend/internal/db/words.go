@@ -3,7 +3,8 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"time"
+
+	"github.com/tzhnahida/VocabLock/internal/clock"
 )
 
 type wordScanner struct {
@@ -227,10 +228,10 @@ func (d *Database) GetReviewWords(language string, limit int) ([]*Word, error) {
 		SELECT `+wordColumns+`
 		FROM words
 		WHERE language = ? AND status = 'active'
-		  AND (next_review_at IS NULL OR next_review_at <= datetime('now','localtime'))
+		  AND (next_review_at IS NULL OR next_review_at <= ?)
 		ORDER BY next_review_at ASC NULLS FIRST
 		LIMIT ?
-	`, language, limit)
+	`, language, clock.TodayTS(), limit)
 	if err != nil {
 		return nil, fmt.Errorf("get review words: %w", err)
 	}
@@ -278,8 +279,6 @@ func (d *Database) GetWordsByIDs(ids []int64) ([]*Word, error) {
 	}
 	return words, nil
 }
-
-var _ = time.Now
 
 func (d *Database) BulkInsertWords(words []*Word) error {
 	tx, err := d.DB.Begin()
