@@ -9,8 +9,12 @@ node_modules/
 frontend/.dart_tool/
 frontend/build/
 frontend/pubspec.lock
+backend/frontend/.dart_tool/
+backend/frontend/build/
+backend/frontend/windows/flutter/ephemeral/
 
 # Build output
+/release/
 *.exe
 *.exe~
 *.tmp
@@ -23,8 +27,10 @@ build/bin/
 *.pem
 *.key
 backend/configs/app.yaml
+backend/configs/convo*.yaml
 
 # Runtime data
+.dsh-ops/
 *.db
 data/
 reports/
@@ -61,6 +67,7 @@ CLAUDE.md
 # Debug / one-off tools
 backend/server_combined.txt
 backend/scan_all.go
+backend/scripts/_shots.sh
 
 # OS
 Thumbs.db

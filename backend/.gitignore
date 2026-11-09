@@ -1,0 +1,28 @@
+# ——— 旧 convo 管理页源码 (已迁往 convo 仓, 本地保留) ———
+admin/
+
+# ——— 运行期数据 / 产物 ———
+data/
+*.db
+*.db-journal
+*.db-wal
+/convo
+convo.new
+*.bak-20*
+*.log
+
+# ——— 助手临时文件 (改代码时的本地脚本; 不该进历史) ———
+.*.py
+.*.js
+.*.txt
+.f4.md
+.shot/
+.page-check.js
+.dsh-ops/
+.codegraph/
+cmsg*.txt
+commitmsg*.txt
+*.py
+
+# ——— 运行时生成的配置 (base_url 每次跑仿真换一个随机端口) ———
+internal/sim/app.yaml
