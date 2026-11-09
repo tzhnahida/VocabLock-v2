@@ -13,6 +13,48 @@
 | 2026-11-08 | 新界面四屏原型；决定 Flutter → Electron |
 | 2026-11-10 | 全量代码审计；决定先修数据正确性，再加本地 ASR |
 
+## 2026-11-10 — 安全与稳定性修复（e53b537）
+
+### 完成
+- token 不再写入日志，也不再作为 Flutter 命令行参数；Go 通过 stdin 传 token。
+- query token 只允许 GET/HEAD /data/audio/；其余 API 只认 Bearer；token 比较改为常量时间。
+- 全局请求体上限 16 MiB，AI/TTS/词表/作业/答题等文本字段加独立上限。
+- AI key 移到 secrets.yaml（0600），app.yaml 不再包含；Load 自动迁移旧 app.yaml 明文 key；secrets.yaml 加入 .gitignore。
+- Windows 锁屏消息循环改为 LockOSThread；ExitLockMode 改为向锁线程 PostMessage(WM_APP+10)；安装 WH_KEYBOARD_LL/WH_MOUSE_LL，吞 Alt+Tab/Win/Ctrl+Esc/Alt+F4/Ctrl+Shift+Esc，保留 Ctrl+Shift+Q；健康检查改 net/http。
+- 新增 query token、请求体上限、key 不落 app.yaml、清除 key、旧 key 迁移测试；提交 e53b537 并 push。
+
+### 完成方法
+- 先枚举所有 token 入口（日志、argv、query、Dart AppLog），再逐项切断。
+- 请求体在 withMiddleware 最外层用 MaxBytesReader；字段上限放在进入 AI/TTS/SQLite 之前。
+- 配置写入复制 App 并清空 key；secrets.yaml 单独 0600；Load 读 secrets 后覆盖 env。
+- 锁屏问题按 Win32 线程模型修：建窗/消息循环/钩子都在同一 LockOSThread 线程；退出只发消息，不跨线程 PostQuitMessage。
+- 用临时 hook 探针验证 SetWindowsHookEx 返回非 0，探针测试用完删除。
+- 全量 go test ./...、go vet ./...、flutter test、flutter analyze；go test 改写的 SIMULATION.md 每次还原。
+
+### 踩坑
+- 第一次全量 go vet 报 provider_windows.go:539 possible misuse of unsafe.Pointer；用 uptrToPtr 局部转换后通过。
+- secrets.yaml 一开始没加入 .gitignore，代码审查时才发现；已补 backend/configs/secrets.yaml。
+- go test ./... 仍会重写根目录 SIMULATION.md；本次已 checkout 还原，未混入提交。
+- 首次 git push 超时并遇到 Connection was reset；用 HTTP/1.1 + 重试循环后成功，未重复推送已完成的对象。
+
+### 失败
+- 首次 go vet 未通过（unsafe.Pointer 误报）。
+- 首次 push 失败（连接重置/超时）。
+
+### 失败原因
+- Go 的 uintptr→unsafe.Pointer 直接转换触发 vet 的 unsafeptr 检查；需要经过局部变量转换。
+- GitHub 直连链路不稳定；不是仓库或认证错误。
+
+### 剩余
+- 打包 GUI 实测 token stdin；实机验证锁屏钩子、Alt+Tab/Win+D、Flutter 崩溃自动解锁。
+- Ctrl+Alt+Del 无法拦截，需在发布说明中注明。
+- 本地 ASR（whisper.cpp）+ 两个对答式造句尚未开始。
+
+### 规划
+1. 开 feat/local-asr：ASR provider 最小闭环，复用 16k mono WAV。
+2. 接两个“对答式造句”：手敲走文本判分，朗读走 ASR + AI 语义批改。
+3. 补前端诊断/作业/被动 UI，最后 Electron M0。
+
 ## 2026-11-10 — 基线提交与 P0 数据正确性修复
 
 ### 完成
