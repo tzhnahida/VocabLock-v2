@@ -13,6 +13,60 @@
 | 2026-11-08 | 新界面四屏原型；决定 Flutter → Electron |
 | 2026-11-10 | 全量代码审计；决定先修数据正确性，再加本地 ASR |
 
+## 2026-11-10 — ASR 实机验证（b1e15af）
+
+### 完成
+- 安装 whisper.cpp v1.9.2 Windows 构建（whisper-bin-x64，whisper-cli.exe + DLL）到 backend/bin；ggml-base.bin（142MB）到 backend/models；用 configs/asr.yaml.example 建真实 asr.yaml（provider=whisper，timeout_sec=90）。三者均 gitignore。
+- 用 Windows SAPI 生成 en/zh/ja 三份 16k mono PCM16 WAV；显式 -l 跑通识别，记录文本与耗时；又拼 73.6s 长音频验证 provider 超时杀进程。
+- 修复 language: auto 的多语种陷阱：WireASR 在创建 provider 前调用 resolveASRLanguage，auto/空跟随 active_lang，显式 en/ja/zh 仍为 override；新增语言解析单测。
+- 修复畸形音频被当成空答案：handleDialogueSubmit 先校验 RIFF/WAVE 头，不合法走 bad_audio，不写 SM-2/review_log/daily_stats。
+- 新增 dialogue_asr_test.go：90s handler deadline、no_asr/bad_base64/bad_wav/asr_error 不写库、asr_empty 记 1 条错、cache_miss 不调 ASR。
+- 验证：go test ./... 全绿（sim 20.6s）；go vet ./... 0；提交 b1e15af 并 push。
+
+### 完成方法
+- 先直接调用 provider，确认二进制/模型/参数可用，再接回 handler；避免把配置问题和识别问题混在一起。
+- 三语样本用系统 TTS 生成，格式固定 16k mono PCM16，和 Flutter record 包实际发送格式一致。
+- 用「provider 单测 + handler fake ASR 单测 + 真实 provider 手动样本」三层验证：单测锁行为，手动跑锁真实能力。
+- 语言问题不靠调 prompt，而在 WireASR 处一次性解析成明确语言码；handler 仍保留 90s context，provider 仍有自己的 timeout_sec 兜底。
+
+### 实测结果（base，threads=4，显式 -l）
+| 语言 | 样本 | 识别 | 耗时 |
+|---|---|---|---|
+| en | Smartphones have become ubiquitous in modern life. | Smart phones have become ubiquitous in modern life. | 约 1.1–1.2s |
+| zh | 今天天气很好，我们一起去公园散步吧。 | 今天天氣很好,我們一起去公園散步吧。（繁体） | 约 1.2s |
+| ja | 今日はとても良い天気ですね。一緒に公園へ散歩に行きましょう。 | 今日はとてもいい天気ですね。一緒に公園へ3歩に行きましょう。（散歩→3歩） | 约 1.3s |
+
+- language=auto：en 正常；zh/ja 被识别成英文并翻译（例如 zh→“Today weather is very good. Let's go to the park together.”）。
+- provider timeout=1s + 73.6s 音频：约 1013ms 返回 “asr whisper: exit status 1”，进程被杀，说明 exec.CommandContext 生效。
+- 真实配置解析：active_lang=ja、asr.yaml language=auto → WireASR 解析为 ja；显式 en/ja/zh 仍是 override。
+
+### 踩坑
+- whisper.cpp 最新 release（v1.9.5）没有 assets；退回有 whisper-bin-x64.zip 的 v1.9.2。
+- HuggingFace 直连超时，模型改用 hf-mirror 下载。
+- 合法 base64 但非 WAV 的 bytes 交给 whisper-cli：退出码 0、输出空文本，provider 返回成功空串；handler 原来会当成 asr_empty 记错。只校验 base64 不够，必须看 RIFF/WAVE 头。
+- 加了 WAV 头校验后，原有测试 fixture “RIFF-not-really-wav” 也被归为 bad_audio，3 个测试失败；改为构造 44 字节合法 WAV 头（fmt + 空 data）后通过。fixture 必须符合真实客户端契约。
+- .asr-test/ 和一次 PowerShell 重定向产生的 backend/nul 是本地垃圾；已加进 backend/.gitignore，不混入提交。
+
+### 失败
+- 首轮加 WAV 校验后 go test ./internal/api 失败：TestDialogueASRGets90SecondDeadline、FailureBranches/asr_error、EmptyTranscript 均得到 bad_audio。
+- language=auto 的首次三语实测：zh/ja 均输出英文翻译，不能用于中日语朗读题。
+
+### 失败原因
+- 测试 fixture 不是合法 WAV，新校验按设计拦截。
+- whisper 的 auto 检测在短句/清晰语音上偏向英语，并启用 translate；对语言学习场景不可靠。
+
+### 剩余
+- 发布打包：backend/bin、backend/models、backend/configs/asr.yaml 都在 gitignore，安装包必须单独带上 whisper-cli、DLL、模型与配置，否则用户端不出现朗读题。
+- base 模型中日语有误差（ja 散歩→3歩，zh 输出繁体）；发布前评估 small，并确认判分 prompt 对轻微识别误差的容忍度。
+- Flutter 麦克风录音→HTTP→后端 ASR 的完整 UI 链路尚未真人回归；本次验证是真实 provider + 真实 WAV，handler 分支用 fake ASR 覆盖。
+- ai_error 分支未单独加 handler 测试；现有分支已覆盖 ASR 侧失败。
+- token stdin 与锁屏钩子仍未在打包 GUI 实机回归（既有风险，非本次引入）。
+
+### 规划
+1. 保持 b1e15af 为 ASR 功能基线，下一步补前端诊断 / 作业 / 被动 UI。
+2. 进 Electron 前把 ASR 打包方案定下来（安装包体积 vs 模型质量）。
+3. 最后 Electron M0，用 docs/design/app.html 验收。
+
 ## 2026-11-10 — 本地 ASR + 对答式造句（1b1b06d）
 
 ### 完成

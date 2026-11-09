@@ -2,12 +2,12 @@
 
 ## 一句话
 
-全量审计、P0 数据正确性与安全稳定性修复已完成并 push；本地 ASR provider 与两个“对答式造句”题型已实现并提交（1b1b06d），待实机验证。下一步补前端诊断 / 作业 / 被动 UI，最后进 Electron。
+全量审计、P0 数据正确性与安全稳定性修复已完成并 push；本地 ASR provider 与两个“对答式造句”题型已实现，并已用真实 whisper.cpp 二进制 + 模型实机验证中英日识别、90s 超时与失败分支（修复提交 b1e15af）。下一步补前端诊断 / 作业 / 被动 UI，最后进 Electron。
 
 ## 仓库状态
 
 - 路径：F:/Projects/Golang/GitHub/Private/VocabLock-v2
-- 分支：master；基线、P0 数据修复、安全修复、ASR/对答式造句均已 push（最新 1b1b06d），master 与 origin/master 同步。
+- 分支：master；基线、P0 数据修复、安全修复、ASR/对答式造句、ASR 实机修复均已提交（代码最新 b1e15af），master 与 origin/master 同步。
 - 工作区：clean；go test 若改写 SIMULATION.md，提交前必须还原。
 - backend/.git 已归档：F:/Projects/Golang/GitHub/Private/_archive/VocabLock-v2-backend-git-20261110.bundle（及 .git 原目录）。
 - 仓库内 flutter/ 是本地 Flutter SDK，已被 .gitignore 忽略，不提交。
@@ -44,21 +44,32 @@
   - 提交分流：手敲走文本；朗读先 ASR（90s 超时），no_asr / asr_error / bad_audio / cache_miss / ai_error 均不写 SM-2 / review_log / daily_stats；空答按 empty 计错；成功才落库并返回 transcript / expected_answer。
   - Flutter：QuestionType 两新值、SubmitResult 带 transcript/expected_answer、口头造句录音 UI、结果卡显示识别结果与参考句、中英日 l10n；mock 数据同步。
   - 验证：go test ./... 全绿（sim 18.9s）；go vet ./... 0；flutter test 11/11；flutter analyze 0 error（149 warning/info）。
+- ASR 实机验证（提交 b1e15af）：
+  - 本地安装 whisper.cpp v1.9.2（whisper-bin-x64，backend/bin，含 DLL）与 ggml-base.bin（142MB，backend/models）；backend/configs/asr.yaml 配 provider=whisper、timeout_sec=90。三者均被 gitignore。
+  - Windows SAPI 生成 16k mono WAV 三语样本；显式 -l 识别：en “Smart phones have become ubiquitous in modern life.”（约 1.1s）、zh “今天天氣很好,我們一起去公園散步吧。”（繁体，约 1.2s）、ja “今日はとてもいい天気ですね。一緒に公園へ3歩に行きましょう。”（散歩→3歩，约 1.3s）。
+  - 发现 language: auto 会把清晰的中日语音判成英语并翻译；WireASR 改为 resolveASRLanguage：auto/空跟随 active_lang（去掉 -CN 等后缀），显式 en/ja/zh 仍为 override。当前 active_lang=ja，真实 config 解析为 ja。
+  - 73.6s 长音频 + provider timeout 1s：1013ms 被杀进程并返回错误；handler 90s deadline 由测试断言。
+  - 合法 base64 但非 WAV 的 payload 会让 whisper 退出 0、返回空文本，原来会被当成 empty 记错；现加 RIFF/WAVE 头校验，归为 bad_audio。
+  - 新增 dialogue_asr_test.go：语言解析、90s deadline、no_asr/bad_base64/bad_wav/asr_error 不写库、asr_empty 记 1 条错、cache_miss 不调 ASR。
+  - 验证：go test ./... 全绿（sim 20.6s）；go vet ./... 0。
 
 ## 未完成
 
 | 优先级 | 事项 | 状态 |
 |---|---|---|
 | P0 | 安全与稳定性：token、AI key、请求体上限、锁屏键盘钩子/线程锁定 | 已完成（e53b537） |
-| P1 | 本地 ASR provider（whisper.cpp）+ 两个对答式造句题型（手敲 / 朗读） | 已完成（1b1b06d，待实机） |
+| P1 | 本地 ASR provider（whisper.cpp）+ 两个对答式造句题型（手敲 / 朗读） | 已完成（1b1b06d + b1e15af 实机验证） |
+| P1 | ASR 发布打包：把 whisper-cli、DLL、模型与 asr.yaml 带进安装包 | 未开始 |
+| P1 | Flutter 麦克风→HTTP→ASR 整链路人工回归（真人录音） | 未开始 |
 | P1 | 前端诊断 / 作业 / 被动答题三块 UI | 未开始 |
+| P2 | base 模型中日语有识别误差，发布前评估 small | 待评估 |
 | P2 | Electron M0–M4 | 未开始 |
 
 ## 下一步顺序
 
-1. 用真实 whisper.cpp 二进制 + 模型建 asr.yaml，实机跑通朗读链路（含中文/日文识别）。
-2. 补前端诊断 / 作业 / 被动 UI。
-3. 最后进 Electron M0：用 docs/design/app.html 做视觉验收。
+1. 补前端诊断 / 作业 / 被动 UI。
+2. 最后进 Electron M0：用 docs/design/app.html 做视觉验收。
+3. 发布前把 whisper 二进制、模型与 asr.yaml 纳入安装包；评估用 small 替换 base 以降低中日语识别误差。
 
 ## 不要做
 
@@ -66,7 +77,10 @@
 - 不要把 app.yaml / token / API key 提交进仓库。
 - 不要把 docs/design/app.html 当成已实现界面；它是静态原型。
 - 不要再让学习卡跟读写 SM-2，或让 AI 缓存 miss 当答错。
-- 未配真实 whisper 二进制/模型并实机验证前，不要声称“朗读版对答式造句”可用。
+- 不要把 language: auto 当默认；whisper 会把清晰的中日语音判成英语并翻译。
+- 不要以为 ASR 模型已随包发布：backend/bin、backend/models、backend/configs/asr.yaml 都被 gitignore，安装包必须单独带上。
+- 不要把本次后端 provider 实机验证当成 Flutter 麦克风整链路已验证；录音权限、WAV 格式、提交链路仍需真人跑一遍。
+- 不要把 base 模型的中日语识别当成零误差；ja 实测有 散歩→3歩，发布前评估 small。
 - 锁屏无法拦截 Ctrl+Alt+Del（Windows 安全注意序列），不要声称能完全锁死系统。
 - token stdin 与锁屏钩子尚未在打包 GUI 实机回归，发布前必须验证。
 
