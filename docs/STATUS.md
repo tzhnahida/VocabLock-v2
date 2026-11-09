@@ -2,51 +2,59 @@
 
 ## 一句话
 
-全量审计已完成，未改业务代码；当前卡在「先 commit + push 保住 4 个月工作」，之后按 P0 数据修复 → 本地 ASR → Electron 的顺序推进。
+全量审计与 P0 数据正确性修复已完成并 push，Go/Flutter 回归通过。下一步做安全修复、本地 ASR 与两个“对答式造句”题型，最后进 Electron。
 
 ## 仓库状态
 
 - 路径：F:/Projects/Golang/GitHub/Private/VocabLock-v2
-- 分支：master，ahead origin 3（最后提交 c2e31c4，2026-06-14）
-- 工作区：81 modified + 79 untracked；新增 docs/ 也在未跟踪列表
-- 风险：根仓库与 backend/ 各有一个 .git；backend/.git 无 remote、残留 convo 删除记录
+- 分支：master；基线提交与 P0 数据修复已 push（最新 7ff1a94），master 与 origin/master 同步。
+- 工作区：docs/STATUS.md、docs/ENGINEERING-LOG.md 随本次文档更新提交；提交后 clean。
+- backend/.git 已归档：F:/Projects/Golang/GitHub/Private/_archive/VocabLock-v2-backend-git-20261110.bundle（及 .git 原目录）。
+- 仓库内 flutter/ 是本地 Flutter SDK，已被 .gitignore 忽略，不提交。
+- 风险：core.autocrlf 导致提交时大量 LF→CRLF 警告；backend/scripts/deploy-pi.sh 在 Pi 上执行前需确认换行。
 
 ## 已完成
 
+- 基线提交与 push：26138df、f6e781d、0d30d31、677d029；4 个多月未提交工作已保住。
+- P0 数据正确性修复提交并 push：7ff1a94（15 files，+481/-128）。
 - 新界面原型：docs/design/app.html（双主题 + 中英日，四屏）
 - 全量审计：docs/AUDIT-2026-11-10.md
 - 设计说明：docs/DESIGN.md
 - 工程日志：docs/ENGINEERING-LOG.md
-- 决策：Electron 前端；朗读版“对答式造句”走本地 ASR（引擎待定）
+- P0 数据正确性（代码 + 回归测试）：
+  - daily_stats 改为 (date, language) 复合主键，旧库自动迁移。
+  - 达标准确率分母改为总尝试数（attempts），不再用唯一题数。
+  - read_sentence 目标文本只从 AI 题缓存取句子，缺缓存返回 no_target，绝不退化用单词读音。
+  - 学习卡跟读传 study=true：只评估，不写 SM-2 / review_log / daily_stats / 解锁；系统错误也不再按答错推进 SM-2。
+  - AI 题缓存 miss（listening / reading_comp / grammar）返回 cache_miss，不判错、不写库。
+  - AI 题 ID 改为完整题型（ai-<type>-<wordID>），消除 read_sentence / reading_comp 的 ai-r- 碰撞。
+  - 作业使用 DB 自增主键作为对前端 ID；提交按 assignment_id 查该作业的 Prompt/Context，CompleteAssignment 用 int64 并检查错误。
+- 验证：cd backend && go test ./... 全绿（sim 21.4s）；go vet ./... 0 问题；cd backend/frontend && flutter test 11/11；flutter analyze 0 error（147 warning/info，退出码 1 为既有告警）。
 
 ## 未完成
 
 | 优先级 | 事项 | 状态 |
 |---|---|---|
-| P0 | commit + push 现有工作，清理 backend/.git 风险 | 未开始 |
-| P0 | read_sentence 目标文本/缓存；学习卡跟读语义 | 未开始 |
-| P0 | daily_stats 复合主键；accuracy 分母 | 未开始 |
-| P0 | 作业 ID 字符串/整数；缓存 miss；AI 题 ID 碰撞 | 未开始 |
-| P0 | token/key/请求体/锁屏线程安全 | 未开始 |
-| P1 | 本地 ASR provider + 两个对答式造句题型 | 未开始 |
-| P1 | 前端诊断/作业/被动三块 UI | 未开始 |
+| P0 | 安全与稳定性：token 不打印/不进命令行、AI key 不落 app.yaml、请求体上限、锁屏键盘钩子/线程锁定 | 未开始 |
+| P1 | 本地 ASR provider + 两个对答式造句题型（手敲 / 朗读） | 未开始 |
+| P1 | 前端诊断 / 作业 / 被动答题三块 UI | 未开始 |
 | P2 | Electron M0–M4 | 未开始 |
 
 ## 下一步顺序
 
-1. 用户确认后，先 commit + push；确认仓库根，处理 backend/.git。
-2. 修 P0 数据正确性，每项加回归测试。
-3. 修安全与稳定性。
-4. 开 feat/local-asr，先做 ASR provider 最小闭环。
-5. 接两个“对答式造句”题型（手敲 / 朗读）。
-6. 最后进 Electron M0：用 docs/design/app.html 做视觉验收。
+1. 修安全与稳定性，每项加测试或可复现验证。
+2. 开 feat/local-asr：先做 ASR provider 最小闭环（whisper.cpp / faster-whisper / Vosk 待拍板）。
+3. 接两个“对答式造句”题型：手敲走文本判分；朗读走 ASR + AI 语义批改。
+4. 补前端诊断 / 作业 / 被动 UI。
+5. 最后进 Electron M0：用 docs/design/app.html 做视觉验收。
 
 ## 不要做
 
-- 不要在 P0 修完前开 Electron 主界面重写；坏数据上重做 UI 会返工。
-- 不要在 read_sentence 仍是“单词评句子”时继续加朗读题型。
+- 不要在 P0 修改未提交/未评审时开 Electron 主界面重写。
 - 不要把 app.yaml / token / API key 提交进仓库。
 - 不要把 docs/design/app.html 当成已实现界面；它是静态原型。
+- 不要再让学习卡跟读写 SM-2，或让 AI 缓存 miss 当答错。
+- 不要在未接 ASR 时声称“朗读版对答式造句”可用。
 
 ## 相关文件
 

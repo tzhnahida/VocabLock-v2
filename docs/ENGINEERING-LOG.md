@@ -13,6 +13,52 @@
 | 2026-11-08 | 新界面四屏原型；决定 Flutter → Electron |
 | 2026-11-10 | 全量代码审计；决定先修数据正确性，再加本地 ASR |
 
+## 2026-11-10 — 基线提交与 P0 数据正确性修复
+
+### 完成
+- 基线提交并 push 4 个 commit：26138df、f6e781d、0d30d31、677d029；master 与 origin/master 同步。
+- 归档并移除 backend/.git 旧 convo 仓：bundle + 原 .git 移到 _archive（bundle verify 通过）。
+- 修完 P0 数据正确性：daily_stats 复合主键迁移、accuracy 改 attempts 分母、read_sentence 目标文本取缓存句子、学习卡跟读 study 语义、AI 缓存 miss 不判错、AI 题 ID 防碰撞、作业主键/提交主题。
+- 新增回归测试：旧 daily_stats 表迁移、同日双语写入、attempts 准确率、学习卡跟读不写库、AI 缓存 miss 不写库、read_sentence 目标文本。
+- 验证通过：go test ./... 全绿；go vet ./... 0；flutter test 11/11；flutter analyze 0 error（147 warning/info）。
+- P0 修改提交 7ff1a94 并 push；master 与 origin/master 同步。
+
+### 完成方法
+- 先读调用链和 schema，再改代码；每项修复配一个能复现原 bug 的测试。
+- 把 read_sentence 目标文本选择抽成 readAloudTargetText()，用缓存题目直接单测，避免依赖外部发音二进制。
+- 学习卡跟读新增请求字段 study，前后端透传；后端在写 SM-2 之前分流，study 只返回评估结果。
+- daily_stats 迁移用 PRAGMA table_info 判断主键列数；旧表在事务内重建并复制数据。
+- 用固定种子的 30 天仿真回归每日目标/准确率口径。
+
+### 踩坑
+- 第一次只拦截“expectedAnswers 为空”的缓存 miss；listening/reading_comp 仍会拿 word.Meaning 判分并推进 SM-2。全量检查调用链后增加 questionRequiresCachedAnswer() 早退。
+- flutter 不在 PATH；SDK 在仓库内 flutter/（已被 .gitignore 忽略），需用绝对路径调用。
+- 改 onSubmit 函数类型后，test/quiz_flow_test.dart 的两个闭包缺 bool? study，flutter test 编译失败；补参数后通过。
+- go test ./... 会重写根目录 SIMULATION.md；两次运行的总答题数出现 575/578 波动，报告不是稳定 golden。已还原 SIMULATION.md，不把生成结果混进 P0 提交。
+- flutter analyze 退出码 1 是既有 warning/info，不是编译错误；本次已确认 0 error。
+
+### 失败
+- 初次 P0 缓存 miss 修复不完整（只覆盖空 expectedAnswers），被全量测试前的代码复查发现。
+- 初次 Flutter 验证失败：测试回调签名与新的 onSubmit 不匹配。
+- 仿真报告自动写入导致工作区出现非预期修改；未定位到所有非确定性来源。
+
+### 失败原因
+- 只按单个分支现象修补，没有先枚举所有 AI 题型对缓存答案的依赖。
+- 函数类型新增可选命名参数后，Dart 的函数子类型不兼容旧闭包，测试替身必须同步签名。
+- internal/sim 测试把报告写到仓库根目录，且数据源含非确定性选择；测试不是 hermetic 的。
+
+### 剩余
+- P0 安全与稳定性：token、API key、请求体上限、锁屏键盘钩子/线程锁定。
+- 本地 ASR provider + 两个对答式造句题型。
+- 前端诊断/作业/被动答题 UI；Electron M0–M4。
+- 可考虑给 sim 报告写入加 -update 开关，避免普通测试改工作区。
+
+### 规划
+1. P0 已提交（7ff1a94），保持工作区可回滚。
+2. 再做安全修复；每项给出可复现验证。
+3. 开 feat/local-asr，先打通 ASR provider 最小闭环，再接两个题型。
+4. 补前端三块 UI，最后 Electron M0 视觉对齐。
+
 ## 2026-11-10 — 全量审计、设计归档、本地 ASR 决策
 
 ### 完成
