@@ -2,13 +2,13 @@
 
 ## 一句话
 
-全量审计、P0 数据正确性与安全稳定性修复已完成并 push；本地 ASR provider 与两个“对答式造句”题型已实现，待提交。下一步补前端诊断 / 作业 / 被动 UI，最后进 Electron。
+全量审计、P0 数据正确性与安全稳定性修复已完成并 push；本地 ASR provider 与两个“对答式造句”题型已实现并提交（1b1b06d），待实机验证。下一步补前端诊断 / 作业 / 被动 UI，最后进 Electron。
 
 ## 仓库状态
 
 - 路径：F:/Projects/Golang/GitHub/Private/VocabLock-v2
-- 分支：master；基线、P0 数据修复与安全修复均已 push（最新 e53b537），master 与 origin/master 同步。
-- 工作区：本地 ASR + 对答式造句改动（含 docs）待提交；提交前用 git status 核对，不混入 SIMULATION.md 测试改写。
+- 分支：master；基线、P0 数据修复、安全修复、ASR/对答式造句均已 push（最新 1b1b06d），master 与 origin/master 同步。
+- 工作区：clean；go test 若改写 SIMULATION.md，提交前必须还原。
 - backend/.git 已归档：F:/Projects/Golang/GitHub/Private/_archive/VocabLock-v2-backend-git-20261110.bundle（及 .git 原目录）。
 - 仓库内 flutter/ 是本地 Flutter SDK，已被 .gitignore 忽略，不提交。
 - 风险：core.autocrlf 导致提交时大量 LF→CRLF 警告；backend/scripts/deploy-pi.sh 在 Pi 上执行前需确认换行。
@@ -37,7 +37,7 @@
   - AI key 移到 secrets.yaml（0600），app.yaml 不再包含；启动时自动迁移旧 app.yaml 明文 key。secrets.yaml 已加入 .gitignore。
   - Windows 锁屏：消息循环 LockOSThread；退出改为向锁线程 PostMessage(WM_APP+10)；装 WH_KEYBOARD_LL/WH_MOUSE_LL，吞 Alt+Tab/Win/Ctrl+Esc/Alt+F4/Ctrl+Shift+Esc，保留 Ctrl+Shift+Q 紧急退出；健康检查改 net/http。
   - 新增回归测试：query token 边界、请求体上限、key 不落 app.yaml、清除 key、旧 key 迁移。
-- 本地 ASR + 对答式造句（待提交）：
+- 本地 ASR + 对答式造句（提交 1b1b06d）：
   - backend/internal/asr：Provider 接口 + whisper.cpp provider（外部二进制，16k mono WAV，支持 -m/-f/-otxt/-of/-nt、语言、线程、超时、Args 模板）；config 读 configs/asr.yaml，缺省禁用；Server.WireASR/HasASR 接线；asr.yaml.example 与 .gitignore。
   - 新题型 dialogue_write / dialogue_speak：tier2 加手敲、tier3 加朗读；ASR 不可用时不进朗读题；题型权重 4/5 并计入慢题；validator 与语言配置同步。
   - AI 生成情境问句 + 参考句；judge prompt 支持 Scenario，按目标语言完整句、用目标词、语义自然度判分，接受改写；朗读输入为 ASR 文本，忽略轻微识别误差。
@@ -50,16 +50,15 @@
 | 优先级 | 事项 | 状态 |
 |---|---|---|
 | P0 | 安全与稳定性：token、AI key、请求体上限、锁屏键盘钩子/线程锁定 | 已完成（e53b537） |
-| P1 | 本地 ASR provider（whisper.cpp）+ 两个对答式造句题型（手敲 / 朗读） | 已完成（待提交） |
+| P1 | 本地 ASR provider（whisper.cpp）+ 两个对答式造句题型（手敲 / 朗读） | 已完成（1b1b06d，待实机） |
 | P1 | 前端诊断 / 作业 / 被动答题三块 UI | 未开始 |
 | P2 | Electron M0–M4 | 未开始 |
 
 ## 下一步顺序
 
-1. 提交并 push 本地 ASR + 对答式造句；提交前还原 SIMULATION.md。
-2. 用真实 whisper.cpp 二进制 + 模型建 asr.yaml，实机跑通朗读链路（含中文/日文识别）。
-3. 补前端诊断 / 作业 / 被动 UI。
-4. 最后进 Electron M0：用 docs/design/app.html 做视觉验收。
+1. 用真实 whisper.cpp 二进制 + 模型建 asr.yaml，实机跑通朗读链路（含中文/日文识别）。
+2. 补前端诊断 / 作业 / 被动 UI。
+3. 最后进 Electron M0：用 docs/design/app.html 做视觉验收。
 
 ## 不要做
 

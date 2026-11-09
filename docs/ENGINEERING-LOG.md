@@ -13,7 +13,7 @@
 | 2026-11-08 | 新界面四屏原型；决定 Flutter → Electron |
 | 2026-11-10 | 全量代码审计；决定先修数据正确性，再加本地 ASR |
 
-## 2026-11-10 — 本地 ASR + 对答式造句（待提交）
+## 2026-11-10 — 本地 ASR + 对答式造句（1b1b06d）
 
 ### 完成
 - backend/internal/asr：Provider 接口（Name/Transcribe）+ whisper.cpp provider；默认 -m/-f/-otxt/-of/-nt，非 auto 加 -l，线程加 -t，支持 Args 模板占位；CleanTranscript 去时间戳与非语音标记；5 个单测通过。
@@ -22,6 +22,7 @@
 - AI 生成 dialogue 情境问句与参考句（options 为空）；PromptVars 加 Scenario，judge 规则按完整句/目标词/语义自然度判分并接受改写，朗读忽略 ASR 轻微误差；question_gen 与 judge 解析统一走 extractJSON。
 - handleQuizSubmit 分流 dialogue；新 handleDialogueSubmit：cache_miss / no_asr / bad_audio / asr_error / ai_error 均不写库，空答计 empty；成功才 SM-2/review_log/daily_stats，响应带 transcript 与 expected_answer。
 - Flutter：QuestionType 两值、SubmitResult 新字段、口头造句录音 UI、结果卡展示识别结果/参考句、三语 l10n、mock 同步。
+- 提交 1b1b06d 并 push（39 files，+1079/-85）。
 
 ### 完成方法
 - 先把 ASR 做成最小 Provider，再用配置与 Server 接线，最后接题型，避免 UI 先行。
@@ -47,9 +48,8 @@
 - 前端诊断 / 作业 / 被动 UI 与 Electron 未开始。
 
 ### 规划
-1. 提交并 push 本轮 ASR + dialogue。
-2. 实机跑通 whisper，再补前端三块 UI。
-3. 最后 Electron M0，用 docs/design/app.html 验收。
+1. 实机跑通 whisper，再补前端三块 UI。
+2. 最后 Electron M0，用 docs/design/app.html 验收。
 
 ## 2026-11-10 — 安全与稳定性修复（e53b537）
 
