@@ -30,3 +30,7 @@ internal/sim/secrets.yaml
 configs/asr.yaml
 bin/
 models/
+
+# ——— 本地 ASR 实机验证产物 ———
+.asr-test/
+/nul

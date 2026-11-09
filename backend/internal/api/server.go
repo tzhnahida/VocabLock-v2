@@ -322,6 +322,11 @@ func (s *Server) WireASR() {
 		log.Warn("asr", "provider %q not found", name)
 		return
 	}
+	// "auto" is unsafe for a multilingual learner: whisper detects a clear
+	// zh/ja clip as English surprisingly often and then translates it instead
+	// of transcribing. Prefer the language the app is actually teaching;
+	// an explicit non-auto value in asr.yaml remains an override.
+	provCfg.Language = resolveASRLanguage(provCfg.Language, s.Config.App.ActiveLang)
 	provider, err := asr.NewWhisper(name, provCfg)
 	if err != nil {
 		log.Warn("asr", "wire: %v", err)
@@ -329,6 +334,25 @@ func (s *Server) WireASR() {
 	}
 	s.ASRProvider = provider
 	log.Info("server", "asr: %s", name)
+}
+
+// resolveASRLanguage picks the whisper language code for the active course.
+// A configured en/ja/zh value wins; empty or "auto" follows active_lang.
+func resolveASRLanguage(configured, active string) string {
+	configured = strings.TrimSpace(configured)
+	if configured != "" && !strings.EqualFold(configured, "auto") {
+		return configured
+	}
+	active = strings.TrimSpace(active)
+	if active == "" {
+		return "auto"
+	}
+	// Active course keys are ISO-639-1 (en/ja/zh); trim a region suffix if a
+	// future config uses zh-CN/ja-JP.
+	if i := strings.IndexAny(active, "-_"); i > 0 {
+		active = active[:i]
+	}
+	return active
 }
 
 func (s *Server) stopExpanding() {

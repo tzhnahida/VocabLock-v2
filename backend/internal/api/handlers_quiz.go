@@ -800,7 +800,7 @@ func (s *Server) handleDialogueSubmit(w http.ResponseWriter, r *http.Request, qt
 				return
 			}
 			audioBytes, err := base64.StdEncoding.DecodeString(audio)
-			if err != nil {
+			if err != nil || !looksLikeWAV(audioBytes) {
 				writeJSON(w, map[string]interface{}{
 					"correct":  false,
 					"feedback": "Invalid audio data",
@@ -873,6 +873,14 @@ func (s *Server) handleDialogueSubmit(w http.ResponseWriter, r *http.Request, qt
 		return
 	}
 	s.writeDialogueResult(w, word, qtype, stype, sid, reference, userAnswer, transcript, answerSource, result, study)
+}
+
+// looksLikeWAV rejects arbitrary bytes before whisper sees them. The client
+// always sends a RIFF/WAVE container (record package, 16 kHz mono PCM); a
+// malformed payload should be bad_audio, not an empty transcript that counts
+// as a wrong answer.
+func looksLikeWAV(data []byte) bool {
+	return len(data) >= 12 && string(data[0:4]) == "RIFF" && string(data[8:12]) == "WAVE"
 }
 
 // writeDialogueResult persists SM-2/review log/daily stats and writes the
