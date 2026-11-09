@@ -1,0 +1,22 @@
+# systemd 单元 — 树莓派 24×7 常驻 (wiki §8.1b P3 拓扑)
+# 安装: sudo cp convo.service /etc/systemd/system/
+#       sudo systemctl daemon-reload && sudo systemctl enable --now convo
+# 密钥: /etc/convo/env 内 CONVO_AI_KEY=sk-xxx (chmod 600, 本人可读)
+
+[Unit]
+Description=VocabLock convo (P0 trial) — 拟人助手试跑
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/convo
+EnvironmentFile=-/etc/convo/env
+ExecStart=/home/pi/convo/convo -config /home/pi/convo/convo.yaml
+Restart=always
+RestartSec=5
+# NapCat 由独立 unit 管理 (napcat.service), 本服务不依赖其退出码 — 两者都要在
+
+[Install]
+WantedBy=multi-user.target
