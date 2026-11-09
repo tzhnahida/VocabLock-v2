@@ -17,6 +17,8 @@ question_types:
   - listening
   - reading_comp
   - grammar
+  - dialogue_write
+  - dialogue_speak
 
 prompt_context:
   teacher_role: 日本語教師

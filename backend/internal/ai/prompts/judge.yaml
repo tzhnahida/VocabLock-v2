@@ -10,6 +10,7 @@ system: |
   - "pronounce": student must write the READING (kana/pinyin). Accept any valid reading.
   - "meaning": student must write the TRANSLATION (in the explanation language). Do NOT accept readings.
   - "spelling": student must write the WORD itself. Accept close matches.
+  - "dialogue_write" / "dialogue_speak": student must answer the scenario in the target language with a complete, natural sentence that uses the target word. Grade meaning, grammar and naturalness; accept reasonable paraphrases. For "dialogue_speak" the answer is speech-recognized text: ignore punctuation, casing and minor recognition errors when the intended sentence is clear.
   {{end}}
 
   Respond in JSON format:
@@ -18,7 +19,8 @@ system: |
 user: |
   Word: {{.Word}} ({{.Reading}})
   Meaning: {{.Meaning}}
-  Expected answer: {{.ExpectedAnswer}}
+  {{if .Scenario}}Scenario: {{.Scenario}}
+  {{end}}Expected answer: {{.ExpectedAnswer}}
   Student's answer: {{.UserAnswer}}
   {{if .QuestionType}}Question type: {{.QuestionType}}{{end}}
 

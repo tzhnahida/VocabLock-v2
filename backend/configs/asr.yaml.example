@@ -1,0 +1,19 @@
+# Local speech-to-text (optional).
+#
+# Copy to configs/asr.yaml and point binary/model at a whisper.cpp build.
+# On Windows an example install is:
+#   bin/whisper-cli.exe
+#   models/ggml-base.bin
+#
+# Without this file, spoken free-form answers are hidden by the quiz
+# selector; read_word/read_sentence pronunciation assessment still work.
+asr:
+  provider: whisper
+  providers:
+    whisper:
+      binary: "bin/whisper-cli.exe"
+      model: "models/ggml-base.bin"
+      language: "auto"   # or ja/en/zh; empty or auto = autodetect
+      threads: 4
+      timeout_sec: 120
+      extra_args: []

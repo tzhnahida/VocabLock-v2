@@ -225,6 +225,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get quizTypeReadWord => '朗读题';
 
   @override
+  String get quizTypeDialogueWrite => '情境造句';
+
+  @override
+  String get quizTypeDialogueSpeak => '口头造句';
+
+  @override
   String get quizTypeReadSentence => '朗读句子';
 
   @override
@@ -337,6 +343,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String readAloudScoreLabel(Object score, Object threshold) {
     return '总分 $score% (需 ≥ $threshold%)';
   }
+
+  @override
+  String get dialogueSpeakInstruction => '用这个词说出完整回答';
+
+  @override
+  String get dialogueTranscript => '识别结果';
+
+  @override
+  String get dialogueReference => '参考答案';
 
   @override
   String get readAloudListenFirst => '先听读，再作答';

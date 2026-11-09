@@ -2,13 +2,13 @@
 
 ## 一句话
 
-全量审计、P0 数据正确性与安全稳定性修复已完成并 push，Go/Flutter 回归通过。下一步做本地 ASR 与两个“对答式造句”题型，最后进 Electron。
+全量审计、P0 数据正确性与安全稳定性修复已完成并 push；本地 ASR provider 与两个“对答式造句”题型已实现，待提交。下一步补前端诊断 / 作业 / 被动 UI，最后进 Electron。
 
 ## 仓库状态
 
 - 路径：F:/Projects/Golang/GitHub/Private/VocabLock-v2
 - 分支：master；基线、P0 数据修复与安全修复均已 push（最新 e53b537），master 与 origin/master 同步。
-- 工作区：docs/STATUS.md、docs/ENGINEERING-LOG.md 随本次文档更新提交；提交后 clean。
+- 工作区：本地 ASR + 对答式造句改动（含 docs）待提交；提交前用 git status 核对，不混入 SIMULATION.md 测试改写。
 - backend/.git 已归档：F:/Projects/Golang/GitHub/Private/_archive/VocabLock-v2-backend-git-20261110.bundle（及 .git 原目录）。
 - 仓库内 flutter/ 是本地 Flutter SDK，已被 .gitignore 忽略，不提交。
 - 风险：core.autocrlf 导致提交时大量 LF→CRLF 警告；backend/scripts/deploy-pi.sh 在 Pi 上执行前需确认换行。
@@ -37,20 +37,27 @@
   - AI key 移到 secrets.yaml（0600），app.yaml 不再包含；启动时自动迁移旧 app.yaml 明文 key。secrets.yaml 已加入 .gitignore。
   - Windows 锁屏：消息循环 LockOSThread；退出改为向锁线程 PostMessage(WM_APP+10)；装 WH_KEYBOARD_LL/WH_MOUSE_LL，吞 Alt+Tab/Win/Ctrl+Esc/Alt+F4/Ctrl+Shift+Esc，保留 Ctrl+Shift+Q 紧急退出；健康检查改 net/http。
   - 新增回归测试：query token 边界、请求体上限、key 不落 app.yaml、清除 key、旧 key 迁移。
+- 本地 ASR + 对答式造句（待提交）：
+  - backend/internal/asr：Provider 接口 + whisper.cpp provider（外部二进制，16k mono WAV，支持 -m/-f/-otxt/-of/-nt、语言、线程、超时、Args 模板）；config 读 configs/asr.yaml，缺省禁用；Server.WireASR/HasASR 接线；asr.yaml.example 与 .gitignore。
+  - 新题型 dialogue_write / dialogue_speak：tier2 加手敲、tier3 加朗读；ASR 不可用时不进朗读题；题型权重 4/5 并计入慢题；validator 与语言配置同步。
+  - AI 生成情境问句 + 参考句；judge prompt 支持 Scenario，按目标语言完整句、用目标词、语义自然度判分，接受改写；朗读输入为 ASR 文本，忽略轻微识别误差。
+  - 提交分流：手敲走文本；朗读先 ASR（90s 超时），no_asr / asr_error / bad_audio / cache_miss / ai_error 均不写 SM-2 / review_log / daily_stats；空答按 empty 计错；成功才落库并返回 transcript / expected_answer。
+  - Flutter：QuestionType 两新值、SubmitResult 带 transcript/expected_answer、口头造句录音 UI、结果卡显示识别结果与参考句、中英日 l10n；mock 数据同步。
+  - 验证：go test ./... 全绿（sim 18.9s）；go vet ./... 0；flutter test 11/11；flutter analyze 0 error（149 warning/info）。
 
 ## 未完成
 
 | 优先级 | 事项 | 状态 |
 |---|---|---|
 | P0 | 安全与稳定性：token、AI key、请求体上限、锁屏键盘钩子/线程锁定 | 已完成（e53b537） |
-| P1 | 本地 ASR provider（whisper.cpp）+ 两个对答式造句题型（手敲 / 朗读） | 未开始 |
+| P1 | 本地 ASR provider（whisper.cpp）+ 两个对答式造句题型（手敲 / 朗读） | 已完成（待提交） |
 | P1 | 前端诊断 / 作业 / 被动答题三块 UI | 未开始 |
 | P2 | Electron M0–M4 | 未开始 |
 
 ## 下一步顺序
 
-1. 开 feat/local-asr：用 whisper.cpp 做 ASR provider 最小闭环（外部二进制，16k mono WAV）。
-2. 接两个“对答式造句”题型：手敲走文本判分；朗读走 ASR + AI 语义批改。
+1. 提交并 push 本地 ASR + 对答式造句；提交前还原 SIMULATION.md。
+2. 用真实 whisper.cpp 二进制 + 模型建 asr.yaml，实机跑通朗读链路（含中文/日文识别）。
 3. 补前端诊断 / 作业 / 被动 UI。
 4. 最后进 Electron M0：用 docs/design/app.html 做视觉验收。
 
@@ -60,7 +67,7 @@
 - 不要把 app.yaml / token / API key 提交进仓库。
 - 不要把 docs/design/app.html 当成已实现界面；它是静态原型。
 - 不要再让学习卡跟读写 SM-2，或让 AI 缓存 miss 当答错。
-- 不要在未接 ASR 时声称“朗读版对答式造句”可用。
+- 未配真实 whisper 二进制/模型并实机验证前，不要声称“朗读版对答式造句”可用。
 - 锁屏无法拦截 Ctrl+Alt+Del（Windows 安全注意序列），不要声称能完全锁死系统。
 - token stdin 与锁屏钩子尚未在打包 GUI 实机回归，发布前必须验证。
 

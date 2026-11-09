@@ -840,6 +840,110 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
     );
   }
 
+  Widget _buildDialogueSpeakUI(Question q) {
+    final l10n = AppLocalizations.of(context)!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          l10n.dialogueSpeakInstruction,
+          style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
+        ),
+        const SizedBox(height: 16),
+        if (_isRecording) ...[
+          Icon(Icons.mic, size: 48, color: Colors.red),
+          const SizedBox(height: 8),
+          Text(l10n.recordingInProgress,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: AppTheme.textSecondary)),
+          const SizedBox(height: 12),
+          Center(
+            child: ElevatedButton(
+              onPressed: _stopRecording,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              child: Text(l10n.recordingStop),
+            ),
+          ),
+        ] else if (_result == null) ...[
+          if (_recordedBytes == null)
+            Center(
+              child: ElevatedButton.icon(
+                onPressed: _startRecording,
+                icon: const Icon(Icons.mic, size: 22),
+                label: Text(l10n.recordingStart),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            )
+          else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  onPressed: _playRecording,
+                  icon: const Icon(Icons.play_circle, size: 36),
+                  color: AppTheme.primary,
+                  tooltip: l10n.tooltipPlayAudio,
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton(
+                  onPressed: _retryRecording,
+                  style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                  child: Text(l10n.recordingRetry),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: _submitting ? null : _submitRecording,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: _submitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : Text(l10n.quizSubmit),
+                ),
+              ],
+            ),
+        ] else if (_recordedPath != null)
+          Center(
+            child: IconButton(
+              onPressed: _playRecording,
+              icon: const Icon(Icons.play_circle, size: 36),
+              color: AppTheme.primary,
+              tooltip: l10n.tooltipPlayAudio,
+            ),
+          ),
+        if (_result == null) ...[
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: _submitting ? null : _skipReading,
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              side: BorderSide(color: Colors.grey.shade400),
+            ),
+            child: Text(l10n.recordingDontKnow,
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _buildWordPreview(Question q) {
     final l10n = AppLocalizations.of(context)!;
     return Container(
@@ -1309,6 +1413,8 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                     ]
                     else if (q.type == QuestionType.readWord || q.type == QuestionType.readSentence)
                       _buildReadAloudUI(q)
+                    else if (q.type == QuestionType.dialogueSpeak)
+                      _buildDialogueSpeakUI(q)
                     else ...[
                       TextField(
                         controller: _textController,
@@ -1374,6 +1480,35 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                           ],
                         ),
                       ),
+                      if (_result!.transcript.isNotEmpty || _result!.expectedAnswer.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppTheme.cardBg,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (_result!.transcript.isNotEmpty)
+                                Text(
+                                  '${l10n.dialogueTranscript}: ${_result!.transcript}',
+                                  style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                                ),
+                              if (_result!.transcript.isNotEmpty && _result!.expectedAnswer.isNotEmpty)
+                                const SizedBox(height: 6),
+                              if (_result!.expectedAnswer.isNotEmpty)
+                                Text(
+                                  '${l10n.dialogueReference}: ${_result!.expectedAnswer}',
+                                  style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
                       // "I think this was graded wrong" — stamps the log row
                       // for AI calibration. No SM-2 side effects.
                       if (!_result!.correct && _result!.logId > 0 && !_disputed)
@@ -1546,6 +1681,8 @@ String _typeLabel(AppLocalizations l10n, QuestionType t) {
     case QuestionType.listening: return l10n.quizTypeListening;
     case QuestionType.readingComp: return l10n.quizTypeReadingComp;
     case QuestionType.grammar: return l10n.quizTypeGrammar;
+    case QuestionType.dialogueWrite: return l10n.quizTypeDialogueWrite;
+    case QuestionType.dialogueSpeak: return l10n.quizTypeDialogueSpeak;
     default: return t.name;
   }
 }

@@ -39,6 +39,17 @@ func TestReadAloudTargetTextUsesCachedSentence(t *testing.T) {
 	}
 }
 
+func TestQuestionRequiresCachedAnswerDialogue(t *testing.T) {
+	for _, qtype := range []string{"dialogue_write", "dialogue_speak"} {
+		if !questionRequiresCachedAnswer(qtype) {
+			t.Errorf("%s should require a cached reference answer", qtype)
+		}
+	}
+	if questionRequiresCachedAnswer("choice") {
+		t.Error("choice must not require a cached answer")
+	}
+}
+
 func TestStudyReadAloudDoesNotAdvanceSM2(t *testing.T) {
 	s := newTestServer(t)
 	id, err := s.DB.InsertWord(&db.Word{

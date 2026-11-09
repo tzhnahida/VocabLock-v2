@@ -32,6 +32,8 @@ type PromptVars struct {
 	ExplanationLang string
 	ExtraContext    string
 	QuestionType    string
+	// Scenario is the situation/question shown to the learner for dialogue tasks.
+	Scenario string
 	// Assignment fields
 	AssignmentType     string
 	Topic              string

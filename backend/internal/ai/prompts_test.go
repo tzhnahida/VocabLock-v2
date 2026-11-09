@@ -1,6 +1,9 @@
 package ai
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestLoadPromptExists(t *testing.T) {
 	pt, err := LoadPrompt("judge")
@@ -31,6 +34,7 @@ func TestBuildMessages(t *testing.T) {
 		ExpectedAnswer:  "你好",
 		UserAnswer:      "你好",
 		ExplanationLang: "zh",
+		Scenario:        "A friend asks what you did today.",
 	}
 
 	messages, err := pt.BuildMessages(vars)
@@ -49,6 +53,9 @@ func TestBuildMessages(t *testing.T) {
 	// Check that template variables were rendered
 	if messages[1].Content == "" {
 		t.Error("user message is empty")
+	}
+	if !strings.Contains(messages[1].Content, "A friend asks what you did today.") {
+		t.Errorf("scenario missing from user prompt: %s", messages[1].Content)
 	}
 }
 

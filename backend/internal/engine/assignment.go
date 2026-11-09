@@ -47,15 +47,17 @@ type AssignmentError struct {
 // 1 unit ≈ 10 seconds.
 var TimeWeights = map[string]int{
 	// Quiz types
-	"choice":        1,
-	"fill":          1,
-	"pronounce":     1,
-	"spelling":      2,
-	"listening":     2,
-	"grammar":       5,
-	"reading_comp":  8,
-	"read_word":     2,
-	"read_sentence": 3,
+	"choice":         1,
+	"fill":           1,
+	"pronounce":      1,
+	"spelling":       2,
+	"listening":      2,
+	"grammar":        5,
+	"reading_comp":   8,
+	"read_word":      2,
+	"read_sentence":  3,
+	"dialogue_write": 4,
+	"dialogue_speak": 5,
 	// Assignment types
 	"sentence":     5,
 	"fill_passage": 5,
@@ -70,7 +72,7 @@ const SlowTypeThreshold = 0.25
 // IsSlowType returns true if the type is time-heavy.
 func IsSlowType(t string) bool {
 	switch t {
-	case "grammar", "reading_comp", "essay", "listening":
+	case "grammar", "reading_comp", "essay", "listening", "dialogue_write", "dialogue_speak":
 		return true
 	}
 	return false

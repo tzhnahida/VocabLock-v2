@@ -5,6 +5,8 @@ class SubmitResult {
   final String source;
   final DateTime? nextReviewAt;
   final List<PhonemeScore>? phonemes; // for read_word/read_sentence
+  final String transcript; // ASR text for dialogue_speak
+  final String expectedAnswer; // reference sentence for dialogue tasks
   final int logId; // review_log row id (for dispute marking)
 
   const SubmitResult({
@@ -14,6 +16,8 @@ class SubmitResult {
     this.source = 'exact',
     this.nextReviewAt,
     this.phonemes,
+    this.transcript = '',
+    this.expectedAnswer = '',
     this.logId = 0,
   });
 
@@ -26,6 +30,8 @@ class SubmitResult {
         phonemes: (json['phonemes'] as List<dynamic>?)
             ?.map((p) => PhonemeScore.fromJson(p as Map<String, dynamic>))
             .toList(),
+        transcript: json['transcript'] ?? '',
+        expectedAnswer: json['expected_answer'] ?? '',
         logId: (json['log_id'] as num?)?.toInt() ?? 0,
       );
 }

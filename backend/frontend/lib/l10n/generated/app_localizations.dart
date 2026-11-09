@@ -532,6 +532,18 @@ abstract class AppLocalizations {
   /// **'Read Aloud'**
   String get quizTypeReadWord;
 
+  /// No description provided for @quizTypeDialogueWrite.
+  ///
+  /// In en, this message translates to:
+  /// **'Dialogue (write)'**
+  String get quizTypeDialogueWrite;
+
+  /// No description provided for @quizTypeDialogueSpeak.
+  ///
+  /// In en, this message translates to:
+  /// **'Dialogue (speak)'**
+  String get quizTypeDialogueSpeak;
+
   /// No description provided for @quizTypeReadSentence.
   ///
   /// In en, this message translates to:
@@ -735,6 +747,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Score {score}% (need ≥ {threshold}%)'**
   String readAloudScoreLabel(Object score, Object threshold);
+
+  /// No description provided for @dialogueSpeakInstruction.
+  ///
+  /// In en, this message translates to:
+  /// **'Speak a complete answer using the word'**
+  String get dialogueSpeakInstruction;
+
+  /// No description provided for @dialogueTranscript.
+  ///
+  /// In en, this message translates to:
+  /// **'Recognized speech'**
+  String get dialogueTranscript;
+
+  /// No description provided for @dialogueReference.
+  ///
+  /// In en, this message translates to:
+  /// **'Reference answer'**
+  String get dialogueReference;
 
   /// No description provided for @readAloudListenFirst.
   ///

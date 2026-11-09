@@ -23,6 +23,8 @@ question_types:
   - grammar
   - read_word
   - read_sentence
+  - dialogue_write
+  - dialogue_speak
 
 prompt_context:
   teacher_role: English Teacher

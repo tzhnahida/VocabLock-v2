@@ -125,6 +125,9 @@ func main() {
 		}
 	}
 
+	// Wire local ASR provider (optional; speech answers disabled if absent)
+	srv.WireASR()
+
 	if err := srv.Start(); err != nil {
 		log.Error("server", "start: %v", err)
 		os.Exit(1)
@@ -148,6 +151,7 @@ func main() {
 		srv.WireTTS()
 		srv.WireDict()
 		srv.WirePronounce()
+		srv.WireASR()
 		// Trigger bootstrap now that dict is ready (no-op if words already exist)
 		go srv.EnsureBootstrap(srv.Config.App.ActiveLang)
 		log.Info("system", "restart: done — TTS/Dict/Pronounce reloaded")

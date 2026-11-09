@@ -15,6 +15,7 @@ import (
 	"github.com/tzhnahida/VocabLock/internal/log"
 
 	"github.com/tzhnahida/VocabLock/internal/ai"
+	"github.com/tzhnahida/VocabLock/internal/asr"
 	"github.com/tzhnahida/VocabLock/internal/clock"
 	"github.com/tzhnahida/VocabLock/internal/config"
 	"github.com/tzhnahida/VocabLock/internal/db"
@@ -31,9 +32,11 @@ type cachedQuestion struct {
 }
 
 var slowTypes = map[string]bool{
-	"listening":    true,
-	"reading_comp": true,
-	"grammar":      true,
+	"listening":      true,
+	"reading_comp":   true,
+	"grammar":        true,
+	"dialogue_write": true,
+	"dialogue_speak": true,
 }
 
 type Server struct {
@@ -51,6 +54,7 @@ type Server struct {
 	TTSProvider       *tts.Provider
 	DictProvider      *dict.Provider
 	PronounceProvider *pronounce.Provider
+	ASRProvider       asr.Provider
 
 	// Question cache for AI-generated questions (maps question_id → cachedQuestion)
 	questionCache   map[string]*cachedQuestion
@@ -299,6 +303,32 @@ func (s *Server) WirePronounce() {
 	}
 	s.PronounceProvider = pronounce.NewProvider(lc.Pronounce.Provider, provCfg)
 	log.Info("server", "pronounce: %s", lc.Pronounce.Provider)
+}
+
+// WireASR initializes (or re-initializes) the local speech-to-text provider.
+// Speech answers stay disabled when asr.yaml is absent or the provider is
+// not configured — the rest of the app must keep working without it.
+func (s *Server) WireASR() {
+	s.ASRProvider = nil
+	if s.Mock {
+		return
+	}
+	name := strings.TrimSpace(s.Config.ASR.ASR.Provider)
+	if name == "" {
+		return
+	}
+	provCfg, ok := s.Config.ASR.ASR.Providers[name]
+	if !ok {
+		log.Warn("asr", "provider %q not found", name)
+		return
+	}
+	provider, err := asr.NewWhisper(name, provCfg)
+	if err != nil {
+		log.Warn("asr", "wire: %v", err)
+		return
+	}
+	s.ASRProvider = provider
+	log.Info("server", "asr: %s", name)
 }
 
 func (s *Server) stopExpanding() {
@@ -693,4 +723,9 @@ func (s *Server) isBootstrapDone() bool {
 // HasPronounce returns true if a pronunciation assessment provider is configured.
 func (s *Server) HasPronounce() bool {
 	return s.PronounceProvider != nil
+}
+
+// HasASR returns true if a speech-to-text provider is configured.
+func (s *Server) HasASR() bool {
+	return s.ASRProvider != nil
 }

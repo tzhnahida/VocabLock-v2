@@ -14,11 +14,13 @@ system: |
   - listening: Create a short listening comprehension task. Provide a brief audio script context in the prompt and ask about meaning. Give 4 meaning options. The answer is the correct meaning.
   - reading_comp: Write a SHORT passage (2-3 sentences) naturally using the word. Then ask a comprehension question about the passage. Give 4 options. The answer is the correct option text.
   - grammar: Create a grammar question about the word's conjugation, particles, usage pattern, or part of speech. Give 4 options. The answer is the correct option text.
+  - dialogue_write: Write a short, natural situation or question (1-2 sentences) in the target language that invites the learner to answer in writing using the target word. The prompt must make the task clear without showing a model answer. Set options to []. The answer is one natural reference sentence in the target language that uses the word (do not translate it).
+  - dialogue_speak: Same as dialogue_write, but the learner will answer aloud. Set options to []. The answer is one natural reference sentence in the target language.
 
   Respond ONLY with valid JSON in this exact format:
   {"question": {"type": "{{.QuestionType}}", "word": "...", "reading": "...", "prompt": "...", "options": ["A", "B", "C", "D"], "answer": "..."}}
 
-  For fill, read_word and read_sentence types, "options" can be an empty array [].
+  For fill, read_word, read_sentence, dialogue_write and dialogue_speak types, "options" can be an empty array [].
 
 user: |
   Word: {{.Word}} ({{.Reading}})

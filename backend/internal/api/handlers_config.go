@@ -235,6 +235,7 @@ func (s *Server) handleConfigUpdate(w http.ResponseWriter, r *http.Request) {
 		s.WireTTS()
 		s.WireDict()
 		s.WirePronounce()
+		s.WireASR()
 		s.sessionBudget.reset()
 		s.markBootstrapNotDone()
 		go s.EnsureBootstrap(s.Config.App.ActiveLang)

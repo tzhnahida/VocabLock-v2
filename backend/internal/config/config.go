@@ -100,6 +100,28 @@ type PronounceProvider struct {
 	Args   []string `yaml:"args"`
 }
 
+// ——— ASR config ———
+
+// ASRConfig selects the local speech-to-text provider. It is optional;
+// spoken free-form answers are disabled when no provider is configured.
+type ASRConfig struct {
+	ASR struct {
+		Provider  string                 `yaml:"provider"`
+		Providers map[string]ASRProvider `yaml:"providers"`
+	} `yaml:"asr"`
+}
+
+// ASRProvider configures one whisper.cpp-compatible binary.
+type ASRProvider struct {
+	Binary     string   `yaml:"binary"`
+	Model      string   `yaml:"model"`
+	Language   string   `yaml:"language"` // empty or auto = autodetect
+	Threads    int      `yaml:"threads"`
+	TimeoutSec int      `yaml:"timeout_sec"`
+	Args       []string `yaml:"args"`       // optional; {audio} {model} {out} {language}
+	ExtraArgs  []string `yaml:"extra_args"` // appended to the default command
+}
+
 // ——— Assignment config ———
 
 type AssignmentConfig struct {
@@ -159,6 +181,7 @@ type Config struct {
 	TTS       TTSConfig
 	Dict      DictConfig
 	Pronounce PronounceConfig
+	ASR       ASRConfig
 	Languages map[string]*LanguageConfig // key = language code
 }
 
@@ -197,6 +220,9 @@ func Load(configDir string) (*Config, error) {
 
 	// app.yaml (optional — defaults above are sufficient for auto-test mode)
 	_ = loadYAML(filepath.Join(configDir, "app.yaml"), &cfg.App)
+
+	// asr.yaml (optional — local ASR stays disabled when absent)
+	_ = loadYAML(filepath.Join(configDir, "asr.yaml"), &cfg.ASR)
 	legacyAPIKey := cfg.App.AI.APIKey
 
 	// secrets.yaml (optional — takes precedence over a legacy key in app.yaml)

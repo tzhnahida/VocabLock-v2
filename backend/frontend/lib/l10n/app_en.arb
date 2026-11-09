@@ -80,6 +80,8 @@
   "quizTypePronounce": "Reading",
   "quizTypeMeaning": "Translation",
   "quizTypeReadWord": "Read Aloud",
+  "quizTypeDialogueWrite": "Dialogue (write)",
+  "quizTypeDialogueSpeak": "Dialogue (speak)",
   "quizTypeReadSentence": "Read Sentence",
   "quizTypeListening": "Listening",
   "quizTypeReadingComp": "Reading Comp",
@@ -149,6 +151,9 @@
       "threshold": {}
     }
   },
+  "dialogueSpeakInstruction": "Speak a complete answer using the word",
+  "dialogueTranscript": "Recognized speech",
+  "dialogueReference": "Reference answer",
   "readAloudListenFirst": "Listen first, then answer",
   "fieldMeaning": "Meaning",
   "cardPageOf": "{current} / {total}",

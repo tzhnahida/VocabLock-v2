@@ -9,56 +9,66 @@ import (
 type QuestionType string
 
 const (
-	TypeChoice       QuestionType = "choice"
-	TypeFill         QuestionType = "fill"
-	TypeSpelling     QuestionType = "spelling"
-	TypePronounce    QuestionType = "pronounce"    // recall the pronunciation (type kana/pinyin)
-	TypeMeaning      QuestionType = "meaning"      // write the translation (see word, type meaning)
-	TypeListening    QuestionType = "listening"    // hear audio, answer
-	TypeReadingComp  QuestionType = "reading_comp" // read passage, answer questions
-	TypeGrammar      QuestionType = "grammar"
-	TypeReadWord     QuestionType = "read_word"     // read a word aloud, scored by phoneme
-	TypeReadSentence QuestionType = "read_sentence" // read a sentence aloud, scored by match
+	TypeChoice        QuestionType = "choice"
+	TypeFill          QuestionType = "fill"
+	TypeSpelling      QuestionType = "spelling"
+	TypePronounce     QuestionType = "pronounce"    // recall the pronunciation (type kana/pinyin)
+	TypeMeaning       QuestionType = "meaning"      // write the translation (see word, type meaning)
+	TypeListening     QuestionType = "listening"    // hear audio, answer
+	TypeReadingComp   QuestionType = "reading_comp" // read passage, answer questions
+	TypeGrammar       QuestionType = "grammar"
+	TypeReadWord      QuestionType = "read_word"      // read a word aloud, scored by phoneme
+	TypeReadSentence  QuestionType = "read_sentence"  // read a sentence aloud, scored by match
+	TypeDialogueWrite QuestionType = "dialogue_write" // answer a short prompt in writing
+	TypeDialogueSpeak QuestionType = "dialogue_speak" // answer a short prompt aloud (ASR + judge)
 )
 
 // promptTemplates maps language code → question type → prompt prefix.
 // The "lang" key is the primary subtag of explanation_lang (e.g. "zh" from "zh-CN", "ko" from "ko").
 var promptTemplates = map[string]map[string]string{
 	"zh": {
-		"choice":        "选择正确释义: ",
-		"fill":          "填空: ",
-		"spelling":      "拼写单词: ",
-		"pronounce":     "输入读音: ",
-		"meaning":       "输入释义: ",
-		"read_word":     "朗读单词: ",
-		"read_sentence": "朗读句子: ",
+		"choice":         "选择正确释义: ",
+		"fill":           "填空: ",
+		"spelling":       "拼写单词: ",
+		"pronounce":      "输入读音: ",
+		"meaning":        "输入释义: ",
+		"read_word":      "朗读单词: ",
+		"read_sentence":  "朗读句子: ",
+		"dialogue_write": "用这个词造句回答: ",
+		"dialogue_speak": "用这个词口头回答: ",
 	},
 	"en": {
-		"choice":        "Select the correct meaning for: ",
-		"fill":          "Fill in the blank: ",
-		"spelling":      "Spell the word for: ",
-		"pronounce":     "Enter the pronunciation of: ",
-		"meaning":       "What does this mean?: ",
-		"read_word":     "Read the word aloud: ",
-		"read_sentence": "Read the sentence aloud: ",
+		"choice":         "Select the correct meaning for: ",
+		"fill":           "Fill in the blank: ",
+		"spelling":       "Spell the word for: ",
+		"pronounce":      "Enter the pronunciation of: ",
+		"meaning":        "What does this mean?: ",
+		"read_word":      "Read the word aloud: ",
+		"read_sentence":  "Read the sentence aloud: ",
+		"dialogue_write": "Answer in writing with this word: ",
+		"dialogue_speak": "Answer aloud with this word: ",
 	},
 	"ko": {
-		"choice":        "올바른 뜻을 고르세요: ",
-		"fill":          "빈칸 채우기: ",
-		"spelling":      "단어 철자 쓰기: ",
-		"pronounce":     "발음 입력: ",
-		"meaning":       "뜻을 입력하세요: ",
-		"read_word":     "단어를 소리내어 읽으세요: ",
-		"read_sentence": "문장을 소리내어 읽으세요: ",
+		"choice":         "올바른 뜻을 고르세요: ",
+		"fill":           "빈칸 채우기: ",
+		"spelling":       "단어 철자 쓰기: ",
+		"pronounce":      "발음 입력: ",
+		"meaning":        "뜻을 입력하세요: ",
+		"read_word":      "단어를 소리내어 읽으세요: ",
+		"read_sentence":  "문장을 소리내어 읽으세요: ",
+		"dialogue_write": "이 단어로 문장을 써서 답하세요: ",
+		"dialogue_speak": "이 단어로 말로 답하세요: ",
 	},
 	"ja": {
-		"choice":        "正しい意味を選んでください: ",
-		"fill":          "空欄を埋めてください: ",
-		"spelling":      "単語の綴りを入力: ",
-		"pronounce":     "読み方を入力: ",
-		"meaning":       "意味を入力: ",
-		"read_word":     "単語を声に出して読んでください: ",
-		"read_sentence": "文章を声に出して読んでください: ",
+		"choice":         "正しい意味を選んでください: ",
+		"fill":           "空欄を埋めてください: ",
+		"spelling":       "単語の綴りを入力: ",
+		"pronounce":      "読み方を入力: ",
+		"meaning":        "意味を入力: ",
+		"read_word":      "単語を声に出して読んでください: ",
+		"read_sentence":  "文章を声に出して読んでください: ",
+		"dialogue_write": "この単語を使って文で答えてください: ",
+		"dialogue_speak": "この単語を使って声で答えてください: ",
 	},
 }
 

@@ -16,8 +16,8 @@ import (
 var tierTypes = map[int][]QuestionType{
 	0: {TypeChoice, TypePronounce, TypeMeaning, TypeReadWord},
 	1: {TypeChoice, TypePronounce, TypeMeaning, TypeReadWord},
-	2: {TypeFill, TypePronounce, TypeMeaning, TypeSpelling, TypeReadWord},
-	3: {TypePronounce, TypeMeaning, TypeSpelling, TypeReadWord, TypeListening, TypeGrammar, TypeReadSentence, TypeReadingComp},
+	2: {TypeFill, TypePronounce, TypeMeaning, TypeSpelling, TypeReadWord, TypeDialogueWrite},
+	3: {TypePronounce, TypeMeaning, TypeSpelling, TypeReadWord, TypeListening, TypeGrammar, TypeReadSentence, TypeReadingComp, TypeDialogueWrite, TypeDialogueSpeak},
 }
 
 // SelectQuestionType picks the best question type for a word based on its SM-2 state.
@@ -34,8 +34,8 @@ var tierTypes = map[int][]QuestionType{
 //
 // available is the list of question types enabled for this language (from config).
 // aiAvailable indicates whether AI-dependent types (listening/reading_comp/grammar) can be used.
-func SelectQuestionType(nextReviewAt *time.Time, ef float64, interval, reps int, available []QuestionType, aiAvailable, pronounceAvailable bool) QuestionType {
-	candidates := selectCandidates(nextReviewAt, ef, interval, reps, available, aiAvailable, pronounceAvailable)
+func SelectQuestionType(nextReviewAt *time.Time, ef float64, interval, reps int, available []QuestionType, aiAvailable, pronounceAvailable, asrAvailable bool) QuestionType {
+	candidates := selectCandidates(nextReviewAt, ef, interval, reps, available, aiAvailable, pronounceAvailable, asrAvailable)
 	return candidates[rand.Intn(len(candidates))]
 }
 
@@ -43,8 +43,8 @@ func SelectQuestionType(nextReviewAt *time.Time, ef float64, interval, reps int,
 // pick toward the given type weights (higher weight = more likely). Weights are
 // the plan's question_type_ratio percentages; types not in the map get a
 // default weight of 10.
-func SelectQuestionTypeWithWeights(nextReviewAt *time.Time, ef float64, interval, reps int, available []QuestionType, aiAvailable, pronounceAvailable bool, weights map[string]int) QuestionType {
-	candidates := selectCandidates(nextReviewAt, ef, interval, reps, available, aiAvailable, pronounceAvailable)
+func SelectQuestionTypeWithWeights(nextReviewAt *time.Time, ef float64, interval, reps int, available []QuestionType, aiAvailable, pronounceAvailable, asrAvailable bool, weights map[string]int) QuestionType {
+	candidates := selectCandidates(nextReviewAt, ef, interval, reps, available, aiAvailable, pronounceAvailable, asrAvailable)
 	if len(weights) == 0 || len(candidates) <= 1 {
 		if len(candidates) == 0 {
 			return TypeChoice
@@ -78,7 +78,7 @@ func SelectQuestionTypeWithWeights(nextReviewAt *time.Time, ef float64, interval
 	return candidates[len(candidates)-1]
 }
 
-func selectCandidates(nextReviewAt *time.Time, ef float64, interval, reps int, available []QuestionType, aiAvailable, pronounceAvailable bool) []QuestionType {
+func selectCandidates(nextReviewAt *time.Time, ef float64, interval, reps int, available []QuestionType, aiAvailable, pronounceAvailable, asrAvailable bool) []QuestionType {
 	tier := computeTier(nextReviewAt, interval, reps)
 	if ef < 1.5 && tier > 0 {
 		tier--
@@ -102,13 +102,16 @@ func selectCandidates(nextReviewAt *time.Time, ef float64, interval, reps int, a
 		if NeedsPronounce(qt) && !pronounceAvailable {
 			continue
 		}
+		if NeedsASR(qt) && !asrAvailable {
+			continue
+		}
 		candidates = append(candidates, qt)
 	}
 
 	// Fall back: if no candidates in current tier, try lower tiers
 	for t := tier - 1; t >= 0 && len(candidates) == 0; t-- {
 		for _, qt := range tierTypes[t] {
-			if availableSet[qt] && !(isAIType(qt) && !aiAvailable) && !(NeedsPronounce(qt) && !pronounceAvailable) {
+			if availableSet[qt] && !(isAIType(qt) && !aiAvailable) && !(NeedsPronounce(qt) && !pronounceAvailable) && !(NeedsASR(qt) && !asrAvailable) {
 				candidates = append(candidates, qt)
 			}
 		}
@@ -135,7 +138,7 @@ func computeTier(nextReviewAt *time.Time, interval, reps int) int {
 
 func isAIType(qt QuestionType) bool {
 	switch qt {
-	case TypeListening, TypeReadingComp, TypeGrammar, TypeReadSentence:
+	case TypeListening, TypeReadingComp, TypeGrammar, TypeReadSentence, TypeDialogueWrite, TypeDialogueSpeak:
 		return true
 	}
 	return false
@@ -149,4 +152,10 @@ func NeedsPronounce(qt QuestionType) bool {
 		return true
 	}
 	return false
+}
+
+// NeedsASR returns true if the question type requires a speech-to-text
+// provider. These types are excluded when no ASR provider is configured.
+func NeedsASR(qt QuestionType) bool {
+	return qt == TypeDialogueSpeak
 }

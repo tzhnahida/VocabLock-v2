@@ -79,6 +79,8 @@
   "quizTypePronounce": "读音题",
   "quizTypeMeaning": "翻译题",
   "quizTypeReadWord": "朗读题",
+  "quizTypeDialogueWrite": "情境造句",
+  "quizTypeDialogueSpeak": "口头造句",
   "quizTypeReadSentence": "朗读句子",
   "quizTypeListening": "听力题",
   "quizTypeReadingComp": "阅读理解",
@@ -148,6 +150,9 @@
       "threshold": {}
     }
   },
+  "dialogueSpeakInstruction": "用这个词说出完整回答",
+  "dialogueTranscript": "识别结果",
+  "dialogueReference": "参考答案",
   "readAloudListenFirst": "先听读，再作答",
   "fieldMeaning": "释义",
   "cardPageOf": "{current} / {total}",

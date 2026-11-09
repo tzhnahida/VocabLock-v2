@@ -13,6 +13,44 @@
 | 2026-11-08 | 新界面四屏原型；决定 Flutter → Electron |
 | 2026-11-10 | 全量代码审计；决定先修数据正确性，再加本地 ASR |
 
+## 2026-11-10 — 本地 ASR + 对答式造句（待提交）
+
+### 完成
+- backend/internal/asr：Provider 接口（Name/Transcribe）+ whisper.cpp provider；默认 -m/-f/-otxt/-of/-nt，非 auto 加 -l，线程加 -t，支持 Args 模板占位；CleanTranscript 去时间戳与非语音标记；5 个单测通过。
+- config 新增 ASR 字段并读 configs/asr.yaml（可选，缺省禁用）；Server.ASRProvider/WireASR/HasASR；main 启动与 RestartFunc、配置重载均接线；asr.yaml.example 入库，真实 asr.yaml/bin/models 加 .gitignore。
+- engine 新增 dialogue_write/dialogue_speak；tier2 加手敲、tier3 加朗读；选题签名加 asrAvailable，主循环与低 tier fallback 都过滤 NeedsASR；TimeWeights 4/5、IsSlowType、validator、语言配置同步。
+- AI 生成 dialogue 情境问句与参考句（options 为空）；PromptVars 加 Scenario，judge 规则按完整句/目标词/语义自然度判分并接受改写，朗读忽略 ASR 轻微误差；question_gen 与 judge 解析统一走 extractJSON。
+- handleQuizSubmit 分流 dialogue；新 handleDialogueSubmit：cache_miss / no_asr / bad_audio / asr_error / ai_error 均不写库，空答计 empty；成功才 SM-2/review_log/daily_stats，响应带 transcript 与 expected_answer。
+- Flutter：QuestionType 两值、SubmitResult 新字段、口头造句录音 UI、结果卡展示识别结果/参考句、三语 l10n、mock 同步。
+
+### 完成方法
+- 先把 ASR 做成最小 Provider，再用配置与 Server 接线，最后接题型，避免 UI 先行。
+- 失败语义逐条落到 handler 分支：识别失败/未配置/缓存过期/判分失败都不污染 SM-2，只有拿到有效判分才写库。
+- 复用手敲文本框；朗读只替换输入区，结果卡统一渲染。
+- 每层跑测试：asr/config/engine 单测 → go build → 全量 go test → flutter gen-l10n/analyze/test；go test 改写的 SIMULATION.md 提交前还原。
+
+### 踩坑
+- 新增枚举后 mock_data.dart 的 switch 不再穷尽，flutter analyze 直接报 error；补两 case。
+- 结果卡用了不存在的 AppTheme.border；改用 Colors.grey.withValues(alpha: 0.2)。
+- 生成 l10n 时 ja/zh 各报 10 条既有未翻译键（非本次新增），新增的 5 个键三语均已补齐。
+- 朗读链路依赖真实 whisper 二进制与模型，仓库只留 example 与 ignore，不能在 CI 内跑通端到端。
+
+### 失败
+- 首次 flutter analyze 2 个 error（mock switch 穷尽、AppTheme.border）。
+
+### 失败原因
+- 枚举扩展未同步所有 switch；主题类没有 border 常量。
+
+### 剩余
+- 建真实 asr.yaml + whisper.cpp 二进制/模型，实机验证中英日朗读识别与 90s 超时。
+- AI 判分仍用原有 8s 超时，长句可能偏紧，实机后决定是否调高。
+- 前端诊断 / 作业 / 被动 UI 与 Electron 未开始。
+
+### 规划
+1. 提交并 push 本轮 ASR + dialogue。
+2. 实机跑通 whisper，再补前端三块 UI。
+3. 最后 Electron M0，用 docs/design/app.html 验收。
+
 ## 2026-11-10 — 安全与稳定性修复（e53b537）
 
 ### 完成

@@ -382,7 +382,7 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 
 			qType := engine.SelectQuestionTypeWithWeights(
 				word.NextReviewAt, word.EasinessFactor, word.Interval, word.Repetitions,
-				langQuestionTypes(lang, s.Config), s.AI() != nil, s.HasPronounce(),
+				langQuestionTypes(lang, s.Config), s.AI() != nil, s.HasPronounce(), s.HasASR(),
 				s.sessionBudget.getTypeWeights(),
 			)
 
@@ -440,7 +440,7 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 				} else {
 					s.cacheQuestion(q)
 				}
-			case engine.TypeListening, engine.TypeReadingComp, engine.TypeGrammar:
+			case engine.TypeListening, engine.TypeReadingComp, engine.TypeGrammar, engine.TypeDialogueWrite, engine.TypeDialogueSpeak:
 				q, err = s.aiGenerateQuestion(r.Context(), info, qType)
 				if err != nil {
 					q = engine.GenerateChoice(info, distractors, explLang)
@@ -540,6 +540,11 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 	// Route read-aloud submissions to the dedicated handler
 	if qt := engine.QuestionType(req.QuestionType); qt == engine.TypeReadWord || qt == engine.TypeReadSentence {
 		s.handleReadAloudSubmit(w, r, req.QuestionType, req.SubjectType, req.SubjectID, req.QuestionID, req.Audio, req.Study)
+		return
+	}
+	// Dialogue tasks are AI-generated free-form answers, graded semantically.
+	if qt := engine.QuestionType(req.QuestionType); qt == engine.TypeDialogueWrite || qt == engine.TypeDialogueSpeak {
+		s.handleDialogueSubmit(w, r, req.QuestionType, req.SubjectType, req.SubjectID, req.QuestionID, req.Answer, req.Audio, req.Study)
 		return
 	}
 
@@ -733,6 +738,233 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleDialogueSubmit grades a free-form written or spoken answer against
+// the reference sentence generated with the question. For spoken answers the
+// audio is transcribed locally first; ASR failures never touch SM-2.
+func (s *Server) handleDialogueSubmit(w http.ResponseWriter, r *http.Request, qtype, stype string, sid int64, qid, answer, audio string, study bool) {
+	if s.AI() == nil {
+		writeJSON(w, map[string]interface{}{
+			"correct":  false,
+			"feedback": "AI grading not configured",
+			"source":   "no_ai",
+		})
+		return
+	}
+	if s.DB == nil {
+		writeError(w, 500, "database not available")
+		return
+	}
+	if stype != "word" {
+		writeError(w, 400, "dialogue tasks require a word subject")
+		return
+	}
+
+	// The reference sentence and scenario exist only in the question cache.
+	cachedQ := s.getAndDelCachedQuestion(qid)
+	if cachedQ == nil || strings.TrimSpace(cachedQ.Answer) == "" {
+		writeJSON(w, map[string]interface{}{
+			"correct":  false,
+			"feedback": "Question expired, please get a new one",
+			"source":   "cache_miss",
+		})
+		return
+	}
+	reference := strings.TrimSpace(cachedQ.Answer)
+	scenario := cachedQ.Prompt
+
+	word, err := s.DB.GetWord(sid)
+	if err != nil {
+		writeError(w, 500, "get word: "+err.Error())
+		return
+	}
+	if word == nil {
+		writeError(w, 404, "word not found")
+		return
+	}
+
+	userAnswer := strings.TrimSpace(answer)
+	transcript := ""
+	answerSource := "text"
+
+	if qtype == string(engine.TypeDialogueSpeak) {
+		if strings.TrimSpace(audio) == "" {
+			answerSource = "skipped"
+			userAnswer = ""
+		} else {
+			if s.ASRProvider == nil {
+				writeJSON(w, map[string]interface{}{
+					"correct":  false,
+					"feedback": "Speech recognition not configured",
+					"source":   "no_asr",
+				})
+				return
+			}
+			audioBytes, err := base64.StdEncoding.DecodeString(audio)
+			if err != nil {
+				writeJSON(w, map[string]interface{}{
+					"correct":  false,
+					"feedback": "Invalid audio data",
+					"source":   "bad_audio",
+				})
+				return
+			}
+			tmpDir := filepath.Join("data", "asr")
+			if err := os.MkdirAll(tmpDir, 0755); err != nil {
+				writeError(w, 500, "create ASR temp dir: "+err.Error())
+				return
+			}
+			tmpFile, err := os.CreateTemp(tmpDir, "dialogue_*.wav")
+			if err != nil {
+				writeError(w, 500, "create ASR temp file: "+err.Error())
+				return
+			}
+			tmpPath := tmpFile.Name()
+			defer os.Remove(tmpPath)
+			if _, err := tmpFile.Write(audioBytes); err != nil {
+				tmpFile.Close()
+				writeError(w, 500, "write ASR audio: "+err.Error())
+				return
+			}
+			tmpFile.Close()
+
+			ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
+			defer cancel()
+			asrResult, asrErr := s.ASRProvider.Transcribe(ctx, tmpPath)
+			if asrErr != nil {
+				writeJSON(w, map[string]interface{}{
+					"correct":  false,
+					"feedback": fmt.Sprintf("Speech recognition error: %v", asrErr),
+					"source":   "asr_error",
+				})
+				return
+			}
+			transcript = strings.TrimSpace(asrResult.Text)
+			userAnswer = transcript
+			answerSource = "asr"
+		}
+	} else if userAnswer == "" {
+		answerSource = "skipped"
+	}
+
+	if userAnswer == "" {
+		feedback := "未作答。参考答案: " + reference
+		if answerSource == "asr" {
+			feedback = "未识别到语音。参考答案: " + reference
+			answerSource = "asr_empty"
+		}
+		result := &judge.Result{
+			Correct:       false,
+			Score:         0,
+			Feedback:      feedback,
+			Source:        judge.SourceRegex,
+			ErrorCategory: "empty",
+		}
+		s.writeDialogueResult(w, word, qtype, stype, sid, reference, userAnswer, transcript, answerSource, result, study)
+		return
+	}
+
+	result := judge.Judge(userAnswer, []string{reference}, judge.Normal, s.makeJudgeWithScenario(qtype, word, scenario))
+	if result.Source == judge.SourceRegexFallback {
+		writeJSON(w, map[string]interface{}{
+			"correct":  false,
+			"feedback": "AI grading failed, please try again",
+			"source":   "ai_error",
+		})
+		return
+	}
+	s.writeDialogueResult(w, word, qtype, stype, sid, reference, userAnswer, transcript, answerSource, result, study)
+}
+
+// writeDialogueResult persists SM-2/review log/daily stats and writes the
+// response for a dialogue answer. study=true is evaluation only.
+func (s *Server) writeDialogueResult(w http.ResponseWriter, word *db.Word, qtype, stype string, sid int64, reference, userAnswer, transcript, answerSource string, result *judge.Result, study bool) {
+	quality := engine.QualityFromScore(result.Score)
+	now := clock.Now()
+
+	logSource := string(result.Source)
+	switch answerSource {
+	case "skipped", "asr_empty":
+		logSource = answerSource
+	case "asr":
+		logSource = "asr+" + logSource
+	}
+	errorCategory := result.ErrorCategory
+	if userAnswer == "" {
+		errorCategory = "empty"
+	}
+
+	if study {
+		writeJSON(w, map[string]interface{}{
+			"correct":         result.Correct,
+			"score":           result.Score,
+			"feedback":        result.Feedback,
+			"source":          logSource,
+			"next_review_at":  nil,
+			"log_id":          0,
+			"transcript":      transcript,
+			"expected_answer": reference,
+		})
+		return
+	}
+
+	sm2 := engine.SM2(word.EasinessFactor, word.Interval, word.Repetitions, quality, now, s.Config.App.Sm2MaxIntervalDays)
+	if sm2 != nil {
+		word.EasinessFactor = sm2.EasinessFactor
+		word.Interval = sm2.Interval
+		word.Repetitions = sm2.Repetitions
+		word.NextReviewAt = &sm2.NextReviewAt
+	}
+	word.LastReviewAt = &now
+	word.TotalAttempts++
+	if result.Correct {
+		word.TotalCorrect++
+	}
+	if err := s.DB.UpdateWord(word); err != nil {
+		log.Warn("quiz", "update word after dialogue (id=%d): %v", word.ID, err)
+	}
+
+	logEntry := &db.ReviewLog{
+		Language:       s.Config.App.ActiveLang,
+		SubjectType:    stype,
+		SubjectID:      sid,
+		WordID:         sid,
+		QuestionType:   qtype,
+		UserAnswer:     userAnswer,
+		ExpectedAnswer: reference,
+		Correct:        result.Correct,
+		Score:          result.Score,
+		Source:         logSource,
+		ErrorCategory:  errorCategory,
+	}
+	logID, _ := s.DB.InsertReviewLog(logEntry)
+
+	correctCount := 0
+	if result.Correct {
+		correctCount = 1
+	}
+	s.DB.UpsertDailyStats(now.Format("2006-01-02"), s.Config.App.ActiveLang, 1, correctCount, s.consumeActivityElapsed())
+
+	if s.System != nil && result.Correct {
+		if s.DailyTargetMet(s.Config.App.ActiveLang) {
+			log.Info("quiz", "daily target met (dialogue) — auto-unlocking")
+			s.System.ExitLockMode()
+			s.System.RestoreFlutterWindow()
+		}
+	}
+
+	writeJSON(w, map[string]interface{}{
+		"correct":         result.Correct,
+		"score":           result.Score,
+		"feedback":        result.Feedback,
+		"source":          logSource,
+		"next_review_at":  word.NextReviewAt,
+		"log_id":          logID,
+		"transcript":      transcript,
+		"expected_answer": reference,
+		"error_category":  errorCategory,
+	})
+}
+
 // handleQuizDispute marks a review_log entry as disputed by the student
 // ("I think this was graded wrong"). No SM-2 side effects — the stamp is
 // pure diagnostics/feedback for AI calibration.
@@ -888,7 +1120,7 @@ func (s *Server) maybeAdjustDailyTarget(lang string) bool {
 
 func questionRequiresCachedAnswer(qtype string) bool {
 	switch engine.QuestionType(qtype) {
-	case engine.TypeListening, engine.TypeReadingComp, engine.TypeGrammar:
+	case engine.TypeListening, engine.TypeReadingComp, engine.TypeGrammar, engine.TypeDialogueWrite, engine.TypeDialogueSpeak:
 		return true
 	}
 	return false
@@ -1200,6 +1432,12 @@ func strictnessForType(qType string) judge.Strictness {
 }
 
 func (s *Server) makeAIJudge(qType string, word *db.Word) func(user, expected string) (*judge.Result, error) {
+	return s.makeJudgeWithScenario(qType, word, "")
+}
+
+// makeJudgeWithScenario builds an AI judge that also sees the dialogue
+// scenario. The scenario is empty for non-dialogue question types.
+func (s *Server) makeJudgeWithScenario(qType string, word *db.Word, scenario string) func(user, expected string) (*judge.Result, error) {
 	return func(userAnswer, expectedAnswer string) (*judge.Result, error) {
 		if s.AI() == nil {
 			return nil, nil
@@ -1221,6 +1459,7 @@ func (s *Server) makeAIJudge(qType string, word *db.Word) func(user, expected st
 			ExpectedAnswer:  expectedAnswer,
 			ExplanationLang: explLang,
 			QuestionType:    qType,
+			Scenario:        scenario,
 		})
 		if err != nil {
 			return nil, err
@@ -1240,7 +1479,7 @@ func (s *Server) makeAIJudge(qType string, word *db.Word) func(user, expected st
 			Score    float64 `json:"score"`
 			Feedback string  `json:"feedback"`
 		}
-		if err := json.Unmarshal([]byte(response), &aiResult); err != nil {
+		if err := json.Unmarshal([]byte(extractJSON(response)), &aiResult); err != nil {
 			return nil, err
 		}
 

@@ -14,7 +14,7 @@ func TestSelectQuestionType_NewWord(t *testing.T) {
 	tier0 := map[QuestionType]bool{TypeChoice: true, TypePronounce: true, TypeMeaning: true, TypeReadWord: true}
 	seen := make(map[QuestionType]int)
 	for i := 0; i < 50; i++ {
-		qt := SelectQuestionType(nil, 2.5, 0, 0, types, true, false)
+		qt := SelectQuestionType(nil, 2.5, 0, 0, types, true, false, false)
 		seen[qt]++
 		if !tier0[qt] {
 			t.Errorf("new word got %s — not a tier-0 type", qt)
@@ -33,7 +33,7 @@ func TestSelectQuestionType_EarlyStage(t *testing.T) {
 	// reps=0, interval=1 → tier 1: choice or pronounce (fill removed from tier 1)
 	seen := make(map[QuestionType]int)
 	for i := 0; i < 50; i++ {
-		qt := SelectQuestionType(&next, 2.5, 1, 0, types, false, false)
+		qt := SelectQuestionType(&next, 2.5, 1, 0, types, false, false, false)
 		seen[qt]++
 	}
 
@@ -53,7 +53,7 @@ func TestSelectQuestionType_MidStage(t *testing.T) {
 	// reps=2, interval=5 → tier 2: fill or reading
 	seen := make(map[QuestionType]int)
 	for i := 0; i < 50; i++ {
-		qt := SelectQuestionType(&next, 2.5, 5, 2, types, false, false)
+		qt := SelectQuestionType(&next, 2.5, 5, 2, types, false, false, false)
 		seen[qt]++
 	}
 
@@ -70,7 +70,7 @@ func TestSelectQuestionType_MatureStage(t *testing.T) {
 	// reps=5, interval=30 → tier 3
 	seen := make(map[QuestionType]int)
 	for i := 0; i < 50; i++ {
-		qt := SelectQuestionType(&next, 2.5, 30, 5, types, true, false)
+		qt := SelectQuestionType(&next, 2.5, 30, 5, types, true, false, false)
 		seen[qt]++
 	}
 
@@ -88,7 +88,7 @@ func TestSelectQuestionType_StrugglingWord(t *testing.T) {
 	// Tier 1: choice, pronounce. Fill not in tier 1.
 	seen := make(map[QuestionType]int)
 	for i := 0; i < 50; i++ {
-		qt := SelectQuestionType(&next, 1.4, 5, 2, types, false, false)
+		qt := SelectQuestionType(&next, 1.4, 5, 2, types, false, false, false)
 		seen[qt]++
 	}
 
@@ -104,7 +104,7 @@ func TestSelectQuestionType_NoAITypesWhenUnavailable(t *testing.T) {
 
 	// reps=5, interval=30 → tier 3, but AI unavailable
 	for i := 0; i < 50; i++ {
-		qt := SelectQuestionType(&next, 2.5, 30, 5, types, false, false)
+		qt := SelectQuestionType(&next, 2.5, 30, 5, types, false, false, false)
 		if qt == TypeListening || qt == TypeReadingComp || qt == TypeGrammar {
 			t.Errorf("AI type %s should not appear when AI unavailable", qt)
 		}
@@ -117,7 +117,7 @@ func TestSelectQuestionType_FallbackWhenNoCandidates(t *testing.T) {
 	// Only AI types available, but AI unavailable → falls back to choice
 	types := []QuestionType{TypeListening, TypeReadingComp, TypeGrammar}
 
-	qt := SelectQuestionType(&next, 2.5, 30, 5, types, false, false)
+	qt := SelectQuestionType(&next, 2.5, 30, 5, types, false, false, false)
 	if qt != TypeChoice {
 		t.Errorf("should fall back to choice when no candidates, got %s", qt)
 	}
@@ -131,10 +131,34 @@ func TestSelectQuestionType_RespectsAvailableTypes(t *testing.T) {
 	types := []QuestionType{TypePronounce}
 
 	for i := 0; i < 20; i++ {
-		qt := SelectQuestionType(&next, 2.5, 1, 0, types, false, false)
+		qt := SelectQuestionType(&next, 2.5, 1, 0, types, false, false, false)
 		if qt != TypePronounce {
 			t.Errorf("pronounce is tier 1, should be returned, got %s", qt)
 		}
+	}
+}
+
+func TestSelectQuestionType_ASRTypeRequiresASR(t *testing.T) {
+	now := time.Now()
+	next := now.AddDate(0, 0, 30)
+	types := []QuestionType{TypeDialogueSpeak}
+
+	for i := 0; i < 20; i++ {
+		qt := SelectQuestionType(&next, 2.5, 30, 5, types, true, true, false)
+		if qt == TypeDialogueSpeak {
+			t.Fatal("dialogue_speak should not appear when ASR unavailable")
+		}
+	}
+}
+
+func TestSelectQuestionType_ASRTypeWhenAvailable(t *testing.T) {
+	now := time.Now()
+	next := now.AddDate(0, 0, 30)
+	types := []QuestionType{TypeDialogueSpeak}
+
+	qt := SelectQuestionType(&next, 2.5, 30, 5, types, true, true, true)
+	if qt != TypeDialogueSpeak {
+		t.Errorf("dialogue_speak should be selected when ASR available, got %s", qt)
 	}
 }
 

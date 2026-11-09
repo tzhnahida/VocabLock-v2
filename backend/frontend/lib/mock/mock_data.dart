@@ -269,7 +269,10 @@ class MockData {
       subjectType: 'word',
       subjectId: w.id,
       prompt: _promptForType(qt, w),
-      options: qt == QuestionType.choice || qt.isAI ? ['Option A', 'Option B', 'Option C', w.meaning] : null,
+      options: qt == QuestionType.choice ||
+              (qt.isAI && qt != QuestionType.dialogueWrite && qt != QuestionType.dialogueSpeak)
+          ? ['Option A', 'Option B', 'Option C', w.meaning]
+          : null,
     );
   }
 
@@ -297,6 +300,10 @@ class MockData {
         return 'What does this mean?: ${w.word}';
       case QuestionType.readSentence:
         return 'Read the sentence aloud: ${w.meaning}';
+      case QuestionType.dialogueWrite:
+        return 'Answer in writing with "${w.word}": What did you do today?';
+      case QuestionType.dialogueSpeak:
+        return 'Answer aloud with "${w.word}": What did you do today?';
     }
   }
 

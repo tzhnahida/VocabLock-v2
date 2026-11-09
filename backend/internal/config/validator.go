@@ -6,6 +6,7 @@ var validQuestionTypes = map[string]bool{
 	"choice": true, "fill": true, "spelling": true, "pronounce": true,
 	"meaning": true, "listening": true, "reading_comp": true, "grammar": true,
 	"read_word": true, "read_sentence": true,
+	"dialogue_write": true, "dialogue_speak": true,
 }
 
 func (c *Config) Validate() []error {

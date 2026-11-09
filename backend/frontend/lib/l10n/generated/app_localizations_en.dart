@@ -226,6 +226,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get quizTypeReadWord => 'Read Aloud';
 
   @override
+  String get quizTypeDialogueWrite => 'Dialogue (write)';
+
+  @override
+  String get quizTypeDialogueSpeak => 'Dialogue (speak)';
+
+  @override
   String get quizTypeReadSentence => 'Read Sentence';
 
   @override
@@ -339,6 +345,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String readAloudScoreLabel(Object score, Object threshold) {
     return 'Score $score% (need ≥ $threshold%)';
   }
+
+  @override
+  String get dialogueSpeakInstruction =>
+      'Speak a complete answer using the word';
+
+  @override
+  String get dialogueTranscript => 'Recognized speech';
+
+  @override
+  String get dialogueReference => 'Reference answer';
 
   @override
   String get readAloudListenFirst => 'Listen first, then answer';

@@ -134,7 +134,7 @@ func (s *Server) aiGenerateQuestion(ctx context.Context, word *engine.WordInfo, 
 			Answer  string   `json:"answer"`
 		} `json:"question"`
 	}
-	if err := json.Unmarshal([]byte(response), &result); err != nil {
+	if err := json.Unmarshal([]byte(extractJSON(response)), &result); err != nil {
 		return nil, fmt.Errorf("parse AI response: %w", err)
 	}
 	if result.Question.Answer == "" {
