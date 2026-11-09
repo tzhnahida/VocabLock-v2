@@ -1,3 +1,4 @@
+import '../utils/app_log.dart';
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../api/ai_api.dart';
@@ -6,6 +7,7 @@ import '../api/words_api.dart';
 import '../api/stats_api.dart';
 import '../api/config_api.dart';
 import '../api/tts_api.dart';
+import '../api/system_api.dart';
 import '../models/language.dart';
 import '../models/stats.dart';
 import '../models/question.dart';
@@ -13,6 +15,7 @@ import '../models/word.dart';
 import '../mock/mock_data.dart';
 import '../models/quiz_result.dart';
 import '../theme/app_theme.dart';
+import '../l10n/generated/app_localizations.dart';
 
 class AppState extends ChangeNotifier {
   final ApiClient? _apiClient;
@@ -22,6 +25,10 @@ class AppState extends ChangeNotifier {
   late final ConfigApi? _configApi;
   late final TtsApi? _ttsApi;
   late final AiApi? _aiApi;
+  late final SystemApi? _systemApi;
+
+  /// Localized strings without a BuildContext (AppState is a ChangeNotifier).
+  AppLocalizations _l10n() => lookupAppLocalizations(locale);
 
   QuizApi? get quizApi => _quizApi;
   WordsApi? get wordsApi => _wordsApi;
@@ -29,6 +36,7 @@ class AppState extends ChangeNotifier {
   ConfigApi? get configApi => _configApi;
   TtsApi? get ttsApi => _ttsApi;
   AiApi? get aiApi => _aiApi;
+  SystemApi? get systemApi => _systemApi;
 
   AppState({String? apiPort, String? authToken})
       : _apiClient = (apiPort != null && authToken != null)
@@ -45,6 +53,7 @@ class AppState extends ChangeNotifier {
       _configApi = ConfigApi(api);
       _ttsApi = TtsApi(api);
       _aiApi = AiApi(api);
+      _systemApi = SystemApi(api);
     } else {
       _quizApi = null;
       _wordsApi = null;
@@ -52,6 +61,7 @@ class AppState extends ChangeNotifier {
       _configApi = null;
       _ttsApi = null;
       _aiApi = null;
+      _systemApi = null;
     }
   }
 
@@ -85,7 +95,13 @@ class AppState extends ChangeNotifier {
 
   String _uiLang = 'en';
   String get uiLang => _uiLang;
-  set uiLang(String v) { _uiLang = v; notifyListeners(); }
+  set uiLang(String v) {
+    AppLog.debug('uiLang setter: $_uiLang → $v');
+    _uiLang = v;
+    AppLog.debug('locale now: $locale');
+    notifyListeners();
+    AppLog.debug('notifyListeners called');
+  }
 
   Locale get locale {
     switch (_uiLang) {
@@ -152,6 +168,7 @@ class AppState extends ChangeNotifier {
     required ThemeMode themeMode,
     required String learnLang,
     required int dailyTarget,
+    required int dailyTimeTarget,
     String? apiKey,
     String? model,
     String? baseUrl,
@@ -189,18 +206,18 @@ class AppState extends ChangeNotifier {
             baseUrl: baseUrl,
           );
         } catch (e) {
-          debugPrint('[onboarding] AI config update failed: $e');
+          AppLog.debug('[onboarding] AI config update failed: $e');
         }
       }
 
       try {
-        await _configApi.updateConfig(activeLang: learnLang, dailyTarget: dailyTarget, theme: themeMode == ThemeMode.dark ? 'vs-dark' : 'light');
-      } catch (e) { debugPrint('[onboarding] updateConfig failed: $e'); }
+        await _configApi.updateConfig(activeLang: learnLang, interfaceLang: uiLang, dailyTarget: dailyTarget, dailyTimeTarget: dailyTimeTarget, theme: themeMode == ThemeMode.dark ? 'vs-dark' : 'light');
+      } catch (e) { AppLog.debug('[onboarding] updateConfig failed: $e'); }
       // Save emergency password
       if (password != null && password.isNotEmpty) {
         try {
           await _configApi.setPassword(password);
-        } catch (e) { debugPrint('[onboarding] setPassword failed: $e'); }
+        } catch (e) { AppLog.debug('[onboarding] setPassword failed: $e'); }
       }
       // Save AI profile if generated during interview
       if (profileText != null && profileText.isNotEmpty && _aiApi != null) {
@@ -211,12 +228,12 @@ class AppState extends ChangeNotifier {
             'direction': direction ?? 'general',
             'profile': profileText,
           });
-        } catch (e) { debugPrint('[onboarding] updateProfile failed: $e'); }
+        } catch (e) { AppLog.debug('[onboarding] updateProfile failed: $e'); }
       }
       if (direction != null && direction.isNotEmpty && _quizApi != null) {
         try {
           await _quizApi.updateDirection(direction);
-        } catch (e) { debugPrint('[onboarding] updateDirection failed: $e'); }
+        } catch (e) { AppLog.debug('[onboarding] updateDirection failed: $e'); }
       }
 
       // Re-check AI availability after potentially sending the API key
@@ -225,7 +242,7 @@ class AppState extends ChangeNotifier {
           final profile = await _aiApi.getProfile();
           _aiConfigured = profile['configured'] == true;
         } catch (e) {
-          debugPrint('[onboarding] AI profile check after config update failed: $e');
+          AppLog.debug('[onboarding] AI profile check after config update failed: $e');
         }
       }
 
@@ -236,16 +253,26 @@ class AppState extends ChangeNotifier {
     }
     notifyListeners();
 
-    // Auto-expand words after onboarding (real mode only, with AI)
+    // Re-wire providers before expanding words so Dict/TTS/Pronounce are ready
+    if (_systemApi != null) {
+      try {
+        await _systemApi!.restart();
+      } catch (_) {}
+    }
+
+    // Auto-expand words after onboarding — only if bootstrap didn't already fill the gap
     if (!useMock) {
-      await expandWords(count: 10);
+      final remaining = _progress?.remaining ?? dailyTarget;
+      if (remaining > 0) {
+        await expandWords(count: remaining);
+      }
     }
   }
 
   Future<void> expandWords({int count = 10}) async {
     if (_expanding) return;
     _expanding = true;
-    _expandStatus = 'AI 正在生成词汇...';
+    _expandStatus = _l10n().expandStatusGenerating;
     notifyListeners();
     final wordsApi = _wordsApi;
     if (wordsApi != null) {
@@ -256,19 +283,26 @@ class AppState extends ChangeNotifier {
         _expandVerified = verified.length;
         _expandPending = pending.length;
         _expandTotal = _expandVerified + _expandPending;
+        // The backend now reports the learning direction + dedup pool size
+        // so "why these words" is visible instead of an opaque random-feeling
+        // batch. Fall back to a simple count message when absent.
+        final direction = (result['direction'] as String?) ?? '';
+        final ctx = (result['context_words'] as num?)?.toInt() ?? 0;
         if (_expandTotal > 0) {
-          _expandStatus = '生成 $_expandTotal 个词汇（$_expandVerified 已入库，$_expandPending 待审核）';
+          _expandStatus = direction.isNotEmpty
+              ? _l10n().expandStatusDone(direction, _expandTotal, _expandVerified, _expandPending, ctx)
+              : _l10n().expandStatusDoneSimple(_expandTotal, _expandVerified, _expandPending);
         } else {
-          _expandStatus = result['message']?.toString() ?? '未生成新词汇';
+          _expandStatus = result['message']?.toString() ?? _l10n().expandStatusNone;
         }
         notifyListeners();
         await _loadApiDashboard();
       } catch (e) {
-        _expandStatus = '词汇生成失败: $e';
+        _expandStatus = '${_l10n().expandStatusFailed}: $e';
         notifyListeners();
       }
     } else {
-      _expandStatus = 'API 未连接，无法生成词汇';
+      _expandStatus = _l10n().expandStatusNoApi;
       notifyListeners();
     }
     _expanding = false;
@@ -364,8 +398,12 @@ class AppState extends ChangeNotifier {
           AppTheme.setThemeMode(ThemeMode.dark);
         }
         final ifLang = cfg['interface_lang'] as String?;
+        AppLog.debug('[AppState] _loadApiData: interface_lang from API="$ifLang"');
         if (ifLang != null && ifLang.isNotEmpty) {
           _uiLang = ifLang;
+          AppLog.debug('[AppState] overrode uiLang to "$ifLang" from API config');
+        } else {
+          AppLog.debug('[AppState] keeping default uiLang="$_uiLang"');
         }
       } catch (_) {}
 
@@ -389,12 +427,11 @@ class AppState extends ChangeNotifier {
 
       await _loadApiDashboard();
     } catch (_) {
-      _languages = MockData.languages;
-      if (_languages.isNotEmpty) {
-        _activeLanguageIndex = 0;
-        AppTheme.setActiveIndex(0);
-      }
-      _loadMockDashboard();
+      // Never fall back to mock data in production mode — the UI would
+      // silently display fake words/stats. Mark unreachable and let the
+      // home screen show a retry banner instead.
+      _languages = [];
+      _serverReachable = false;
       return;
     }
     notifyListeners();
@@ -415,8 +452,8 @@ class AppState extends ChangeNotifier {
       _dailyCompleted = _progress != null && _progress!.remaining <= 0;
       _serverReachable = true;
     } catch (_) {
+      // Keep last-known data; never swap in mock data during real sessions.
       _serverReachable = false;
-      _loadMockDashboard();
       return;
     }
     notifyListeners();
@@ -449,11 +486,13 @@ class AppState extends ChangeNotifier {
       return MockData.nextQuestion(lang);
     }
     final quizApi = _quizApi;
-    if (quizApi == null) return MockData.nextQuestion(lang);
+    if (quizApi == null) return null;
     try {
       return await quizApi.getNext(language: lang);
     } catch (_) {
-      return MockData.nextQuestion(lang);
+      // A real session must never silently serve mock questions on a
+      // transient API error — return null (session end) instead.
+      return null;
     }
   }
 
@@ -491,12 +530,13 @@ class AppState extends ChangeNotifier {
       return MockData.words(activeLangCode);
     }
     final wordsApi = _wordsApi;
-    if (wordsApi == null) return MockData.words(activeLangCode);
+    if (wordsApi == null) return [];
     try {
-      final result = await wordsApi.list(language: activeLangCode, limit: 20);
+      // Only show today's new words (never reviewed) in the study phase
+      final result = await wordsApi.listNew(language: activeLangCode, limit: 50);
       return result.words;
     } catch (_) {
-      return MockData.words(activeLangCode);
+      return [];
     }
   }
 

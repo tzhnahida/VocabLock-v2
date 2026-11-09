@@ -1,3 +1,4 @@
+import '../utils/app_log.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../l10n/generated/app_localizations.dart';
@@ -10,6 +11,7 @@ class OnboardingScreen extends StatefulWidget {
     required ThemeMode themeMode,
     required String learnLang,
     required int dailyTarget,
+    required int dailyTimeTarget,
     String? apiKey,
     String? model,
     String? baseUrl,
@@ -56,7 +58,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   // Step 5: Learning
   String _learnLang = 'zh';
   Map<String, dynamic>? _langConfig;
-  int _dailyTarget = 20;
+  double _studyMinutes = 20.0; // minutes per day → ~10 questions at 2 min/q
   String _password = '';
   String _profileText = '';
   String _profileDirection = '';
@@ -114,7 +116,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         uiLang: _uiLang,
         themeMode: _themeMode,
         learnLang: _learnLang,
-        dailyTarget: _dailyTarget,
+        dailyTarget: (_studyMinutes / 2).round().clamp(3, 60), dailyTimeTarget: _studyMinutes.round(),
         apiKey: _apiKey.isNotEmpty ? _apiKey : null,
         model: _model.isNotEmpty ? _model : null,
         baseUrl: _baseUrl.isNotEmpty ? _baseUrl : null,
@@ -130,24 +132,27 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     Provider.of<AppState>(context, listen: false).themeMode = mode;
   }
 
+  // Returns '' when not configured; the caller renders the localized
+  // "not configured" label (the old hardcoded '未配置' broke non-zh UI).
   String _voiceForLang(dynamic lc) {
-    if (lc == null || lc is! Map) return '未配置';
+    if (lc == null || lc is! Map) return '';
     final provider = (lc['tts_provider'] ?? '').toString();
     final voice = (lc['tts_voice'] ?? '').toString();
-    if (provider.isEmpty) return '未配置';
+    if (provider.isEmpty || voice.isEmpty) return '';
     return '$voice ($provider)';
   }
 
   String _dictForLang(dynamic lc) {
-    if (lc == null || lc is! Map) return '未配置';
+    if (lc == null || lc is! Map) return '';
     final provider = (lc['dict_provider'] ?? '').toString();
-    if (provider.isEmpty) return '未配置';
+    if (provider.isEmpty) return '';
     return provider;
   }
 
   Future<void> _testConnection() async {
     if (_apiKey.isEmpty) return;
     setState(() { _testing = true; _testResult = ''; });
+    final l10n = AppLocalizations.of(context)!;
     try {
       // Actually test the AI connection with a simple ping message
       final chat = widget.onAiChat;
@@ -156,7 +161,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         if (mounted) {
           setState(() {
             _testing = false;
-            _testResult = reply.isNotEmpty ? '✅ 连接成功' : '❌ 无响应';
+            _testResult = reply.isNotEmpty ? l10n.onboardingTestSuccess : l10n.onboardingTestNoResponse;
           });
         }
       } else {
@@ -164,7 +169,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         if (mounted) {
           setState(() {
             _testing = false;
-            _testResult = _apiKey.startsWith('sk-') ? '✅ 连接已配置' : '⚠️ 格式可能不正确';
+            _testResult = _apiKey.startsWith('sk-') ? l10n.onboardingTestConfigured : l10n.onboardingTestBadFormat;
           });
         }
       }
@@ -172,7 +177,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       if (mounted) {
         setState(() {
           _testing = false;
-          _testResult = '❌ 连接失败 — 请检查 API Key 或网络';
+          _testResult = l10n.onboardingTestFailed;
         });
       }
     }
@@ -204,7 +209,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       try {
         reply = await widget.onAiChat!(text, _chatMsgs);
       } catch (_) {
-        reply = 'AI 助手连接失败，请检查网络后重试。';
+        reply = AppLocalizations.of(context)!.onboardingAiFailed;
       }
     } else {
       await Future.delayed(const Duration(milliseconds: 600));
@@ -247,7 +252,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (!mounted) return;
     if (failed || reply == null) {
       setState(() {
-        _chatMsgs.add((role: 'assistant', content: 'AI 响应超时，请点击下方按钮重试。'));
+        _chatMsgs.add((role: 'assistant', content: AppLocalizations.of(context)!.onboardingAiTimeout));
         _chatLoading = false;
       });
       return;
@@ -281,16 +286,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
     if (_profileDirection.isEmpty) _profileDirection = 'general';
 
-    // Detect daily target
-    final targets = [
-      RegExp(r'每日.*?(\d+)\s*题'), RegExp(r'建议.*?(\d+)\s*题'),
-      RegExp(r'(\d+)\s*题.*?每日'), RegExp(r'每天.*?(\d+)\s*题'),
-    ];
-    for (final re in targets) {
-      final m = re.firstMatch(reply);
-      if (m != null) {
-        final t = int.tryParse(m.group(1) ?? '');
-        if (t != null && t >= 5 && t <= 100) { _dailyTarget = t; break; }
+    // Detect daily study time (minutes) or question count from AI reply
+    // Prefer minutes first, then fall back to question count → minutes (2 min/q)
+    final minRe = RegExp(r'(\d+)\s*分钟');
+    final mM = minRe.firstMatch(reply);
+    if (mM != null) {
+      final t = double.tryParse(mM.group(1) ?? '');
+      if (t != null && t >= 5 && t <= 120) { _studyMinutes = t; }
+    } else {
+      final targets = [
+        RegExp(r'每日.*?(\d+)\s*题'), RegExp(r'建议.*?(\d+)\s*题'),
+        RegExp(r'(\d+)\s*题.*?每日'), RegExp(r'每天.*?(\d+)\s*题'),
+      ];
+      for (final re in targets) {
+        final m2 = re.firstMatch(reply);
+        if (m2 != null) {
+          final q = int.tryParse(m2.group(1) ?? '');
+          if (q != null && q >= 5 && q <= 100) { _studyMinutes = q * 2.0; break; }
+        }
       }
     }
   }
@@ -334,16 +347,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 borderRadius: BorderRadius.circular(AppTheme.cardRadius),
                 boxShadow: AppTheme.cardShadow,
               ),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                child: switch (_step) {
-                  0 => _buildWelcome(key: const ValueKey('w')),
-                  1 => _buildInterface(key: const ValueKey('if')),
-                  2 => _buildAIConfig(key: const ValueKey('ai')),
-                  3 => _buildInterview(key: const ValueKey('chat')),
-                  _ => _buildLearnSetup(key: const ValueKey('ls')),
-                },
-              ),
+              child: switch (_step) {
+                0 => _buildWelcome(),
+                1 => _buildInterface(),
+                2 => _buildAIConfig(),
+                3 => _buildInterview(),
+                _ => _buildLearnSetup(),
+              },
             ),
           ),
         ),
@@ -353,25 +363,27 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   // ——— Step 0: Welcome ———
   Widget _buildWelcome({Key? key}) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(key: key, mainAxisSize: MainAxisSize.min, children: [
       Container(width: 80, height: 80, decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
         gradient: LinearGradient(colors: AppTheme.primaryGradient, begin: Alignment.topLeft, end: Alignment.bottomRight),
       ), child: const Icon(Icons.auto_stories, color: Colors.white, size: 40)),
       const SizedBox(height: 28),
-      Text('Welcome to VocabLock', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+      Text(l10n.onboardingWelcomeTitle, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
       const SizedBox(height: 12),
-      Text('Master vocabulary through spaced repetition,\nAI-powered quizzes, and immersive practice.',
+      Text(l10n.onboardingWelcomeSubtitle,
           textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: AppTheme.textSecondary, height: 1.6)),
       const SizedBox(height: 32),
       _Features(),
       const SizedBox(height: 28),
-      _Btn(label: 'Get Started', onTap: _next),
+      _Btn(label: l10n.onboardingGetStarted, onTap: _next),
     ]);
   }
 
   // ——— Step 1: Interface (UI lang + Theme) ———
   Widget _buildInterface({Key? key}) {
+    return Consumer<AppState>(builder: (context, __, _) {
     final l10n = AppLocalizations.of(context)!;
     return Column(key: key, mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
       _Header(step: 1, title: l10n.onboardingInterface, onBack: () => setState(() => _step = 0)),
@@ -380,8 +392,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       const SizedBox(height: 12),
       ..._uiLanguages.map((e) => _SelectTile(
         label: e.$2, isActive: e.$1 == _uiLang, onTap: () {
+          AppLog.debug('[onboarding] TAP lang=${e.$1} before: _uiLang=$_uiLang AppState.uiLang=${Provider.of<AppState>(context, listen: false).uiLang}');
           setState(() => _uiLang = e.$1);
-          Provider.of<AppState>(context, listen: false).uiLang = e.$1;
+          final appState = Provider.of<AppState>(context, listen: false);
+          appState.uiLang = e.$1;
+          AppLog.debug('[onboarding] AFTER: _uiLang=$_uiLang AppState.uiLang=${appState.uiLang} AppState.locale=${appState.locale}');
         },
       )),
       const SizedBox(height: 24),
@@ -397,6 +412,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       const SizedBox(height: 32),
       _Btn(label: l10n.onboardingContinue, onTap: () => setState(() => _step = 2)),
     ]);
+    }); // Consumer builder close
   }
 
   // ——— Step 2: AI Config ———
@@ -415,11 +431,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             color: Colors.green.shade50,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Row(children: [
-            Icon(Icons.check_circle, color: Colors.green, size: 20),
-            SizedBox(width: 10),
-            Expanded(child: Text('✅ AI 已通过环境变量 VOCABLOCK_AI_KEY 配置',
-                style: TextStyle(fontSize: 13, color: Color(0xFF1B5E20)))),
+          child: Row(children: [
+            const Icon(Icons.check_circle, color: Colors.green, size: 20),
+            const SizedBox(width: 10),
+            Expanded(child: Text(l10n.onboardingAiConfiguredEnv,
+                style: const TextStyle(fontSize: 13, color: Color(0xFF1B5E20)))),
           ]),
         ),
       if (widget.aiConfigured) const SizedBox(height: 16),
@@ -442,7 +458,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           child: OutlinedButton.icon(
             onPressed: _apiKey.isEmpty || _testing ? null : _testConnection,
             icon: _testing ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.wifi_find, size: 18),
-            label: Text(_testResult.isNotEmpty ? _testResult : '测试连接'),
+            label: Text(_testResult.isNotEmpty ? _testResult : l10n.onboardingTestConnection),
             style: OutlinedButton.styleFrom(foregroundColor: AppTheme.primary, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
           ),
         ),
@@ -461,7 +477,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return Column(key: key, mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
       _Header(step: 3, title: l10n.onboardingAIAdvisor, onBack: () => setState(() => _step = 2)),
       const SizedBox(height: 8),
-      Text('🤖 已对话 $_roundCount 轮${_profileDone ? " · 档案已建立" : canRequestProfile ? " · 可生成方案" : "（最少 ${_minRounds} 轮后可生成）"}',
+      Text('🤖 ${l10n.onboardingInterviewRoundCount(_roundCount)}'
+          '${_profileDone ? l10n.onboardingInterviewDone : canRequestProfile ? l10n.onboardingInterviewReady : l10n.onboardingInterviewMinHint(_minRounds)}',
           style: TextStyle(fontSize: 13, color: _profileDone ? Colors.green : AppTheme.textHint)),
       const SizedBox(height: 12),
       Container(
@@ -471,7 +488,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           borderRadius: BorderRadius.circular(12),
         ),
         child: _chatMsgs.isEmpty && _chatLoading
-            ? Center(child: Text('正在连接 AI...', style: TextStyle(color: AppTheme.textHint)))
+            ? Center(child: Text(l10n.onboardingConnectingAI, style: TextStyle(color: AppTheme.textHint)))
             : ListView.builder(
                 controller: _scrollCtrl, padding: const EdgeInsets.all(12), itemCount: _chatMsgs.length,
                 itemBuilder: (_, i) {
@@ -497,14 +514,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 },
               ),
       ),
-      if (_chatLoading) Padding(padding: const EdgeInsets.only(top: 8), child: Text('AI 思考中...', style: TextStyle(fontSize: 12, color: AppTheme.textHint))),
+      if (_chatLoading) Padding(padding: const EdgeInsets.only(top: 8), child: Text(l10n.onboardingAIThinking, style: TextStyle(fontSize: 12, color: AppTheme.textHint))),
       const SizedBox(height: 12),
       if (!_profileDone) ...[
         Row(children: [
           Expanded(child: TextField(
             style: TextStyle(color: AppTheme.textPrimary, fontSize: 14),
             controller: _chatCtrl,
-            decoration: _inputDec('输入你的回答...'),
+            decoration: _inputDec(l10n.onboardingChatInputHint),
             enabled: !_chatLoading,
             onSubmitted: (v) { if (v.isNotEmpty) { _sendInterviewMsg(v); _chatCtrl.clear(); } },
           )),
@@ -547,32 +564,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         label: '${e.$2}  ${e.$3}', isActive: e.$1 == _learnLang, onTap: () { setState(() => _learnLang = e.$1); _fetchLangConfig(e.$1); },
       )),
       const SizedBox(height: 20),
-      _TtsDictInfo(lang: _learnLang, voice: _voiceForLang(_langConfig), dict: _dictForLang(_langConfig)),
+      _TtsDictInfo(lang: _learnLang, voice: _voiceForLang(_langConfig), provider: _dictForLang(_langConfig)),
       const SizedBox(height: 24),
       _Label(l10n.onboardingDailyTarget),
       Text(l10n.onboardingAccuracyHint, style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
       const SizedBox(height: 12),
-      Row(children: [10, 15, 20, 30, 50].map((n) {
-        final isActive = n == _dailyTarget;
-        return Expanded(child: GestureDetector(
-          onTap: () => setState(() => _dailyTarget = n),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200), margin: const EdgeInsets.symmetric(horizontal: 3),
-            padding: const EdgeInsets.symmetric(vertical: 14), alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: isActive ? AppTheme.primary.withValues(alpha: 0.1) : AppTheme.cardBg,
-              borderRadius: BorderRadius.circular(12),
-              border: isActive ? Border.all(color: AppTheme.primary.withValues(alpha: 0.3), width: 1.5) : null,
-            ),
-            child: Text('$n', style: TextStyle(fontSize: 15, fontWeight: isActive ? FontWeight.w700 : FontWeight.w500, color: isActive ? AppTheme.primary : AppTheme.textSecondary)),
-          ),
-        ));
-      }).toList()),
+      // Time-based slider: 5–120 minutes → ~2.5–60 questions at 2 min/q
+      Row(children: [
+        Text('${_studyMinutes.round()} ${l10n.onboardingMinutes}', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppTheme.primary)),
+        const SizedBox(width: 4),
+        Text('≈ ${(_studyMinutes / 2).round()} ${l10n.onboardingQuestionsUnit}', style: TextStyle(fontSize: 13, color: AppTheme.textHint)),
+      ]),
+      Slider(
+        value: _studyMinutes,
+        min: 5, max: 120,
+        divisions: 23, // 5-min steps
+        activeColor: AppTheme.primary,
+        onChanged: (v) => setState(() => _studyMinutes = v),
+      ),
       const SizedBox(height: 32),
       _Btn(label: l10n.onboardingComplete, onTap: () {
         widget.onComplete(
           uiLang: _uiLang, themeMode: _themeMode,
-          learnLang: _learnLang, dailyTarget: _dailyTarget,
+          learnLang: _learnLang, dailyTarget: (_studyMinutes / 2).round().clamp(3, 60), dailyTimeTarget: _studyMinutes.round(),
           apiKey: _apiKey.isNotEmpty ? _apiKey : null,
           model: _model.isNotEmpty ? _model : null,
           baseUrl: _baseUrl.isNotEmpty ? _baseUrl : null,
@@ -590,14 +604,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 class _Features extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(padding: const EdgeInsets.all(24), decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(16),
       gradient: LinearGradient(colors: [AppTheme.primary.withValues(alpha: 0.08), AppTheme.accent.withValues(alpha: 0.05)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-    ), child: const Column(children: [
-      _FRow(icon: Icons.quiz, text: '7 question types with AI-powered generation'), SizedBox(height: 16),
-      _FRow(icon: Icons.mic, text: 'Listening, reading & grammar practice'), SizedBox(height: 16),
-      _FRow(icon: Icons.language, text: 'Multi-language support with dynamic theming'), SizedBox(height: 16),
-      _FRow(icon: Icons.lock_outline, text: 'Focus lock screen for distraction-free study'),
+    ), child: Column(children: [
+      _FRow(icon: Icons.quiz, text: l10n.onboardingFeature1),
+      const SizedBox(height: 16),
+      _FRow(icon: Icons.mic, text: l10n.onboardingFeature2),
+      const SizedBox(height: 16),
+      _FRow(icon: Icons.language, text: l10n.onboardingFeature3),
+      const SizedBox(height: 16),
+      _FRow(icon: Icons.lock_outline, text: l10n.onboardingFeature4),
     ]));
   }
 }
@@ -702,11 +720,14 @@ class _Btn extends StatelessWidget {
 class _TtsDictInfo extends StatelessWidget {
   final String lang;
   final String voice;
-  final String dict;
-  const _TtsDictInfo({required this.lang, required this.voice, required this.dict});
+  final String provider;
+  const _TtsDictInfo({required this.lang, required this.voice, required this.provider});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final voiceOk = voice.isNotEmpty;
+    final providerOk = provider.isNotEmpty;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -719,29 +740,29 @@ class _TtsDictInfo extends StatelessWidget {
           Row(children: [
             Icon(Icons.settings_voice, size: 16, color: AppTheme.accent),
             const SizedBox(width: 8),
-            Text('语音合成 (TTS)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+            Text(l10n.onboardingVoiceTts, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
             const Spacer(),
-            Icon(voice == '未配置' ? Icons.warning_amber : Icons.check_circle, size: 14, color: voice == '未配置' ? Colors.orange : Colors.green),
+            Icon(voiceOk ? Icons.check_circle : Icons.warning_amber, size: 14, color: voiceOk ? Colors.green : Colors.orange),
             const SizedBox(width: 4),
-            Text(voice == '未配置' ? '未连接' : '已连接', style: TextStyle(fontSize: 11, color: voice == '未配置' ? Colors.orange : Colors.green)),
+            Text(voiceOk ? l10n.onboardingConnected : l10n.onboardingNotConnected, style: TextStyle(fontSize: 11, color: voiceOk ? Colors.green : Colors.orange)),
           ]),
           Padding(
             padding: const EdgeInsets.only(left: 24, top: 4),
-            child: Text(voice, style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
+            child: Text(voiceOk ? voice : l10n.onboardingNotConfigured, style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
           ),
           const SizedBox(height: 10),
           Row(children: [
             Icon(Icons.menu_book, size: 16, color: AppTheme.warm),
             const SizedBox(width: 8),
-            Text('词典校验 (Dict)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+            Text(l10n.onboardingDictCheck, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
             const Spacer(),
-            Icon(dict == '未配置' ? Icons.warning_amber : Icons.check_circle, size: 14, color: dict == '未配置' ? Colors.orange : Colors.green),
+            Icon(providerOk ? Icons.check_circle : Icons.warning_amber, size: 14, color: providerOk ? Colors.green : Colors.orange),
             const SizedBox(width: 4),
-            Text(dict == '未配置' ? '未连接' : '已连接', style: TextStyle(fontSize: 11, color: dict == '未配置' ? Colors.orange : Colors.green)),
+            Text(providerOk ? l10n.onboardingConnected : l10n.onboardingNotConnected, style: TextStyle(fontSize: 11, color: providerOk ? Colors.green : Colors.orange)),
           ]),
           Padding(
             padding: const EdgeInsets.only(left: 24, top: 4),
-            child: Text(dict, style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
+            child: Text(providerOk ? provider : l10n.onboardingNotConfigured, style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
           ),
         ],
       ),

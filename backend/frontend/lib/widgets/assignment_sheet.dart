@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../models/assignment.dart';
 import '../theme/app_theme.dart';
 
@@ -105,6 +106,7 @@ class _AssignmentSheetState extends State<AssignmentSheet> {
   }
 
   Widget _buildEmpty() {
+    final l10n = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.all(32),
       child: Column(
@@ -112,9 +114,9 @@ class _AssignmentSheetState extends State<AssignmentSheet> {
         children: [
           Icon(Icons.assignment_outlined, size: 48, color: AppTheme.primary.withValues(alpha: 0.3)),
           const SizedBox(height: 16),
-          Text('暂无课后作业', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+          Text(l10n.homeworkEmpty, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
           const SizedBox(height: 8),
-          Text('作业按你设定的节奏出现，现在还没有到时间。',
+          Text(l10n.homeworkEmptyHint,
               textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: AppTheme.textHint)),
           const SizedBox(height: 20),
           if (_cadence != null)
@@ -123,7 +125,7 @@ class _AssignmentSheetState extends State<AssignmentSheet> {
             OutlinedButton.icon(
               onPressed: _loadCadence,
               icon: const Icon(Icons.auto_awesome, size: 16),
-              label: const Text('AI 推荐节奏'),
+              label: Text(l10n.homeworkRecommendedCadence),
               style: OutlinedButton.styleFrom(foregroundColor: AppTheme.primary),
             ),
           if (_showCadenceTip && _cadence != null) ...[
@@ -131,13 +133,14 @@ class _AssignmentSheetState extends State<AssignmentSheet> {
             _CadenceCard(cadence: _cadence!),
           ],
           const SizedBox(height: 16),
-          TextButton(onPressed: widget.onDone, child: Text('关闭', style: TextStyle(color: AppTheme.textHint))),
+          TextButton(onPressed: widget.onDone, child: Text(l10n.close, style: TextStyle(color: AppTheme.textHint))),
         ],
       ),
     );
   }
 
   Widget _buildAssignment() {
+    final l10n = AppLocalizations.of(context)!;
     final a = _batch!.assignments[_currentIndex];
     final progress = '${_currentIndex + 1}/${_batch!.assignments.length}';
     final typeLabel = _typeName(a.type);
@@ -187,7 +190,7 @@ class _AssignmentSheetState extends State<AssignmentSheet> {
               maxLines: 6,
               style: TextStyle(fontSize: 14, color: AppTheme.textPrimary),
               decoration: InputDecoration(
-                hintText: '在这里写下你的答案...',
+                hintText: l10n.homeworkAnswerHint,
                 filled: true,
                 fillColor: AppTheme.isDark ? const Color(0xFF232438) : Colors.grey.shade50,
                 border: OutlineInputBorder(
@@ -211,7 +214,7 @@ class _AssignmentSheetState extends State<AssignmentSheet> {
                     ),
                     child: _submitting
                         ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : Text('提交', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+                        : Text(l10n.submit, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
                   ),
                 ),
               ],
@@ -220,7 +223,7 @@ class _AssignmentSheetState extends State<AssignmentSheet> {
             Center(
               child: TextButton(
                 onPressed: widget.onDone,
-                child: Text('退出', style: TextStyle(fontSize: 13, color: AppTheme.textHint)),
+                child: Text(l10n.exit, style: TextStyle(fontSize: 13, color: AppTheme.textHint)),
               ),
             ),
           ] else ...[
@@ -237,7 +240,7 @@ class _AssignmentSheetState extends State<AssignmentSheet> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 child: Text(
-                  _currentIndex + 1 < _batch!.assignments.length ? '下一题' : '完成',
+                  _currentIndex + 1 < _batch!.assignments.length ? l10n.nextQuestion : l10n.done,
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
                 ),
               ),
@@ -246,7 +249,7 @@ class _AssignmentSheetState extends State<AssignmentSheet> {
             Center(
               child: TextButton(
                 onPressed: widget.onDone,
-                child: Text('退出', style: TextStyle(fontSize: 13, color: AppTheme.textHint)),
+                child: Text(l10n.exit, style: TextStyle(fontSize: 13, color: AppTheme.textHint)),
               ),
             ),
           ],
@@ -256,11 +259,12 @@ class _AssignmentSheetState extends State<AssignmentSheet> {
   }
 
   String _typeName(String type) {
+    final l10n = AppLocalizations.of(context);
     switch (type) {
-      case 'sentence': return '造句';
-      case 'translation': return '翻译';
-      case 'fill_passage': return '填空短文';
-      case 'essay': return '短文写作';
+      case 'sentence': return l10n.typeSentence;
+      case 'translation': return l10n.typeTranslation;
+      case 'fill_passage': return l10n.typeFillPassage;
+      case 'essay': return l10n.typeEssay;
       default: return type;
     }
   }
@@ -272,6 +276,7 @@ class _CadenceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -287,7 +292,7 @@ class _CadenceCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('AI 推荐: 每${cadence.cadenceDays}天${cadence.cadenceCount}题',
+                Text(l10n.homeworkCadence(cadence.cadenceCount, cadence.cadenceDays),
                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.primary)),
                 if (cadence.reason.isNotEmpty)
                   Text(cadence.reason, style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
@@ -306,6 +311,7 @@ class _GradeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final pct = (grade.score * 100).toInt();
     final color = pct >= 80 ? Colors.green : pct >= 60 ? Colors.orange : Colors.red;
     return Container(
@@ -317,11 +323,11 @@ class _GradeCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('你的答案', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textHint)),
+          Text(l10n.yourAnswer, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textHint)),
           const SizedBox(height: 6),
           Text(grade.original, style: TextStyle(fontSize: 13, color: AppTheme.textPrimary, height: 1.5)),
           const SizedBox(height: 14),
-          Text('AI 润色', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textHint)),
+          Text(l10n.aiPolish, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textHint)),
           const SizedBox(height: 6),
           Text(grade.corrected, style: TextStyle(fontSize: 13, color: AppTheme.primary, height: 1.5)),
           const SizedBox(height: 14),
@@ -333,7 +339,7 @@ class _GradeCard extends StatelessWidget {
                   color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text('得分 $pct%', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+                child: Text(l10n.scoreBar(pct), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
               ),
               const SizedBox(width: 12),
               Expanded(child: Text(grade.feedback, style: TextStyle(fontSize: 12, color: AppTheme.textSecondary))),
@@ -341,7 +347,7 @@ class _GradeCard extends StatelessWidget {
           ),
           if (grade.errors.isNotEmpty) ...[
             const SizedBox(height: 10),
-            Text('错误标记:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.red.shade400)),
+            Text(l10n.errorMarkLabel, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.red.shade400)),
             const SizedBox(height: 4),
             ...grade.errors.map((e) => Padding(
               padding: const EdgeInsets.only(bottom: 2),

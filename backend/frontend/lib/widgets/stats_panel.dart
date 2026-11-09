@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
 import 'heatmap.dart';
@@ -48,19 +49,19 @@ class _StatsPanelState extends State<StatsPanel> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Statistics', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                  Text(AppLocalizations.of(context)!.statsTitle, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
                   const SizedBox(height: 24),
                   Row(
                     children: [
-                      _StatCard(label: 'Current Streak', value: _streak.toString(), unit: 'days', icon: Icons.local_fire_department, color: AppTheme.warm),
+                      _StatCard(label: AppLocalizations.of(context)!.statStreak, value: _streak.toString(), unit: 'days', icon: Icons.local_fire_department, color: AppTheme.warm),
                       const SizedBox(width: 16),
-                      _StatCard(label: "Today's Progress", value: '${todayStats?.reviewed ?? 0}', unit: 'of 20', icon: Icons.check_circle, color: AppTheme.primary),
+                      _StatCard(label: AppLocalizations.of(context)!.progressToday, value: '${todayStats?.reviewed ?? 0}', unit: AppLocalizations.of(context)!.statOfTotal(widget.state.progress?.dailyTarget ?? 20), icon: Icons.check_circle, color: AppTheme.primary),
                       const SizedBox(width: 16),
-                      _StatCard(label: 'Accuracy', value: '${((todayStats?.accuracy ?? 0) * 100).toInt()}', unit: '%', icon: Icons.trending_up, color: AppTheme.accent),
+                      _StatCard(label: AppLocalizations.of(context)!.labelAccuracy, value: '${((todayStats?.accuracy ?? 0) * 100).toInt()}', unit: '%', icon: Icons.trending_up, color: AppTheme.accent),
                     ],
                   ),
                   const SizedBox(height: 28),
-                  Text('Activity', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+                  Text(AppLocalizations.of(context)!.statActivity, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
                   const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.all(20),

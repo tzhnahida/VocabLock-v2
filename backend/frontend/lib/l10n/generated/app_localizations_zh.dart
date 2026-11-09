@@ -519,11 +519,446 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onboardingLanguageToStudy => '学习语言';
 
   @override
-  String get onboardingDailyTarget => '每日目标';
+  String get onboardingDailyTarget => '每日学习时间';
 
   @override
   String get onboardingAccuracyHint => '正确率 ≥ 80% 方可解锁';
 
   @override
+  String get onboardingMinutes => '分钟';
+
+  @override
+  String get onboardingQuestionsUnit => '题';
+
+  @override
   String get onboardingComplete => '完成设置，开始学习';
+
+  @override
+  String get serverOfflineBanner => '服务器连接断开 — 部分功能受限';
+
+  @override
+  String get retry => '重试';
+
+  @override
+  String get completionCongrats => '恭喜完成今日学习！';
+
+  @override
+  String get completionDone => '今日任务完成';
+
+  @override
+  String get statAnswered => '答题';
+
+  @override
+  String get statCorrect => '正确';
+
+  @override
+  String get statAccuracy => '正确率';
+
+  @override
+  String get completionHint => '你可以继续浏览单词、使用AI助手或查看统计。';
+
+  @override
+  String get practiceAgain => '再次练习';
+
+  @override
+  String get onboardingWelcomeTitle => '欢迎使用 VocabLock';
+
+  @override
+  String get onboardingWelcomeSubtitle => '通过间隔重复、AI 出题和沉浸式练习掌握词汇。';
+
+  @override
+  String get onboardingFeature1 => '7 种题型，AI 智能出题';
+
+  @override
+  String get onboardingFeature2 => '听力、阅读与语法练习';
+
+  @override
+  String get onboardingFeature3 => '多语言支持与动态主题';
+
+  @override
+  String get onboardingFeature4 => '专注锁屏，沉浸学习';
+
+  @override
+  String get onboardingGetStarted => '开始';
+
+  @override
+  String get onboardingAiConfiguredEnv => 'AI 已通过环境变量 VOCABLOCK_AI_KEY 配置';
+
+  @override
+  String get onboardingTestConnection => '测试连接';
+
+  @override
+  String get onboardingTestSuccess => '✅ 连接成功';
+
+  @override
+  String get onboardingTestNoResponse => '❌ 无响应';
+
+  @override
+  String get onboardingTestConfigured => '✅ 连接已配置';
+
+  @override
+  String get onboardingTestBadFormat => '⚠️ 格式可能不正确';
+
+  @override
+  String get onboardingTestFailed => '❌ 连接失败 — 请检查 API Key 或网络';
+
+  @override
+  String onboardingInterviewRoundCount(Object rounds) {
+    return '已对话 $rounds 轮';
+  }
+
+  @override
+  String get onboardingInterviewDone => ' · 档案已建立';
+
+  @override
+  String get onboardingInterviewReady => ' · 可生成方案';
+
+  @override
+  String onboardingInterviewMinHint(Object rounds) {
+    return '（最少 $rounds 轮后可生成）';
+  }
+
+  @override
+  String get onboardingConnectingAI => '正在连接 AI...';
+
+  @override
+  String get onboardingAIThinking => 'AI 思考中...';
+
+  @override
+  String get onboardingChatInputHint => '输入你的回答...';
+
+  @override
+  String get onboardingAiFailed => 'AI 助手连接失败，请检查网络后重试。';
+
+  @override
+  String get onboardingAiTimeout => 'AI 响应超时，请点击下方按钮重试。';
+
+  @override
+  String get onboardingVoiceTts => '语音合成 (TTS)';
+
+  @override
+  String get onboardingDictCheck => '词典校验 (Dict)';
+
+  @override
+  String get onboardingConnected => '已连接';
+
+  @override
+  String get onboardingNotConnected => '未连接';
+
+  @override
+  String get onboardingNotConfigured => '未配置';
+
+  @override
+  String get progressToday => '今日进度';
+
+  @override
+  String get progressWordsUnit => '个词';
+
+  @override
+  String get labelRecentMistakes => '近期错题';
+
+  @override
+  String get labelAccuracy => '正确率';
+
+  @override
+  String get close => '关闭';
+
+  @override
+  String get done => '完成';
+
+  @override
+  String get homeworkEmpty => '暂无课后作业';
+
+  @override
+  String get homeworkEmptyHint => '作业按你设定的节奏出现，现在还没有到时间。';
+
+  @override
+  String get homeworkRecommendedCadence => 'AI 推荐节奏';
+
+  @override
+  String get homeworkAnswerHint => '在这里写下你的答案...';
+
+  @override
+  String get nextQuestion => '下一题';
+
+  @override
+  String get typeSentence => '造句';
+
+  @override
+  String get typeTranslation => '翻译';
+
+  @override
+  String get typeFillPassage => '填空短文';
+
+  @override
+  String get typeEssay => '短文写作';
+
+  @override
+  String homeworkCadence(Object count, Object days) {
+    return 'AI 推荐: 每$days天$count题';
+  }
+
+  @override
+  String get yourAnswer => '你的答案';
+
+  @override
+  String get aiPolish => 'AI 润色';
+
+  @override
+  String scoreBar(Object pct) {
+    return '得分 $pct%';
+  }
+
+  @override
+  String get errorMarkLabel => '错误标记:';
+
+  @override
+  String get aiSessionSummary => 'AI 学习总结';
+
+  @override
+  String get aiAnalyzingSession => 'AI 正在分析你本次的学习表现并更新培养方案...';
+
+  @override
+  String get analyzing => '正在分析...';
+
+  @override
+  String get aiAnalysisFailed => 'AI 分析失败';
+
+  @override
+  String get gotIt => '知道了';
+
+  @override
+  String get sessionAnalysis => '本次学习分析';
+
+  @override
+  String get labelStrengths => '优势:';
+
+  @override
+  String get labelWeaknesses => '待改进:';
+
+  @override
+  String get labelSuggestions => '学习建议';
+
+  @override
+  String get labelUpdatedPlan => '更新后的培养方案';
+
+  @override
+  String get labelPlanDirection => '学习方向';
+
+  @override
+  String get labelPlanConfidence => '方向置信度';
+
+  @override
+  String get audioGenerating => '生成中...';
+
+  @override
+  String get audioPlaying => '播放中...';
+
+  @override
+  String get audioPlayed => '播放完毕';
+
+  @override
+  String get audioNotConfigured => 'TTS 未配置（需要外部二进制）';
+
+  @override
+  String get audioGenerateFailed => '生成失败';
+
+  @override
+  String get audioPlayFailed => 'TTS 播放失败';
+
+  @override
+  String get audioUnavailable => 'TTS 不可用';
+
+  @override
+  String audioPlayingWord(Object word) {
+    return '播放: $word';
+  }
+
+  @override
+  String audioPlayedWord(Object word) {
+    return '已播放: $word';
+  }
+
+  @override
+  String get audioPreviewHint => '输入文本试听...';
+
+  @override
+  String get audioQuickPlay => '快速播放';
+
+  @override
+  String get audioNoWords => '暂无单词';
+
+  @override
+  String approveTitle(Object word) {
+    return '审核 \"$word\"';
+  }
+
+  @override
+  String get fieldReadingRequired => '读法（必填）';
+
+  @override
+  String get fieldMeaningRequired => '释义（必填）';
+
+  @override
+  String get fieldPosRequired => '词性（必填）';
+
+  @override
+  String get fieldLevelOptional => '等级（可选）';
+
+  @override
+  String get cancel => '取消';
+
+  @override
+  String get approve => '通过';
+
+  @override
+  String approvedMsg(Object word) {
+    return '\"$word\" 已通过校验';
+  }
+
+  @override
+  String rejectTitle(Object word) {
+    return '拒绝 \"$word\"';
+  }
+
+  @override
+  String get rejectReasonHint => '拒绝原因（反馈给AI）';
+
+  @override
+  String get reject => '拒绝';
+
+  @override
+  String rejectedMsg(Object word) {
+    return '\"$word\" 已打回AI';
+  }
+
+  @override
+  String editTagsTitle(Object word) {
+    return '编辑标签: $word';
+  }
+
+  @override
+  String get tagsHint => '用逗号分隔，如: 难记, 易混淆, 考试重点';
+
+  @override
+  String get save => '保存';
+
+  @override
+  String opFailed(Object error) {
+    return '操作失败: $error';
+  }
+
+  @override
+  String get pendingTitle => '待审核词汇';
+
+  @override
+  String loadFailed(Object error) {
+    return '加载失败: $error';
+  }
+
+  @override
+  String get pendingEmpty => '没有待审核词汇';
+
+  @override
+  String get pendingEmptyHint => 'AI 生成的词汇通过词典校验后会自动入库，\n未通过校验的会出现在这里供你审核。';
+
+  @override
+  String get pendingBadge => '待审核';
+
+  @override
+  String get labelTags => '标签';
+
+  @override
+  String get tagsUpdated => '标签已更新';
+
+  @override
+  String get submit => '提交';
+
+  @override
+  String get exit => '退出';
+
+  @override
+  String get statsTitle => '统计';
+
+  @override
+  String get statStreak => '连续学习';
+
+  @override
+  String statOfTotal(Object total) {
+    return '共 $total 题';
+  }
+
+  @override
+  String get statActivity => '活跃度';
+
+  @override
+  String get aiChatTitle => 'AI 助手';
+
+  @override
+  String get aiChatEmptyHint =>
+      '关于你的词汇,随便问我!Ask me anything about your vocabulary!';
+
+  @override
+  String get aiChatInputHint => '输入消息...';
+
+  @override
+  String get expandStatusGenerating => 'AI is generating new words...';
+
+  @override
+  String expandStatusDone(Object direction, Object count, Object verified,
+      Object pending, Object context) {
+    return 'Generated $count words for [$direction] ($verified added, $pending pending review, $context existing words considered)';
+  }
+
+  @override
+  String expandStatusDoneSimple(Object count, Object verified, Object pending) {
+    return 'Generated $count words ($verified added, $pending pending review)';
+  }
+
+  @override
+  String get expandStatusNone => 'No new words generated';
+
+  @override
+  String get expandStatusFailed => 'Word generation failed';
+
+  @override
+  String get expandStatusNoApi => 'API not connected — cannot generate words';
+
+  @override
+  String quizGoalRemaining(Object count) {
+    return 'Today\'s goal: $count more questions to unlock';
+  }
+
+  @override
+  String get quizReviewPool => 'Due review pool';
+
+  @override
+  String quizReviewNote(Object count) {
+    return '$count items due — session ends automatically once the goal is met';
+  }
+
+  @override
+  String quizEstimateGoal(Object count, Object minutes) {
+    return 'Goal: $count questions · ~$minutes min';
+  }
+
+  @override
+  String get disputeGrade => '我觉得判错了';
+
+  @override
+  String get sessionEmpty => '当前没有可学习的内容';
+
+  @override
+  String get sessionEmptyHint => '请导入更多词汇,或配置 AI 自动扩词。长间隔的单词会在到期时自动出现。';
+
+  @override
+  String get sessionContinue => '继续训练';
+
+  @override
+  String get pendingAcceptAll => '全部验收';
+
+  @override
+  String pendingAcceptAllDone(Object activated, Object skipped) {
+    return '已入库 $activated 个,跳过 $skipped 个(缺少释义)';
+  }
 }

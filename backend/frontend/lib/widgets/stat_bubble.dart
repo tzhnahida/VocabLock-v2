@@ -2,12 +2,19 @@ import 'package:flutter/material.dart';
 
 class StatBubble extends StatelessWidget {
   final String label;
+  final String display;
+
+  /// Normalized ratio (0.0–1.0) used ONLY for sizing.
+  /// The old code multiplied every value by 100 and printed '%' — raw counts
+  /// (Remaining/Target) rendered as "1200%". Formatting and sizing are now
+  /// decoupled by the caller.
   final double value;
   final List<Color> gradientColors;
 
   const StatBubble({
     super.key,
     required this.label,
+    required this.display,
     required this.value,
     required this.gradientColors,
   });
@@ -39,7 +46,7 @@ class StatBubble extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            '${(value * 100).toInt()}%',
+            display,
             style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.white, height: 1.1),
           ),
           const SizedBox(height: 4),

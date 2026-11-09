@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../theme/app_theme.dart';
 
 class ProgressCard extends StatelessWidget {
@@ -68,7 +69,7 @@ class ProgressCard extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Today\'s Progress', style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.8))),
+                        Text(AppLocalizations.of(context)!.progressToday, style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.8))),
                         const SizedBox(height: 6),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
@@ -76,7 +77,7 @@ class ProgressCard extends StatelessWidget {
                             Text('$reviewed', style: const TextStyle(fontSize: 42, fontWeight: FontWeight.w700, color: Colors.white, height: 1.0)),
                             Padding(
                               padding: const EdgeInsets.only(bottom: 8, left: 6),
-                              child: Text('/ $target words', style: TextStyle(fontSize: 15, color: Colors.white.withValues(alpha: 0.6))),
+                              child: Text('/ $target ${AppLocalizations.of(context)!.progressWordsUnit}', style: TextStyle(fontSize: 15, color: Colors.white.withValues(alpha: 0.6))),
                             ),
                           ],
                         ),

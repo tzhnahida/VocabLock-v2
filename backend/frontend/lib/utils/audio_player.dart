@@ -5,7 +5,6 @@ class AppAudioPlayer {
 
   Future<void> playUrl(String url) async {
     await stop();
-    // Play audio inline via PowerShell MediaPlayer — no popup windows
     if (Platform.isWindows) {
       _current = await Process.start('powershell', [
         '-NoProfile', '-WindowStyle', 'Hidden', '-Command',
@@ -13,10 +12,14 @@ class AppAudioPlayer {
         '\$p = New-Object System.Windows.Media.MediaPlayer; ' +
         '\$p.Open([uri]"$url"); ' +
         '\$p.Play(); ' +
-        'while(\$p.Position.Ticks -eq 0) { Start-Sleep -Milliseconds 100 }; ' +
-        'while(\$p.NaturalDuration.TimeSpan.TotalSeconds -eq 0) { Start-Sleep -Milliseconds 100 }; ' +
-        '\$total = \$p.NaturalDuration.TimeSpan.TotalSeconds; ' +
-        'while(\$p.Position.TotalSeconds -lt \$total - 0.1) { Start-Sleep -Milliseconds 200 }; ' +
+        'while(\$p.Position.Ticks -eq 0) { Start-Sleep -Milliseconds 200 }; ' +
+        'Start-Sleep -Milliseconds 500; ' +
+        '\$timeout = [DateTime]::Now.AddSeconds(30); ' +
+        'while([DateTime]::Now -lt \$timeout) { ' +
+        '  \$d = \$p.NaturalDuration.TimeSpan.TotalSeconds; ' +
+        '  if (\$d -gt 0 -and \$p.Position.TotalSeconds -ge \$d - 0.3) { break }; ' +
+        '  Start-Sleep -Milliseconds 300 ' +
+        '}; ' +
         '\$p.Close()',
       ]);
     } else if (Platform.isMacOS) {
@@ -35,10 +38,14 @@ class AppAudioPlayer {
         '\$p = New-Object System.Windows.Media.MediaPlayer; ' +
         '\$p.Open([uri]"file:///$path"); ' +
         '\$p.Play(); ' +
-        'while(\$p.Position.Ticks -eq 0) { Start-Sleep -Milliseconds 100 }; ' +
-        'while(\$p.NaturalDuration.TimeSpan.TotalSeconds -eq 0) { Start-Sleep -Milliseconds 100 }; ' +
-        '\$total = \$p.NaturalDuration.TimeSpan.TotalSeconds; ' +
-        'while(\$p.Position.TotalSeconds -lt \$total - 0.1) { Start-Sleep -Milliseconds 200 }; ' +
+        'while(\$p.Position.Ticks -eq 0) { Start-Sleep -Milliseconds 200 }; ' +
+        'Start-Sleep -Milliseconds 500; ' +
+        '\$timeout = [DateTime]::Now.AddSeconds(30); ' +
+        'while([DateTime]::Now -lt \$timeout) { ' +
+        '  \$d = \$p.NaturalDuration.TimeSpan.TotalSeconds; ' +
+        '  if (\$d -gt 0 -and \$p.Position.TotalSeconds -ge \$d - 0.3) { break }; ' +
+        '  Start-Sleep -Milliseconds 300 ' +
+        '}; ' +
         '\$p.Close()',
       ]);
     } else if (Platform.isMacOS) {

@@ -55,6 +55,12 @@ class QuizApi {
     return SubmitResult.fromJson(r.data as Map<String, dynamic>);
   }
 
+  /// Marks a review_log row as disputed ("I think this was graded wrong").
+  /// Diagnostics only — no SM-2 side effects.
+  Future<void> dispute(int logId) async {
+    await _client.post('/api/v1/quiz/dispute', data: {'log_id': logId});
+  }
+
   Future<TodayStats> getTodayStats({String? language}) async {
     final r = await _client.get('/api/v1/quiz/today-stats', queryParameters: {
       if (language != null) 'language': language,
@@ -65,6 +71,12 @@ class QuizApi {
   Future<Map<String, dynamic>> complete() async {
     final r = await _client.post('/api/v1/quiz/complete');
     return r.data as Map<String, dynamic>;
+  }
+
+  /// Deliberately opts back IN past the session soft cap
+  /// ("I know the target isn't met — keep serving questions anyway").
+  Future<void> continueSession() async {
+    await _client.post('/api/v1/quiz/session/continue');
   }
 
   // —— Session ——

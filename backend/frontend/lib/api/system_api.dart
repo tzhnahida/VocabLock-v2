@@ -34,4 +34,9 @@ class SystemApi {
     final r = await _client.post('/api/v1/system/quit');
     return (r.data as Map<String, dynamic>)['quitting'] == true;
   }
+
+  Future<bool> restart() async {
+    final r = await _client.post('/api/v1/system/restart');
+    return (r.data as Map<String, dynamic>)['restarted'] == true;
+  }
 }

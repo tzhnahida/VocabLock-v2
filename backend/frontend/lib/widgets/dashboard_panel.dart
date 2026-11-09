@@ -21,7 +21,11 @@ class DashboardPanel extends StatelessWidget {
     final mistakes = state.recentMistakes;
     final barHeights = List.generate(14, (i) => Random(i * 31 + DateTime.now().day).nextDouble() * 0.7 + 0.3);
 
-    return Padding(
+    // Scrollable: on 720p window heights the fixed header (60) + progress
+    // card (180) + bubbles (170) overflow by ~180px — the old Column
+    // rendered a RenderFlex overflow (invisible in release, yellow/black
+    // stripes in debug) and clipped the Recent Mistakes list.
+    return SingleChildScrollView(
       padding: EdgeInsets.symmetric(horizontal: width * 0.04, vertical: 28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -48,15 +52,17 @@ class DashboardPanel extends StatelessWidget {
                   final colors = _bubbleColors(bubbleStats.keys.toList().indexOf(e.key));
                   return StatBubble(
                     label: _bubbleLabel(e.key),
-                    value: e.value,
+                    display: _bubbleDisplay(e.key, e.value),
+                    value: _bubbleRatio(e.key, e.value),
                     gradientColors: colors,
                   );
                 }).toList(),
               ),
             ),
           const SizedBox(height: 28),
-          Expanded(
-            child: ReviewList(words: mistakes),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 380),
+            child: SingleChildScrollView(child: ReviewList(words: mistakes)),
           ),
         ],
       ),
@@ -70,6 +76,26 @@ class DashboardPanel extends StatelessWidget {
       case 'grammar': return 'Grammar';
       default: return key;
     }
+  }
+
+  /// Bubbles carry two value contracts: ratios (0–1, rendered as %,
+  /// e.g. Accuracy / mock AI-type ratios) and raw counts (rendered as
+  /// integers, e.g. Correct/Remaining/Target from the real dashboard path).
+  /// Keys known to be ratios render as percentages; everything else is a count.
+  static const _ratioKeys = {'Accuracy', 'listening', 'reading_comp', 'grammar'};
+
+  String _bubbleDisplay(String key, double v) {
+    if (_ratioKeys.contains(key)) return '${(v * 100).toInt()}%';
+    return v.round().toString();
+  }
+
+  /// Sizing ratio: percentages use the value directly, counts are
+  /// normalized against the daily target so bubbles stay comparable.
+  double _bubbleRatio(String key, double v) {
+    if (_ratioKeys.contains(key)) return v.clamp(0.0, 1.0).toDouble();
+    final target = state.progress?.dailyTarget ?? 20;
+    if (target <= 0) return v.clamp(0.2, 1.0).toDouble();
+    return (v / target).clamp(0.2, 1.0).toDouble();
   }
 
   List<Color> _bubbleColors(int index) {
@@ -109,7 +135,7 @@ class _Header extends StatelessWidget {
         ),
         Row(
           children: [
-            _StatChip(label: 'Accuracy', value: '${((todayStats?.accuracy ?? 0) * 100).toInt()}%'),
+            _StatChip(label: AppLocalizations.of(context).labelAccuracy, value: '${((todayStats?.accuracy ?? 0) * 100).toInt()}%'),
             const SizedBox(width: 12),
             if (remaining > 0 && onStartQuiz != null)
               ElevatedButton.icon(

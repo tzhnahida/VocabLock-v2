@@ -73,8 +73,6 @@ enum QuestionType {
         return 'Reading Comp';
       case QuestionType.grammar:
         return 'Grammar';
-      case QuestionType.meaning:
-        return 'Meaning';
       case QuestionType.readWord:
         return 'Read';
       case QuestionType.readSentence:
@@ -126,8 +124,11 @@ class Question {
   bool get isCompleted => id.isEmpty;
 
   /// Whether this question type should show a word preview card before answering.
+  /// Listening questions must NOT show the word — the answer (correct meaning)
+  /// is a choice on the same screen, and revealing the word text would give it
+  /// away. Their audio is played via the listening play bar instead.
   bool get showWordPreview =>
-      subjectType == 'word' && !type.wordIsAnswer &&
+      subjectType == 'word' && type != QuestionType.listening && !type.wordIsAnswer &&
       (subjectWord != null || subjectReading != null);
 }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/tool_sidebar.dart';
@@ -70,6 +71,8 @@ class _HomeScreenState extends State<HomeScreen> {
             final fullUrl = '$baseUrl$url${url.contains('?') ? '&' : '?'}token=$token';
             await player.playUrl(fullUrl);
           },
+          onDispute: (logId) => state.quizApi?.dispute(logId) ?? Future.value(),
+          onContinueSession: () => state.quizApi?.continueSession() ?? Future.value(),
           onGetFieldConfig: () async {
             if (state.configApi == null) return [];
             try {
@@ -183,6 +186,35 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context, state, _) {
         final languages = state.languages;
         if (languages.isEmpty) {
+          if (!state.serverReachable) {
+            // Backend unreachable on first load — offer retry instead of
+            // an endless spinner. (Previously the app showed a permanent
+            // CircularProgressIndicator with no way out.)
+            return Scaffold(
+              backgroundColor: AppTheme.bgColor,
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.cloud_off, size: 48, color: Colors.redAccent),
+                    const SizedBox(height: 16),
+                    Text(
+                      AppLocalizations.of(context)!.serverOfflineBanner,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 15, color: AppTheme.textSecondary),
+                    ),
+                    const SizedBox(height: 20),
+                    OutlinedButton.icon(
+                      onPressed: () => state.refresh(),
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: Text(AppLocalizations.of(context)!.retry),
+                      style: OutlinedButton.styleFrom(foregroundColor: AppTheme.primary),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
 
@@ -199,13 +231,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       const Icon(Icons.cloud_off, color: Colors.white, size: 18),
                       const SizedBox(width: 8),
-                      const Expanded(
-                        child: Text('服务器连接断开 — 显示的是本地模拟数据',
-                            style: TextStyle(color: Colors.white, fontSize: 13)),
+                      Expanded(
+                        child: Text(AppLocalizations.of(context)!.serverOfflineBanner,
+                            style: const TextStyle(color: Colors.white, fontSize: 13)),
                       ),
                       TextButton(
                         onPressed: () => state.refresh(),
-                        child: const Text('重试', style: TextStyle(color: Colors.white, fontSize: 12)),
+                        child: Text(AppLocalizations.of(context)!.retry,
+                            style: const TextStyle(color: Colors.white, fontSize: 12)),
                       ),
                     ],
                   ),
@@ -257,6 +290,7 @@ class _CompletionView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final todayStats = state.todayStats;
     final accuracy = todayStats != null ? (todayStats.accuracy * 100).toInt() : 0;
     final reviewed = todayStats?.reviewed ?? 0;
@@ -283,30 +317,30 @@ class _CompletionView extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             Text(
-              accuracy >= 80 ? '恭喜完成今日学习！' : '今日任务完成',
+              accuracy >= 80 ? l10n.completionCongrats : l10n.completionDone,
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
             ),
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _MiniStat(label: '答题', value: '$reviewed'),
+                _MiniStat(label: l10n.statAnswered, value: '$reviewed'),
                 const SizedBox(width: 32),
-                _MiniStat(label: '正确', value: '$correct'),
+                _MiniStat(label: l10n.statCorrect, value: '$correct'),
                 const SizedBox(width: 32),
-                _MiniStat(label: '正确率', value: '$accuracy%'),
+                _MiniStat(label: l10n.statAccuracy, value: '$accuracy%'),
               ],
             ),
             const SizedBox(height: 32),
             Text(
-              '你可以继续浏览单词、使用AI助手或查看统计。',
+              l10n.completionHint,
               style: TextStyle(fontSize: 14, color: AppTheme.textHint),
             ),
             const SizedBox(height: 20),
             OutlinedButton.icon(
               onPressed: onQuiz,
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('再次练习'),
+              label: Text(l10n.practiceAgain),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppTheme.primary,
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),

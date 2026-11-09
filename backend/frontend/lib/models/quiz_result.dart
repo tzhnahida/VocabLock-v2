@@ -5,6 +5,7 @@ class SubmitResult {
   final String source;
   final DateTime? nextReviewAt;
   final List<PhonemeScore>? phonemes; // for read_word/read_sentence
+  final int logId; // review_log row id (for dispute marking)
 
   const SubmitResult({
     required this.correct,
@@ -13,6 +14,7 @@ class SubmitResult {
     this.source = 'exact',
     this.nextReviewAt,
     this.phonemes,
+    this.logId = 0,
   });
 
   factory SubmitResult.fromJson(Map<String, dynamic> json) => SubmitResult(
@@ -24,6 +26,7 @@ class SubmitResult {
         phonemes: (json['phonemes'] as List<dynamic>?)
             ?.map((p) => PhonemeScore.fromJson(p as Map<String, dynamic>))
             .toList(),
+        logId: (json['log_id'] as num?)?.toInt() ?? 0,
       );
 }
 

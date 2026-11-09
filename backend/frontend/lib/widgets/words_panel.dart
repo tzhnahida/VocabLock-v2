@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../models/word.dart';
 import '../models/question.dart';
 import '../providers/app_state.dart';
@@ -72,7 +73,7 @@ class _WordsPanelState extends State<WordsPanel> with SingleTickerProviderStateM
         children: [
           Row(
             children: [
-              Text('Library', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+              Text(AppLocalizations.of(context)!.headingLibrary, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
               const Spacer(),
               _buildStatsBar(),
             ],
@@ -85,8 +86,8 @@ class _WordsPanelState extends State<WordsPanel> with SingleTickerProviderStateM
             indicatorColor: AppTheme.primary,
             labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             tabs: [
-              Tab(text: 'Words (${_words.length})'),
-              Tab(text: 'Grammar (${_grammarPoints.length})'),
+              Tab(text: '${AppLocalizations.of(context)!.tabWords} (${_words.length})'),
+              Tab(text: '${AppLocalizations.of(context)!.tabGrammar} (${_grammarPoints.length})'),
             ],
           ),
           const SizedBox(height: 12),
@@ -94,7 +95,7 @@ class _WordsPanelState extends State<WordsPanel> with SingleTickerProviderStateM
             controller: _searchCtrl,
             onChanged: (_) => setState(() {}),
             decoration: InputDecoration(
-              hintText: 'Search...',
+              hintText: AppLocalizations.of(context)!.searchHint,
               prefixIcon: const Icon(Icons.search, size: 20),
               filled: true,
               fillColor: AppTheme.cardBg,

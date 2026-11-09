@@ -519,11 +519,447 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onboardingLanguageToStudy => '学習言語';
 
   @override
-  String get onboardingDailyTarget => '1日の目標';
+  String get onboardingDailyTarget => '1日の学習時間';
 
   @override
   String get onboardingAccuracyHint => '正解率80%以上でロック解除';
 
   @override
+  String get onboardingMinutes => '分';
+
+  @override
+  String get onboardingQuestionsUnit => '問';
+
+  @override
   String get onboardingComplete => '設定完了、学習開始';
+
+  @override
+  String get serverOfflineBanner => 'サーバーに接続できません — 一部機能が制限されます';
+
+  @override
+  String get retry => '再試行';
+
+  @override
+  String get completionCongrats => 'おめでとうございます！今日の目標達成！';
+
+  @override
+  String get completionDone => '今日のタスク完了';
+
+  @override
+  String get statAnswered => '回答数';
+
+  @override
+  String get statCorrect => '正解';
+
+  @override
+  String get statAccuracy => '正解率';
+
+  @override
+  String get completionHint => '単語の閲覧、AIアシスタント、統計の確認ができます。';
+
+  @override
+  String get practiceAgain => 'もう一度練習';
+
+  @override
+  String get onboardingWelcomeTitle => 'VocabLock へようこそ';
+
+  @override
+  String get onboardingWelcomeSubtitle => '間隔反復とAI生成問題、没入型練習で語彙を身につけましょう。';
+
+  @override
+  String get onboardingFeature1 => 'AI生成を含む7種類の問題形式';
+
+  @override
+  String get onboardingFeature2 => 'リスニング・リーディング・文法練習';
+
+  @override
+  String get onboardingFeature3 => '多言語対応と動的テーマ';
+
+  @override
+  String get onboardingFeature4 => '集中ロック画面で没入学習';
+
+  @override
+  String get onboardingGetStarted => 'はじめる';
+
+  @override
+  String get onboardingAiConfiguredEnv => '環境変数 VOCABLOCK_AI_KEY でAIが設定済みです';
+
+  @override
+  String get onboardingTestConnection => '接続テスト';
+
+  @override
+  String get onboardingTestSuccess => '✅ 接続成功';
+
+  @override
+  String get onboardingTestNoResponse => '❌ 応答なし';
+
+  @override
+  String get onboardingTestConfigured => '✅ 設定済み';
+
+  @override
+  String get onboardingTestBadFormat => '⚠️ キー形式が正しくない可能性があります';
+
+  @override
+  String get onboardingTestFailed => '❌ 接続失敗 — APIキーまたはネットワークを確認してください';
+
+  @override
+  String onboardingInterviewRoundCount(Object rounds) {
+    return '対話 $rounds 回';
+  }
+
+  @override
+  String get onboardingInterviewDone => ' · プロフィール作成済み';
+
+  @override
+  String get onboardingInterviewReady => ' · プラン生成可能';
+
+  @override
+  String onboardingInterviewMinHint(Object rounds) {
+    return '（最低$rounds回から生成可能）';
+  }
+
+  @override
+  String get onboardingConnectingAI => 'AIに接続中...';
+
+  @override
+  String get onboardingAIThinking => 'AI が考えています...';
+
+  @override
+  String get onboardingChatInputHint => '回答を入力...';
+
+  @override
+  String get onboardingAiFailed => 'AIアシスタントへの接続に失敗しました。ネットワークを確認して再試行してください。';
+
+  @override
+  String get onboardingAiTimeout => 'AIの応答がタイムアウトしました。下のボタンで再試行してください。';
+
+  @override
+  String get onboardingVoiceTts => '音声合成 (TTS)';
+
+  @override
+  String get onboardingDictCheck => '辞書チェック (Dict)';
+
+  @override
+  String get onboardingConnected => '接続済み';
+
+  @override
+  String get onboardingNotConnected => '未接続';
+
+  @override
+  String get onboardingNotConfigured => '未設定';
+
+  @override
+  String get progressToday => '今日の進捗';
+
+  @override
+  String get progressWordsUnit => '単語';
+
+  @override
+  String get labelRecentMistakes => '最近の間違い';
+
+  @override
+  String get labelAccuracy => '正解率';
+
+  @override
+  String get close => '閉じる';
+
+  @override
+  String get done => '完了';
+
+  @override
+  String get homeworkEmpty => '宿題はまだありません';
+
+  @override
+  String get homeworkEmptyHint => '宿題は設定したリズムに沿って表示されます。まだ時間になっていません。';
+
+  @override
+  String get homeworkRecommendedCadence => 'おすすめのリズム';
+
+  @override
+  String get homeworkAnswerHint => 'ここに回答を書いて...';
+
+  @override
+  String get nextQuestion => '次の問題';
+
+  @override
+  String get typeSentence => '作文';
+
+  @override
+  String get typeTranslation => '翻訳';
+
+  @override
+  String get typeFillPassage => '穴埋め短文';
+
+  @override
+  String get typeEssay => '短文写作';
+
+  @override
+  String homeworkCadence(Object count, Object days) {
+    return 'AI推奨: $days日ごとに$count問';
+  }
+
+  @override
+  String get yourAnswer => 'あなたの回答';
+
+  @override
+  String get aiPolish => 'AIリライト';
+
+  @override
+  String scoreBar(Object pct) {
+    return 'スコア $pct%';
+  }
+
+  @override
+  String get errorMarkLabel => '誤りマーク:';
+
+  @override
+  String get aiSessionSummary => 'AI学習サマリー';
+
+  @override
+  String get aiAnalyzingSession => 'AIが今回の学習を分析し、学習プランを更新しています...';
+
+  @override
+  String get analyzing => '分析中...';
+
+  @override
+  String get aiAnalysisFailed => 'AI分析に失敗';
+
+  @override
+  String get gotIt => '了解しました';
+
+  @override
+  String get sessionAnalysis => '今回の学習分析';
+
+  @override
+  String get labelStrengths => '強み:';
+
+  @override
+  String get labelWeaknesses => '改善点:';
+
+  @override
+  String get labelSuggestions => '学習アドバイス';
+
+  @override
+  String get labelUpdatedPlan => '更新後の学習プラン';
+
+  @override
+  String get labelPlanDirection => '学習方向';
+
+  @override
+  String get labelPlanConfidence => '方向の信頼度';
+
+  @override
+  String get audioGenerating => '生成中...';
+
+  @override
+  String get audioPlaying => '再生中...';
+
+  @override
+  String get audioPlayed => '再生完了';
+
+  @override
+  String get audioNotConfigured => 'TTS未設定（外部バイナリが必要）';
+
+  @override
+  String get audioGenerateFailed => '生成失敗';
+
+  @override
+  String get audioPlayFailed => '再生失敗';
+
+  @override
+  String get audioUnavailable => 'TTS利用不可';
+
+  @override
+  String audioPlayingWord(Object word) {
+    return '再生: $word';
+  }
+
+  @override
+  String audioPlayedWord(Object word) {
+    return '再生済み: $word';
+  }
+
+  @override
+  String get audioPreviewHint => 'テキストを入力して試聴...';
+
+  @override
+  String get audioQuickPlay => 'クイック再生';
+
+  @override
+  String get audioNoWords => '単語がありません';
+
+  @override
+  String approveTitle(Object word) {
+    return '「$word」を承認';
+  }
+
+  @override
+  String get fieldReadingRequired => '読み方（必須）';
+
+  @override
+  String get fieldMeaningRequired => '意味（必須）';
+
+  @override
+  String get fieldPosRequired => '品詞（必須）';
+
+  @override
+  String get fieldLevelOptional => 'レベル（任意）';
+
+  @override
+  String get cancel => 'キャンセル';
+
+  @override
+  String get approve => '承認';
+
+  @override
+  String approvedMsg(Object word) {
+    return '「$word」を承認しました';
+  }
+
+  @override
+  String rejectTitle(Object word) {
+    return '「$word」を却下';
+  }
+
+  @override
+  String get rejectReasonHint => '却下理由（AIへのフィードバック）';
+
+  @override
+  String get reject => '却下';
+
+  @override
+  String rejectedMsg(Object word) {
+    return '「$word」をAIに返却しました';
+  }
+
+  @override
+  String editTagsTitle(Object word) {
+    return 'タグ編集: $word';
+  }
+
+  @override
+  String get tagsHint => 'カンマ区切り、例: 難しい, 紛らわしい, 試験重要';
+
+  @override
+  String get save => '保存';
+
+  @override
+  String opFailed(Object error) {
+    return '操作失敗: $error';
+  }
+
+  @override
+  String get pendingTitle => 'レビュー待ちの単語';
+
+  @override
+  String loadFailed(Object error) {
+    return '読み込み失敗: $error';
+  }
+
+  @override
+  String get pendingEmpty => 'レビュー待ちの単語はありません';
+
+  @override
+  String get pendingEmptyHint =>
+      'AIが生成した単語は辞書チェック後に自動登録されます。\nチェックに合格しなかった単語がここに表示されます。';
+
+  @override
+  String get pendingBadge => 'レビュー待ち';
+
+  @override
+  String get labelTags => 'タグ';
+
+  @override
+  String get tagsUpdated => 'タグを更新しました';
+
+  @override
+  String get submit => '提出';
+
+  @override
+  String get exit => '退出';
+
+  @override
+  String get statsTitle => '統計';
+
+  @override
+  String get statStreak => '連続学習';
+
+  @override
+  String statOfTotal(Object total) {
+    return '全$total問中';
+  }
+
+  @override
+  String get statActivity => 'アクティビティ';
+
+  @override
+  String get aiChatTitle => 'AIアシスタント';
+
+  @override
+  String get aiChatEmptyHint => '語彙について何でも聞いてください!';
+
+  @override
+  String get aiChatInputHint => 'メッセージを入力...';
+
+  @override
+  String get expandStatusGenerating => 'AI is generating new words...';
+
+  @override
+  String expandStatusDone(Object direction, Object count, Object verified,
+      Object pending, Object context) {
+    return 'Generated $count words for [$direction] ($verified added, $pending pending review, $context existing words considered)';
+  }
+
+  @override
+  String expandStatusDoneSimple(Object count, Object verified, Object pending) {
+    return 'Generated $count words ($verified added, $pending pending review)';
+  }
+
+  @override
+  String get expandStatusNone => 'No new words generated';
+
+  @override
+  String get expandStatusFailed => 'Word generation failed';
+
+  @override
+  String get expandStatusNoApi => 'API not connected — cannot generate words';
+
+  @override
+  String quizGoalRemaining(Object count) {
+    return 'Today\'s goal: $count more questions to unlock';
+  }
+
+  @override
+  String get quizReviewPool => 'Due review pool';
+
+  @override
+  String quizReviewNote(Object count) {
+    return '$count items due — session ends automatically once the goal is met';
+  }
+
+  @override
+  String quizEstimateGoal(Object count, Object minutes) {
+    return 'Goal: $count questions · ~$minutes min';
+  }
+
+  @override
+  String get disputeGrade => '採点が間違っていると思う';
+
+  @override
+  String get sessionEmpty => '現在学習できる内容がありません';
+
+  @override
+  String get sessionEmptyHint =>
+      '単語をインポートするか、AI拡張を設定してください。長い間隔の単語は期限日に再表示されます。';
+
+  @override
+  String get sessionContinue => 'トレーニングを続ける';
+
+  @override
+  String get pendingAcceptAll => '全て承認';
+
+  @override
+  String pendingAcceptAllDone(Object activated, Object skipped) {
+    return '$activated 件を登録、$skipped 件スキップ(意味なし)';
+  }
 }

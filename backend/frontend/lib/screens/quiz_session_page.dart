@@ -26,6 +26,8 @@ class QuizSessionPage extends StatefulWidget {
   final Future<void> Function(int wordId) onPlayWordAudio;
   final Future<void> Function(String text) onPlayTextAudio;
   final Future<List<WordFieldConfig>> Function()? onGetFieldConfig;
+  final Future<void> Function(int logId)? onDispute;
+  final Future<void> Function()? onContinueSession;
 
   const QuizSessionPage({
     super.key,
@@ -39,6 +41,8 @@ class QuizSessionPage extends StatefulWidget {
     this.onSummarize,
     this.onComplete,
     this.onGetFieldConfig,
+    this.onDispute,
+    this.onContinueSession,
   });
 
   @override
@@ -56,12 +60,22 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
   int _reviewGrammar = 0;
   bool _dailyCompleted = false;
   bool _preparing = false;
+  bool _empty = false;
   Timer? _preparingTimer;
+  int _dailyRemaining = 0; // goal framing: real requirement to unlock (not the due pool)
 
   // Learning phase
   List<Word> _studyWords = [];
   List<GrammarPoint> _studyGrammar = [];
   List<WordFieldConfig>? _fieldConfig;
+  final Set<int> _studyRead = {}; // word IDs that the user has read aloud
+  int _studyGrammarDone = 0; // grammar cards marked as reviewed
+  bool _studyRecording = false;
+  Uint8List? _studyRecordedBytes;
+  String? _studyRecordedPath;
+  bool _studySubmitting = false;
+  SubmitResult? _studyResult;       // last read-aloud result
+  List<PhonemeScore>? _studyPhonemes; // phoneme breakdown from last result
   bool _loadingStudy = true;
   int _currentPage = 0;
   late final PageController _pageCtrl = PageController();
@@ -90,6 +104,25 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
   bool _summarizing = false;
   SessionSummary? _summary;
   bool _showSummary = false;
+
+  // Dispute ("I think this was graded wrong") — stamps the review_log row
+  // for AI calibration. No SM-2 side effects (backend marks dispute only).
+  int _lastLogId = 0;
+  bool _disputed = false;
+  bool _disputing = false;
+
+  Future<void> _dispute() async {
+    if (_disputing || _lastLogId <= 0 || _disputed) return;
+    setState(() => _disputing = true);
+    try {
+      await widget.onDispute?.call(_lastLogId);
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() {
+      _disputed = true;
+      _disputing = false;
+    });
+  }
 
   @override
   void dispose() {
@@ -162,6 +195,8 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
       _result = result;
       _phonemeScores = result?.phonemes;
       _submitting = false;
+      _lastLogId = result?.logId ?? 0;
+      _disputed = false;
     });
   }
 
@@ -172,6 +207,264 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
       _phonemeScores = null;
       _result = null;
     });
+  }
+
+  // ——— Study-phase read-aloud ———
+
+  Future<void> _studyStartRecording() async {
+    if (!await _recorder.hasPermission()) return;
+    _studyRecordedBytes = null;
+    final tmpDir = Directory.systemTemp;
+    final recordPath = '${tmpDir.path}/vocablock_study_${DateTime.now().millisecondsSinceEpoch}.wav';
+    await _recorder.start(
+      RecordConfig(
+        encoder: AudioEncoder.wav,
+        bitRate: 256000,
+        sampleRate: 16000,
+        numChannels: 1,
+      ),
+      path: recordPath,
+    );
+    setState(() => _studyRecording = true);
+  }
+
+  Future<void> _studyStopRecording() async {
+    final path = await _recorder.stop();
+    if (path == null) return;
+    final file = File(path);
+    final bytes = await file.readAsBytes();
+    setState(() {
+      _studyRecording = false;
+      _studyRecordedBytes = bytes;
+      _studyRecordedPath = path;
+    });
+  }
+
+  Future<void> _studySubmitReading(int wordId) async {
+    if (_studyRecordedBytes == null || _studySubmitting) return;
+    setState(() => _studySubmitting = true);
+    final audio = base64Encode(_studyRecordedBytes!);
+    SubmitResult? result;
+    try {
+      result = await widget.onSubmit(
+        questionId: 'study_$wordId',
+        subjectType: 'word',
+        subjectId: wordId,
+        questionType: 'read_word',
+        answer: '',
+        audio: audio,
+      );
+    } catch (_) {}
+    if (!mounted) return;
+    _answered++;
+    final passed = result != null && result.correct;
+    // If the pronounce provider can't assess this word (e.g. not in Julius dict),
+    // auto-pass — SM-2 was already updated by the backend fallback.
+    final forcePass = result != null && !result.correct
+        && (result.source == 'assess_error' || result.source == 'no_provider');
+    if (passed) _correct++;
+    setState(() {
+      _studyResult = result;
+      _studyPhonemes = result?.phonemes;
+      _lastLogId = result?.logId ?? 0;
+      _disputed = false;
+      _studySubmitting = false;
+      if (passed || forcePass) {
+        _studyRead.add(wordId);
+        _studyRecordedBytes = null;
+        _studyRecordedPath = null;
+      }
+    });
+    // If all new words read, start quiz — unless grammar cards are still
+    // pending. The old code skipped _studyGrammar entirely: reading the last
+    // word jumped straight to the quiz and the grammar study cards were
+    // silently dropped from the session.
+    if ((passed || forcePass) && _studyRead.length >= _studyWords.length) {
+      if (_studyGrammar.isEmpty) {
+        _startQuiz();
+      } else {
+        _studyGoToPage(_studyWords.length);
+      }
+    }
+  }
+
+  void _studyGoToPage(int page) {
+    setState(() {
+      _currentPage = page;
+      _studyResult = null;
+      _studyPhonemes = null;
+      _studyRecordedBytes = null;
+      _studyRecordedPath = null;
+    });
+    // Auto-play audio for the new word
+    if (page < _studyWords.length) {
+      widget.onPlayWordAudio(_studyWords[page].id);
+    }
+  }
+
+  void _studyRetry() {
+    setState(() {
+      _studyRecordedBytes = null;
+      _studyRecordedPath = null;
+    });
+  }
+
+  // Same result UI as quiz read-aloud
+  Widget _buildStudyResult(Word word) {
+    final l10n = AppLocalizations.of(context)!;
+    final result = _studyResult;
+    final isRead = _studyRead.contains(word.id);
+    final passed = result?.correct == true;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: passed ? Colors.green.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: passed ? Colors.green : Colors.orange, width: 1.5),
+      ),
+      child: Column(
+        children: [
+          Text(
+            passed ? l10n.readAloudPass : l10n.readAloudNeedWork,
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800,
+                color: passed ? Colors.green.shade700 : Colors.orange.shade700),
+          ),
+          if (result != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              l10n.readAloudScoreLabel((result.score * 100).round(), 50),
+              style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
+            ),
+            if (_studyPhonemes != null && _studyPhonemes!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8, runSpacing: 6,
+                children: _studyPhonemes!.map((p) {
+                  final pPassed = p.score >= 0.45;
+                  return Container(
+                    width: 52,
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    decoration: BoxDecoration(
+                      color: pPassed ? Colors.green.withValues(alpha: 0.12) : Colors.red.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: pPassed ? Colors.green : Colors.red, width: 1.5),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(p.phoneme, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700,
+                            color: pPassed ? Colors.green.shade700 : Colors.red.shade700)),
+                        Text('${(p.score * 100).round()}%', style: TextStyle(fontSize: 11,
+                            color: pPassed ? Colors.green.shade600 : Colors.red.shade600)),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ],
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (_studyRecordedBytes != null || _studyRecordedPath != null)
+                IconButton(
+                  onPressed: () => _playbackPlayer.playFile(_studyRecordedPath!),
+                  icon: const Icon(Icons.play_circle, size: 32),
+                  color: AppTheme.primary,
+                  tooltip: l10n.tooltipPlayAudio,
+                ),
+              const SizedBox(width: 8),
+              if (!passed)
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: Text(l10n.recordingRetry),
+                  onPressed: () => setState(() {
+                    _studyResult = null;
+                    _studyPhonemes = null;
+                    _studyRecordedBytes = null;
+                    _studyRecordedPath = null;
+                  }),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              if (isRead)
+                Text(l10n.quizNext, style: TextStyle(fontSize: 13, color: AppTheme.textHint)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStudyAction(Word word) {
+    final l10n = AppLocalizations.of(context)!;
+    final isRead = _studyRead.contains(word.id);
+
+    if (isRead || _studyResult != null) {
+      return _buildStudyResult(word);
+    }
+    if (_studySubmitting) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_studyRecordedBytes != null) {
+      return Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton.filled(
+                icon: const Icon(Icons.play_arrow, size: 28),
+                onPressed: () => _playbackPlayer.playFile(_studyRecordedPath!),
+                style: IconButton.styleFrom(backgroundColor: AppTheme.primary),
+              ),
+              const SizedBox(width: 16),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.check, size: 20),
+                label: Text(l10n.quizSubmit, style: TextStyle(fontSize: 14)),
+                onPressed: () => _studySubmitReading(word.id),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+                ),
+              ),
+              const SizedBox(width: 12),
+              TextButton(
+                onPressed: _studyRetry,
+                child: Text(l10n.recordingRetry, style: TextStyle(fontSize: 13)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(l10n.readAloudListenFirst, style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
+        ],
+      );
+    }
+    // Not recorded yet
+    return Column(
+      children: [
+        ElevatedButton.icon(
+          icon: Icon(_studyRecording ? Icons.mic : Icons.mic_none, size: 22),
+          label: Text(_studyRecording ? l10n.recordingInProgress : l10n.recordingStart,
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+          onPressed: _studyRecording ? _studyStopRecording : _studyStartRecording,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _studyRecording ? Colors.red : AppTheme.primary,
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          ),
+        ),
+        if (_studyRecording)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(l10n.recordingStop, style: TextStyle(fontSize: 12, color: Colors.red)),
+          ),
+      ],
+    );
   }
 
   Future<void> _skipReading() async {
@@ -192,6 +485,8 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
     setState(() {
       _result = result;
       _submitting = false;
+      _lastLogId = result?.logId ?? 0;
+      _disputed = false;
     });
   }
 
@@ -216,6 +511,14 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
           _reviewGrammar = (counts['review_grammar'] as num?)?.toInt() ?? 0;
           _dailyCompleted = counts['daily_completed'] == true;
           _preparing = counts['preparing'] == true;
+          _empty = counts['empty'] == true;
+          // Goal framing: backend sends daily_remaining; fall back to the
+          // whole pool (old servers / mock) only when absent.
+          _dailyRemaining = (counts['daily_remaining'] as num?)?.toInt() ??
+              ((counts['new_words'] as num?)?.toInt() ?? 0) +
+                  ((counts['new_grammar'] as num?)?.toInt() ?? 0) +
+                  ((counts['review_words'] as num?)?.toInt() ?? 0) +
+                  ((counts['review_grammar'] as num?)?.toInt() ?? 0);
         });
         if (_preparing) {
           _preparingTimer?.cancel();
@@ -264,6 +567,10 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
     }
     final hasNew = _newWords + _newGrammar > 0;
     if (hasNew) {
+      _studyRead.clear();
+      _studyRecordedBytes = null;
+      _studyRecordedPath = null;
+      _currentPage = 0;
       setState(() => _phase = _Phase.learning);
       _loadStudyWords();
     } else {
@@ -287,10 +594,21 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
     });
     final q = await widget.onNextQuestion();
     if (!mounted) return;
+    // Session finished (daily target met / no items left):
+    // transition to the completion + AI summary screen. Previously
+    // _Phase.complete was never assigned, so _buildComplete — and with it
+    // the "view AI summary" button — was unreachable dead code.
+    if (q == null || q.isCompleted) {
+      setState(() {
+        _phase = _Phase.complete;
+        _loadingQuestion = false;
+      });
+      return;
+    }
     setState(() {
       _question = q;
       _loadingQuestion = false;
-      _showWordPreview = q != null && q.showWordPreview;
+      _showWordPreview = q.showWordPreview;
       // Reset recording state for new question
       _recordedBytes = null;
       _recordedPath = null;
@@ -299,8 +617,10 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
     });
 
     // Auto-play audio for choice questions so the user hears
-    // the correct pronunciation while picking the meaning.
-    if (q != null && q.type == QuestionType.choice && q.subjectType == 'word') {
+    // the correct pronunciation while picking the meaning — and for
+    // listening questions, where hearing the word IS the question.
+    if (q.subjectType == 'word' &&
+        (q.type == QuestionType.choice || q.type == QuestionType.listening)) {
       widget.onPlayWordAudio(q.subjectId);
     }
   }
@@ -321,6 +641,8 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
     setState(() {
       _result = result;
       _submitting = false;
+      _lastLogId = result?.logId ?? 0;
+      _disputed = false;
     });
   }
 
@@ -593,6 +915,43 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
       );
     }
 
+    if (_empty) {
+      // Honest empty state (backend "empty": true): nothing to learn AND no
+      // way to refill (no AI / no dict). Previously this showed the endless
+      // "AI is preparing" spinner forever.
+      return SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.inbox, size: 64, color: AppTheme.textHint),
+                const SizedBox(height: 24),
+                Text(l10n.sessionEmpty,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                const SizedBox(height: 12),
+                Text(l10n.sessionEmptyHint,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14, color: AppTheme.textHint)),
+                const SizedBox(height: 28),
+                ElevatedButton(
+                  onPressed: _dismiss,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: Text(l10n.quizDismiss, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     if (_dailyCompleted) {
       return SafeArea(
         child: Center(
@@ -635,13 +994,30 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
               const SizedBox(height: 8),
               Text(l10n.quizSM2Subtitle,
                   style: TextStyle(fontSize: 14, color: AppTheme.textHint)),
-              const SizedBox(height: 40),
+              const SizedBox(height: 20),
+              // Goal framing: what the user MUST do today, not the whole
+              // due pool (a 76-due queue must not render as "90 questions").
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(l10n.quizGoalRemaining(_dailyRemaining),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppTheme.primary)),
+              ),
+              const SizedBox(height: 28),
               _CountRow(label: l10n.quizNewWords, count: _newWords, icon: Icons.add_circle, color: Colors.green),
               _CountRow(label: l10n.quizNewGrammar, count: _newGrammar, icon: Icons.add_circle, color: Colors.green),
-              _CountRow(label: l10n.quizReviewWords, count: _reviewWords, icon: Icons.refresh, color: AppTheme.primary),
-              _CountRow(label: l10n.quizReviewGrammar, count: _reviewGrammar, icon: Icons.refresh, color: AppTheme.primary),
+              _CountRow(label: l10n.quizReviewPool, count: _reviewWords + _reviewGrammar, icon: Icons.refresh, color: AppTheme.primary),
+              if (_reviewWords + _reviewGrammar > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(l10n.quizReviewNote(_reviewWords + _reviewGrammar),
+                      style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
+                ),
               const Divider(height: 32),
-              Text(l10n.quizTotalEstimate(total, (total * 1.5).ceil()),
+              Text(l10n.quizEstimateGoal(_dailyRemaining > 0 ? _dailyRemaining : total, ((_dailyRemaining > 0 ? _dailyRemaining : total) * 1.5).ceil()),
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
               const SizedBox(height: 32),
               SizedBox(
@@ -673,98 +1049,118 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
     }
 
     final totalCards = _studyWords.length + _studyGrammar.length;
-    if (totalCards == 0) {
-      _startQuiz();
+    final readCount = _studyRead.length;
+    final allRead = readCount >= _studyWords.length && _studyGrammarDone >= _studyGrammar.length;
+
+    if (totalCards == 0 || allRead) {
+      // _startQuiz calls setState — never run it during build. Defer one frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _startQuiz();
+      });
       return const SizedBox.shrink();
     }
+
+    final word = _currentPage < _studyWords.length ? _studyWords[_currentPage] : null;
 
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
+            // Header: progress
             Row(
               children: [
-                Icon(Icons.menu_book, color: AppTheme.primary, size: 28),
+                Icon(Icons.mic, color: AppTheme.primary, size: 28),
                 const SizedBox(width: 12),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(l10n.quizLearnNewContent, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
-                    Text(l10n.cardPageOf(_currentPage + 1, totalCards),
+                    Text('${l10n.quizNewWords}: $readCount / ${_studyWords.length}',
                         style: TextStyle(fontSize: 13, color: AppTheme.textHint)),
                   ],
-                ),
-                const Spacer(),
-                TextButton(
-                  onPressed: _startQuiz,
-                  child: Text(l10n.quizSkip),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            Expanded(
-              child: PageView.builder(
-                controller: _pageCtrl,
-                itemCount: totalCards,
-                onPageChanged: (i) {
-                        setState(() => _currentPage = i);
-                        if (i < _studyWords.length) {
-                          widget.onPlayWordAudio(_studyWords[i].id);
-                        }
-                      },
-                itemBuilder: (context, index) {
-                  if (index < _studyWords.length) {
-                    final w = _studyWords[index];
-                    return _StudyCard(
-                      word: w,
-                      fieldConfig: _fieldConfig,
-                      onPlayWord: () => widget.onPlayWordAudio(w.id),
-                      onPlayText: widget.onPlayTextAudio,
-                    );
-                  } else {
-                    final g = _studyGrammar[index - _studyWords.length];
-                    return _GrammarCard(grammar: g);
-                  }
-                },
+            // Word card
+            if (word != null)
+              Expanded(
+                child: SingleChildScrollView(
+                  child: _StudyCard(
+                    word: word,
+                    fieldConfig: _fieldConfig,
+                    onPlayWord: () => widget.onPlayWordAudio(word.id),
+                    onPlayText: widget.onPlayTextAudio,
+                  ),
+                ),
+              )
+            else
+              Expanded(
+                child: SingleChildScrollView(
+                  child: _GrammarCard(grammar: _studyGrammar[_currentPage - _studyWords.length]),
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            // Navigation: prev — dots — next
+            const SizedBox(height: 16),
+            // Read-aloud section for words, continue button for grammar
+            if (word != null)
+              _buildStudyAction(word)
+            else ...[
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.arrow_forward, size: 20),
+                  label: Text(l10n.quizNext, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                  onPressed: () {
+                    _studyGrammarDone++;
+                    final gi = _currentPage - _studyWords.length;
+                    if (gi + 1 < _studyGrammar.length) {
+                      _studyGoToPage(_studyWords.length + gi + 1);
+                    } else {
+                      _startQuiz();
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () { widget.onComplete?.call(); Navigator.pop(context); },
+                  child: Text(l10n.quizDismiss, style: TextStyle(fontSize: 14, color: AppTheme.textHint)),
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            // Navigation dots + arrows
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 IconButton(
                   icon: const Icon(Icons.chevron_left, size: 28),
-                  onPressed: _currentPage > 0 ? () => _pageCtrl.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut) : null,
+                  onPressed: _currentPage > 0 ? () => _studyGoToPage(_currentPage - 1) : null,
                 ),
-                ...List.generate(totalCards, (i) => Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: 8, height: 8,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: i == _currentPage ? AppTheme.primary : AppTheme.textHint.withValues(alpha: 0.3),
-                  ),
-                )),
+                ...List.generate(totalCards, (i) {
+                  final r = i < _studyWords.length && _studyRead.contains(_studyWords[i].id);
+                  return Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: 10, height: 10,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: r ? Colors.green : (i == _currentPage ? AppTheme.primary : AppTheme.textHint.withValues(alpha: 0.3)),
+                    ),
+                  );
+                }),
                 IconButton(
                   icon: const Icon(Icons.chevron_right, size: 28),
-                  onPressed: _currentPage < totalCards - 1 ? () => _pageCtrl.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut) : null,
+                  onPressed: _currentPage < totalCards - 1 ? () => _studyGoToPage(_currentPage + 1) : null,
                 ),
               ],
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _startQuiz,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-                child: Text(l10n.quizBeginWithCount(_studyWords.length + _studyGrammar.length + _reviewWords + _reviewGrammar),
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
-              ),
             ),
           ],
         ),
@@ -869,6 +1265,21 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                     if (_showWordPreview) _buildWordPreview(q),
                     Text(q.prompt,
                         style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+                    // Listening questions: the word text is hidden (see
+                    // Question.showWordPreview), so provide an explicit
+                    // replay button — the word is only ever heard, never read.
+                    if (q.type == QuestionType.listening) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _PlayButton(onTap: () => widget.onPlayWordAudio(q.subjectId)),
+                          const SizedBox(width: 8),
+                          Text(l10n.readAloudListenFirst,
+                              style: TextStyle(fontSize: 13, color: AppTheme.textHint)),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 24),
                     if (q.options != null) ...[
                       ...q.options!.map((opt) => _OptionChip(
@@ -961,6 +1372,25 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                           ],
                         ),
                       ),
+                      // "I think this was graded wrong" — stamps the log row
+                      // for AI calibration. No SM-2 side effects.
+                      if (!_result!.correct && _result!.logId > 0 && !_disputed)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              TextButton.icon(
+                                onPressed: _disputing ? null : _dispute,
+                                icon: _disputing
+                                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                                    : const Icon(Icons.flag_outlined, size: 16),
+                                label: Text(AppLocalizations.of(context)!.disputeGrade,
+                                    style: TextStyle(fontSize: 12, color: AppTheme.textHint)),
+                              ),
+                            ],
+                          ),
+                        ),
                     ],
                   ],
                 ),
@@ -1033,6 +1463,29 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                     onPressed: _requestSummary,
                     icon: const Icon(Icons.auto_awesome, size: 18),
                     label: Text(l10n.viewAISummary),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.primary,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                if (widget.onContinueSession != null && _answered >= 30)
+                  OutlinedButton.icon(
+                    // Soft cap hit without meeting the target: the student
+                    // explicitly opts back in ("keep training") instead of
+                    // being forced into an endless grind.
+                    onPressed: () {
+                      widget.onContinueSession!();
+                      setState(() {
+                        _phase = _Phase.quiz;
+                        _loadingQuestion = true;
+                        _result = null;
+                        _selectedAnswer = null;
+                      });
+                      _loadQuestion();
+                    },
+                    icon: const Icon(Icons.play_arrow, size: 18),
+                    label: Text(l10n.sessionContinue),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppTheme.primary,
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),

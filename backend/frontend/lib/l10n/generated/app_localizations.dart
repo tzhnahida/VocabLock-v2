@@ -1087,7 +1087,7 @@ abstract class AppLocalizations {
   /// No description provided for @onboardingDailyTarget.
   ///
   /// In en, this message translates to:
-  /// **'Daily Target'**
+  /// **'Daily Study Time'**
   String get onboardingDailyTarget;
 
   /// No description provided for @onboardingAccuracyHint.
@@ -1096,11 +1096,798 @@ abstract class AppLocalizations {
   /// **'Accuracy >= 80% required to unlock'**
   String get onboardingAccuracyHint;
 
+  /// No description provided for @onboardingMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'min'**
+  String get onboardingMinutes;
+
+  /// No description provided for @onboardingQuestionsUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'questions'**
+  String get onboardingQuestionsUnit;
+
   /// No description provided for @onboardingComplete.
   ///
   /// In en, this message translates to:
   /// **'Complete Setup, Start Learning'**
   String get onboardingComplete;
+
+  /// No description provided for @serverOfflineBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Server unreachable — some features are limited'**
+  String get serverOfflineBanner;
+
+  /// No description provided for @retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get retry;
+
+  /// No description provided for @completionCongrats.
+  ///
+  /// In en, this message translates to:
+  /// **'Congratulations! Daily goal achieved!'**
+  String get completionCongrats;
+
+  /// No description provided for @completionDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily task complete'**
+  String get completionDone;
+
+  /// No description provided for @statAnswered.
+  ///
+  /// In en, this message translates to:
+  /// **'Answered'**
+  String get statAnswered;
+
+  /// No description provided for @statCorrect.
+  ///
+  /// In en, this message translates to:
+  /// **'Correct'**
+  String get statCorrect;
+
+  /// No description provided for @statAccuracy.
+  ///
+  /// In en, this message translates to:
+  /// **'Accuracy'**
+  String get statAccuracy;
+
+  /// No description provided for @completionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'You can browse words, use the AI assistant, or view stats.'**
+  String get completionHint;
+
+  /// No description provided for @practiceAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Practice again'**
+  String get practiceAgain;
+
+  /// No description provided for @onboardingWelcomeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to VocabLock'**
+  String get onboardingWelcomeTitle;
+
+  /// No description provided for @onboardingWelcomeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Master vocabulary through spaced repetition,\nAI-powered quizzes, and immersive practice.'**
+  String get onboardingWelcomeSubtitle;
+
+  /// No description provided for @onboardingFeature1.
+  ///
+  /// In en, this message translates to:
+  /// **'7 question types with AI-powered generation'**
+  String get onboardingFeature1;
+
+  /// No description provided for @onboardingFeature2.
+  ///
+  /// In en, this message translates to:
+  /// **'Listening, reading & grammar practice'**
+  String get onboardingFeature2;
+
+  /// No description provided for @onboardingFeature3.
+  ///
+  /// In en, this message translates to:
+  /// **'Multi-language support with dynamic theming'**
+  String get onboardingFeature3;
+
+  /// No description provided for @onboardingFeature4.
+  ///
+  /// In en, this message translates to:
+  /// **'Focus lock screen for distraction-free study'**
+  String get onboardingFeature4;
+
+  /// No description provided for @onboardingGetStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Get Started'**
+  String get onboardingGetStarted;
+
+  /// No description provided for @onboardingAiConfiguredEnv.
+  ///
+  /// In en, this message translates to:
+  /// **'AI is configured via environment variable VOCABLOCK_AI_KEY'**
+  String get onboardingAiConfiguredEnv;
+
+  /// No description provided for @onboardingTestConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Test connection'**
+  String get onboardingTestConnection;
+
+  /// No description provided for @onboardingTestSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'✅ Connected'**
+  String get onboardingTestSuccess;
+
+  /// No description provided for @onboardingTestNoResponse.
+  ///
+  /// In en, this message translates to:
+  /// **'❌ No response'**
+  String get onboardingTestNoResponse;
+
+  /// No description provided for @onboardingTestConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'✅ Configured'**
+  String get onboardingTestConfigured;
+
+  /// No description provided for @onboardingTestBadFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'⚠️ Key format may be incorrect'**
+  String get onboardingTestBadFormat;
+
+  /// No description provided for @onboardingTestFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'❌ Connection failed — check API key or network'**
+  String get onboardingTestFailed;
+
+  /// No description provided for @onboardingInterviewRoundCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Rounds: {rounds}'**
+  String onboardingInterviewRoundCount(Object rounds);
+
+  /// No description provided for @onboardingInterviewDone.
+  ///
+  /// In en, this message translates to:
+  /// **' · Profile created'**
+  String get onboardingInterviewDone;
+
+  /// No description provided for @onboardingInterviewReady.
+  ///
+  /// In en, this message translates to:
+  /// **' · Ready to generate plan'**
+  String get onboardingInterviewReady;
+
+  /// No description provided for @onboardingInterviewMinHint.
+  ///
+  /// In en, this message translates to:
+  /// **' (min {rounds} rounds)'**
+  String onboardingInterviewMinHint(Object rounds);
+
+  /// No description provided for @onboardingConnectingAI.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting to AI...'**
+  String get onboardingConnectingAI;
+
+  /// No description provided for @onboardingAIThinking.
+  ///
+  /// In en, this message translates to:
+  /// **'AI is thinking...'**
+  String get onboardingAIThinking;
+
+  /// No description provided for @onboardingChatInputHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Type your answer...'**
+  String get onboardingChatInputHint;
+
+  /// No description provided for @onboardingAiFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'AI assistant connection failed, check your network and retry.'**
+  String get onboardingAiFailed;
+
+  /// No description provided for @onboardingAiTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'AI response timed out — tap below to retry.'**
+  String get onboardingAiTimeout;
+
+  /// No description provided for @onboardingVoiceTts.
+  ///
+  /// In en, this message translates to:
+  /// **'Text-to-Speech (TTS)'**
+  String get onboardingVoiceTts;
+
+  /// No description provided for @onboardingDictCheck.
+  ///
+  /// In en, this message translates to:
+  /// **'Dictionary check (Dict)'**
+  String get onboardingDictCheck;
+
+  /// No description provided for @onboardingConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get onboardingConnected;
+
+  /// No description provided for @onboardingNotConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Not connected'**
+  String get onboardingNotConnected;
+
+  /// No description provided for @onboardingNotConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Not configured'**
+  String get onboardingNotConfigured;
+
+  /// No description provided for @progressToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s Progress'**
+  String get progressToday;
+
+  /// No description provided for @progressWordsUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'words'**
+  String get progressWordsUnit;
+
+  /// No description provided for @labelRecentMistakes.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent Mistakes'**
+  String get labelRecentMistakes;
+
+  /// No description provided for @labelAccuracy.
+  ///
+  /// In en, this message translates to:
+  /// **'Accuracy'**
+  String get labelAccuracy;
+
+  /// No description provided for @close.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get close;
+
+  /// No description provided for @done.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get done;
+
+  /// No description provided for @homeworkEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No homework yet'**
+  String get homeworkEmpty;
+
+  /// No description provided for @homeworkEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Homework appears according to your cadence — it\'s not time yet.'**
+  String get homeworkEmptyHint;
+
+  /// No description provided for @homeworkRecommendedCadence.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended cadence'**
+  String get homeworkRecommendedCadence;
+
+  /// No description provided for @homeworkAnswerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Write your answer here...'**
+  String get homeworkAnswerHint;
+
+  /// No description provided for @nextQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Next question'**
+  String get nextQuestion;
+
+  /// No description provided for @typeSentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Sentence'**
+  String get typeSentence;
+
+  /// No description provided for @typeTranslation.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation'**
+  String get typeTranslation;
+
+  /// No description provided for @typeFillPassage.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill the passage'**
+  String get typeFillPassage;
+
+  /// No description provided for @typeEssay.
+  ///
+  /// In en, this message translates to:
+  /// **'Short essay'**
+  String get typeEssay;
+
+  /// No description provided for @homeworkCadence.
+  ///
+  /// In en, this message translates to:
+  /// **'AI recommends: {count} questions every {days} days'**
+  String homeworkCadence(Object count, Object days);
+
+  /// No description provided for @yourAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Your answer'**
+  String get yourAnswer;
+
+  /// No description provided for @aiPolish.
+  ///
+  /// In en, this message translates to:
+  /// **'AI polish'**
+  String get aiPolish;
+
+  /// No description provided for @scoreBar.
+  ///
+  /// In en, this message translates to:
+  /// **'Score {pct}%'**
+  String scoreBar(Object pct);
+
+  /// No description provided for @errorMarkLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Error marks:'**
+  String get errorMarkLabel;
+
+  /// No description provided for @aiSessionSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Session Summary'**
+  String get aiSessionSummary;
+
+  /// No description provided for @aiAnalyzingSession.
+  ///
+  /// In en, this message translates to:
+  /// **'AI is analyzing your session and updating your study plan...'**
+  String get aiAnalyzingSession;
+
+  /// No description provided for @analyzing.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzing...'**
+  String get analyzing;
+
+  /// No description provided for @aiAnalysisFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'AI analysis failed'**
+  String get aiAnalysisFailed;
+
+  /// No description provided for @gotIt.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get gotIt;
+
+  /// No description provided for @sessionAnalysis.
+  ///
+  /// In en, this message translates to:
+  /// **'This session\'s analysis'**
+  String get sessionAnalysis;
+
+  /// No description provided for @labelStrengths.
+  ///
+  /// In en, this message translates to:
+  /// **'Strengths:'**
+  String get labelStrengths;
+
+  /// No description provided for @labelWeaknesses.
+  ///
+  /// In en, this message translates to:
+  /// **'To improve:'**
+  String get labelWeaknesses;
+
+  /// No description provided for @labelSuggestions.
+  ///
+  /// In en, this message translates to:
+  /// **'Study suggestions'**
+  String get labelSuggestions;
+
+  /// No description provided for @labelUpdatedPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated study plan'**
+  String get labelUpdatedPlan;
+
+  /// No description provided for @labelPlanDirection.
+  ///
+  /// In en, this message translates to:
+  /// **'Direction'**
+  String get labelPlanDirection;
+
+  /// No description provided for @labelPlanConfidence.
+  ///
+  /// In en, this message translates to:
+  /// **'Confidence'**
+  String get labelPlanConfidence;
+
+  /// No description provided for @audioGenerating.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating...'**
+  String get audioGenerating;
+
+  /// No description provided for @audioPlaying.
+  ///
+  /// In en, this message translates to:
+  /// **'Playing...'**
+  String get audioPlaying;
+
+  /// No description provided for @audioPlayed.
+  ///
+  /// In en, this message translates to:
+  /// **'Finished'**
+  String get audioPlayed;
+
+  /// No description provided for @audioNotConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'TTS not configured (external binary required)'**
+  String get audioNotConfigured;
+
+  /// No description provided for @audioGenerateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Generation failed'**
+  String get audioGenerateFailed;
+
+  /// No description provided for @audioPlayFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback failed'**
+  String get audioPlayFailed;
+
+  /// No description provided for @audioUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'TTS unavailable'**
+  String get audioUnavailable;
+
+  /// No description provided for @audioPlayingWord.
+  ///
+  /// In en, this message translates to:
+  /// **'Playing: {word}'**
+  String audioPlayingWord(Object word);
+
+  /// No description provided for @audioPlayedWord.
+  ///
+  /// In en, this message translates to:
+  /// **'Played: {word}'**
+  String audioPlayedWord(Object word);
+
+  /// No description provided for @audioPreviewHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Type text to preview...'**
+  String get audioPreviewHint;
+
+  /// No description provided for @audioQuickPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick play'**
+  String get audioQuickPlay;
+
+  /// No description provided for @audioNoWords.
+  ///
+  /// In en, this message translates to:
+  /// **'No words yet'**
+  String get audioNoWords;
+
+  /// No description provided for @approveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve \"{word}\"'**
+  String approveTitle(Object word);
+
+  /// No description provided for @fieldReadingRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading (required)'**
+  String get fieldReadingRequired;
+
+  /// No description provided for @fieldMeaningRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Meaning (required)'**
+  String get fieldMeaningRequired;
+
+  /// No description provided for @fieldPosRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Part of speech (required)'**
+  String get fieldPosRequired;
+
+  /// No description provided for @fieldLevelOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Level (optional)'**
+  String get fieldLevelOptional;
+
+  /// No description provided for @cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// No description provided for @approve.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve'**
+  String get approve;
+
+  /// No description provided for @approvedMsg.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{word}\" approved'**
+  String approvedMsg(Object word);
+
+  /// No description provided for @rejectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject \"{word}\"'**
+  String rejectTitle(Object word);
+
+  /// No description provided for @rejectReasonHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason (feedback for AI)'**
+  String get rejectReasonHint;
+
+  /// No description provided for @reject.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject'**
+  String get reject;
+
+  /// No description provided for @rejectedMsg.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{word}\" returned to AI'**
+  String rejectedMsg(Object word);
+
+  /// No description provided for @editTagsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit tags: {word}'**
+  String editTagsTitle(Object word);
+
+  /// No description provided for @tagsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Comma-separated, e.g. hard, confusing, exam focus'**
+  String get tagsHint;
+
+  /// No description provided for @save.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get save;
+
+  /// No description provided for @opFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation failed: {error}'**
+  String opFailed(Object error);
+
+  /// No description provided for @pendingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending Review'**
+  String get pendingTitle;
+
+  /// No description provided for @loadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Load failed: {error}'**
+  String loadFailed(Object error);
+
+  /// No description provided for @pendingEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No words pending review'**
+  String get pendingEmpty;
+
+  /// No description provided for @pendingEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'AI-generated words validated by the dictionary are added automatically;\nwords that fail validation appear here for your review.'**
+  String get pendingEmptyHint;
+
+  /// No description provided for @pendingBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get pendingBadge;
+
+  /// No description provided for @labelTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags'**
+  String get labelTags;
+
+  /// No description provided for @tagsUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags updated'**
+  String get tagsUpdated;
+
+  /// No description provided for @submit.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit'**
+  String get submit;
+
+  /// No description provided for @exit.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit'**
+  String get exit;
+
+  /// No description provided for @statsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Statistics'**
+  String get statsTitle;
+
+  /// No description provided for @statStreak.
+  ///
+  /// In en, this message translates to:
+  /// **'Current Streak'**
+  String get statStreak;
+
+  /// No description provided for @statOfTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'of {total}'**
+  String statOfTotal(Object total);
+
+  /// No description provided for @statActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'Activity'**
+  String get statActivity;
+
+  /// No description provided for @aiChatTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Chat'**
+  String get aiChatTitle;
+
+  /// No description provided for @aiChatEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask me anything about your vocabulary!'**
+  String get aiChatEmptyHint;
+
+  /// No description provided for @aiChatInputHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a message...'**
+  String get aiChatInputHint;
+
+  /// No description provided for @expandStatusGenerating.
+  ///
+  /// In en, this message translates to:
+  /// **'AI is generating new words...'**
+  String get expandStatusGenerating;
+
+  /// No description provided for @expandStatusDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Generated {count} words for [{direction}] ({verified} added, {pending} pending review, {context} existing words considered)'**
+  String expandStatusDone(Object direction, Object count, Object verified,
+      Object pending, Object context);
+
+  /// No description provided for @expandStatusDoneSimple.
+  ///
+  /// In en, this message translates to:
+  /// **'Generated {count} words ({verified} added, {pending} pending review)'**
+  String expandStatusDoneSimple(Object count, Object verified, Object pending);
+
+  /// No description provided for @expandStatusNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No new words generated'**
+  String get expandStatusNone;
+
+  /// No description provided for @expandStatusFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Word generation failed'**
+  String get expandStatusFailed;
+
+  /// No description provided for @expandStatusNoApi.
+  ///
+  /// In en, this message translates to:
+  /// **'API not connected — cannot generate words'**
+  String get expandStatusNoApi;
+
+  /// No description provided for @quizGoalRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s goal: {count} more questions to unlock'**
+  String quizGoalRemaining(Object count);
+
+  /// No description provided for @quizReviewPool.
+  ///
+  /// In en, this message translates to:
+  /// **'Due review pool'**
+  String get quizReviewPool;
+
+  /// No description provided for @quizReviewNote.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items due — session ends automatically once the goal is met'**
+  String quizReviewNote(Object count);
+
+  /// No description provided for @quizEstimateGoal.
+  ///
+  /// In en, this message translates to:
+  /// **'Goal: {count} questions · ~{minutes} min'**
+  String quizEstimateGoal(Object count, Object minutes);
+
+  /// No description provided for @disputeGrade.
+  ///
+  /// In en, this message translates to:
+  /// **'I think this was graded wrong'**
+  String get disputeGrade;
+
+  /// No description provided for @sessionEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to study right now'**
+  String get sessionEmpty;
+
+  /// No description provided for @sessionEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Import more words, or configure AI expansion. Words on long intervals will return on their due dates.'**
+  String get sessionEmptyHint;
+
+  /// No description provided for @sessionContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep training'**
+  String get sessionContinue;
+
+  /// No description provided for @pendingAcceptAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept all'**
+  String get pendingAcceptAll;
+
+  /// No description provided for @pendingAcceptAllDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Activated {activated}, skipped {skipped} (missing meaning)'**
+  String pendingAcceptAllDone(Object activated, Object skipped);
 }
 
 class _AppLocalizationsDelegate

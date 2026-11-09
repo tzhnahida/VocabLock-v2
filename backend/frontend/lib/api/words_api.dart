@@ -25,6 +25,24 @@ class WordsApi {
     return (words: words, total: total);
   }
 
+  Future<({List<Word> words, int total})> listNew({
+    String? language,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final r = await _client.get('/api/v1/words/new', queryParameters: {
+      if (language != null) 'language': language,
+      'limit': limit,
+      'offset': offset,
+    });
+    final data = r.data as Map<String, dynamic>;
+    final words = (data['words'] as List<dynamic>)
+        .map((j) => Word.fromJson(j as Map<String, dynamic>))
+        .toList();
+    final total = (data['total'] as num?)?.toInt() ?? words.length;
+    return (words: words, total: total);
+  }
+
   Future<Word> get(int id) async {
     final r = await _client.get('/api/v1/words/$id');
     return Word.fromJson(r.data as Map<String, dynamic>);
@@ -103,6 +121,14 @@ class WordsApi {
     await _client.post('/api/v1/words/pending-review/$id/reject', data: {
       if (reason != null) 'reason': reason,
     });
+  }
+
+  /// Batch-accepts all pending_review words that can be completed
+  /// (existing fields, dict lookup, or AI fill). Skips words that still
+  /// lack a meaning. Returns {activated, skipped, skipped_words}.
+  Future<Map<String, dynamic>> acceptAllPendingReview() async {
+    final r = await _client.post('/api/v1/words/pending-review/accept-all');
+    return r.data as Map<String, dynamic>;
   }
 
   // —— Tags ——

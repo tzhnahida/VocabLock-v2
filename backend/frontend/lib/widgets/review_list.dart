@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../models/word.dart';
 import '../theme/app_theme.dart';
 
@@ -14,7 +15,7 @@ class ReviewList extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: Text('Recent Mistakes', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+          child: Text(AppLocalizations.of(context)!.labelRecentMistakes, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
         ),
         ...words.map((w) => _MistakeRow(word: w)),
       ],

@@ -23,13 +23,17 @@ class ConfigApi {
 
   Future<Map<String, dynamic>> updateConfig({
     String? activeLang,
+    String? interfaceLang,
     int? dailyTarget,
+    int? dailyTimeTarget,
     Map<String, dynamic>? assignment,
     String? theme,
   }) async {
     final body = <String, dynamic>{};
     if (activeLang != null) body['active_lang'] = activeLang;
+    if (interfaceLang != null) body['interface_lang'] = interfaceLang;
     if (dailyTarget != null) body['daily_target'] = dailyTarget;
+    if (dailyTimeTarget != null) body['daily_time_target'] = dailyTimeTarget;
     if (assignment != null) body['assignment'] = assignment;
     if (theme != null) body['theme'] = theme;
     final r = await _client.put('/api/v1/config', data: body);

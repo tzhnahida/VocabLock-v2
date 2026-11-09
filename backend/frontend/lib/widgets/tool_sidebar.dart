@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../theme/app_theme.dart';
 
 class ToolSidebar extends StatelessWidget {
@@ -18,15 +19,32 @@ class ToolSidebar extends StatelessWidget {
   });
 
   static const _tools = [
-    (Icons.auto_stories, 'Quiz'),
-    (Icons.library_books, 'Words'),
-    (Icons.headphones, 'Audio'),
-    (Icons.insights, 'Stats'),
-    (Icons.settings, 'Config'),
-    (Icons.smart_toy, 'AI'),
-    (Icons.fact_check, 'Review'),
-    (Icons.assignment, 'Homework'),
+    Icons.auto_stories,
+    Icons.library_books,
+    Icons.headphones,
+    Icons.insights,
+    Icons.settings,
+    Icons.smart_toy,
+    Icons.fact_check,
+    Icons.assignment,
   ];
+
+  /// Icon-only tool list + localized labels (the old hardcoded English
+  /// labels showed "Quiz/Words/..." even in zh/ja UI).
+  String _toolLabel(BuildContext context, int i) {
+    final l10n = AppLocalizations.of(context);
+    switch (i) {
+      case 0: return l10n.sidebarQuiz;
+      case 1: return l10n.sidebarWords;
+      case 2: return l10n.sidebarAudio;
+      case 3: return l10n.sidebarStats;
+      case 4: return l10n.sidebarConfig;
+      case 5: return l10n.sidebarAI;
+      case 6: return l10n.sidebarReview;
+      case 7: return l10n.sidebarHomework;
+      default: return '';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,8 +69,8 @@ class ToolSidebar extends StatelessWidget {
             child: ListView(
               padding: EdgeInsets.zero,
               children: List.generate(_tools.length, (i) => _ToolIcon(
-                icon: _tools[i].$1,
-                label: _tools[i].$2,
+                icon: _tools[i],
+                label: _toolLabel(context, i),
                 isActive: i == activeToolIndex,
                 onTap: () => onToolSelected(i),
               )),

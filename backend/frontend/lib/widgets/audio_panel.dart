@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
 import '../utils/audio_player.dart';
@@ -16,6 +17,7 @@ class _AudioPanelState extends State<AudioPanel> {
   final _player = AppAudioPlayer();
   String _status = '';
   String? _playingWord;
+  bool _busy = false;
 
   String _fullUrl(String? path) {
     if (path == null || path.isEmpty) return '';
@@ -29,43 +31,51 @@ class _AudioPanelState extends State<AudioPanel> {
   Future<void> _speak() async {
     final text = _textCtrl.text.trim();
     if (text.isEmpty) return;
-    setState(() => _status = '生成中...');
+    final l10n = AppLocalizations.of(context)!;
+    setState(() { _busy = true; _status = l10n.audioGenerating; });
     final ttsApi = widget.state.ttsApi;
     if (ttsApi != null) {
       try {
         final result = await ttsApi.getTextAudio(text);
+        if (!mounted) return;
         final url = _fullUrl(result['url'] as String?);
         if (url.isNotEmpty) {
-          setState(() => _status = '播放中...');
+          setState(() => _status = l10n.audioPlaying);
           await _player.playUrl(url);
-          setState(() => _status = '播放完毕');
+          if (!mounted) return;
+          setState(() { _busy = false; _status = l10n.audioPlayed; });
         } else {
-          setState(() => _status = result['status'] == 'not_configured' ? 'TTS 未配置（需要外部二进制）' : '生成失败');
+          setState(() { _busy = false; _status = result['status'] == 'not_configured' ? l10n.audioNotConfigured : l10n.audioGenerateFailed; });
         }
       } catch (_) {
-        setState(() => _status = 'TTS 播放失败');
+        if (!mounted) return;
+        setState(() { _busy = false; _status = l10n.audioPlayFailed; });
       }
     } else {
-      setState(() => _status = 'TTS 不可用');
+      setState(() { _busy = false; _status = l10n.audioUnavailable; });
     }
   }
 
   Future<void> _speakWord(int id, String word) async {
-    setState(() { _status = '生成中...'; _playingWord = word; });
+    final l10n = AppLocalizations.of(context)!;
+    setState(() { _busy = true; _status = l10n.audioGenerating; _playingWord = word; });
     final ttsApi = widget.state.ttsApi;
     if (ttsApi != null) {
       try {
         final result = await ttsApi.getWordAudio(id);
+        if (!mounted) return;
         final url = _fullUrl(result['url'] as String?);
         if (url.isNotEmpty) {
-          setState(() => _status = '播放: $word');
+          setState(() => _status = l10n.audioPlayingWord(word));
           await _player.playUrl(url);
-          setState(() { _status = '已播放: $word'; _playingWord = null; });
+          if (!mounted) return;
+          setState(() { _busy = false; _status = l10n.audioPlayedWord(word); _playingWord = null; });
         } else {
-          setState(() { _status = 'TTS 未配置'; _playingWord = null; });
+          setState(() { _busy = false; _status = l10n.audioNotConfigured; _playingWord = null; });
         }
       } catch (_) {
-        setState(() { _status = '播放失败'; _playingWord = null; });
+        if (!mounted) return;
+        setState(() { _busy = false; _status = l10n.audioPlayFailed; _playingWord = null; });
       }
     }
   }
@@ -86,7 +96,7 @@ class _AudioPanelState extends State<AudioPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Audio', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+          Text(AppLocalizations.of(context)!.sidebarAudio, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
           const SizedBox(height: 24),
           Row(
             children: [
@@ -94,7 +104,7 @@ class _AudioPanelState extends State<AudioPanel> {
                 child: TextField(
                   controller: _textCtrl,
                   decoration: InputDecoration(
-                    hintText: '输入文本试听...',
+                    hintText: AppLocalizations.of(context)!.audioPreviewHint,
                     filled: true,
                     fillColor: AppTheme.cardBg,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
@@ -121,7 +131,7 @@ class _AudioPanelState extends State<AudioPanel> {
               padding: const EdgeInsets.only(top: 12),
               child: Row(
                 children: [
-                  if (_status.startsWith('生成') || _status.startsWith('播放中'))
+                  if (_busy)
                     const Padding(
                       padding: EdgeInsets.only(right: 8),
                       child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
@@ -131,11 +141,11 @@ class _AudioPanelState extends State<AudioPanel> {
               ),
             ),
           const SizedBox(height: 28),
-          Text('快速播放', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+          Text(AppLocalizations.of(context)!.audioQuickPlay, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
           const SizedBox(height: 12),
           Expanded(
             child: words.isEmpty
-                ? Center(child: Text('暂无单词', style: TextStyle(color: AppTheme.textHint)))
+                ? Center(child: Text(AppLocalizations.of(context)!.audioNoWords, style: TextStyle(color: AppTheme.textHint)))
                 : ListView(
                     children: words.map((w) => ListTile(
                       leading: Icon(

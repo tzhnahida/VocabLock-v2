@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../providers/app_state.dart';
 import '../theme/app_theme.dart';
 
@@ -72,14 +73,14 @@ class _AIChatPanelState extends State<AIChatPanel> {
         children: [
           Row(
             children: [
-              Text('AI Chat', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+              Text(AppLocalizations.of(context)!.aiChatTitle, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
             ],
           ),
           const SizedBox(height: 16),
           Expanded(
             child: _messages.isEmpty
                 ? Center(
-                    child: Text('Ask me anything about your vocabulary!', style: TextStyle(color: AppTheme.textHint, fontSize: 15)),
+                    child: Text(AppLocalizations.of(context)!.aiChatEmptyHint, style: TextStyle(color: AppTheme.textHint, fontSize: 15)),
                   )
                 : ListView.builder(
                     controller: _scrollCtrl,
@@ -119,7 +120,7 @@ class _AIChatPanelState extends State<AIChatPanel> {
                   controller: _msgCtrl,
                   onSubmitted: (_) => _send(),
                   decoration: InputDecoration(
-                    hintText: 'Type a message...',
+                    hintText: AppLocalizations.of(context)!.aiChatInputHint,
                     filled: true,
                     fillColor: AppTheme.cardBg,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),

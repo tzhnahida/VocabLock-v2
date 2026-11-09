@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'utils/app_log.dart';
 import 'providers/app_state.dart';
 import 'theme/app_theme.dart';
 import 'screens/home_screen.dart';
@@ -18,6 +19,7 @@ class VocabLockApp extends StatelessWidget {
       create: (_) => AppState(apiPort: apiPort, authToken: authToken)..init(),
       child: Consumer<AppState>(
         builder: (context, state, _) {
+          AppLog.debug('[app] Consumer building MaterialApp with locale=${state.locale} uiLang=${state.uiLang}');
           return MaterialApp(
             title: 'VocabLock',
             debugShowCheckedModeBanner: false,
@@ -63,6 +65,7 @@ class VocabLockApp extends StatelessWidget {
         required ThemeMode themeMode,
         required String learnLang,
         required int dailyTarget,
+        required int dailyTimeTarget,
         String? apiKey,
         String? model,
         String? baseUrl,
@@ -75,6 +78,7 @@ class VocabLockApp extends StatelessWidget {
             themeMode: themeMode,
             learnLang: learnLang,
             dailyTarget: dailyTarget,
+            dailyTimeTarget: dailyTimeTarget,
             apiKey: apiKey,
             model: model,
             baseUrl: baseUrl,

@@ -525,11 +525,460 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onboardingLanguageToStudy => 'Language to study';
 
   @override
-  String get onboardingDailyTarget => 'Daily Target';
+  String get onboardingDailyTarget => 'Daily Study Time';
 
   @override
   String get onboardingAccuracyHint => 'Accuracy >= 80% required to unlock';
 
   @override
+  String get onboardingMinutes => 'min';
+
+  @override
+  String get onboardingQuestionsUnit => 'questions';
+
+  @override
   String get onboardingComplete => 'Complete Setup, Start Learning';
+
+  @override
+  String get serverOfflineBanner =>
+      'Server unreachable — some features are limited';
+
+  @override
+  String get retry => 'Retry';
+
+  @override
+  String get completionCongrats => 'Congratulations! Daily goal achieved!';
+
+  @override
+  String get completionDone => 'Daily task complete';
+
+  @override
+  String get statAnswered => 'Answered';
+
+  @override
+  String get statCorrect => 'Correct';
+
+  @override
+  String get statAccuracy => 'Accuracy';
+
+  @override
+  String get completionHint =>
+      'You can browse words, use the AI assistant, or view stats.';
+
+  @override
+  String get practiceAgain => 'Practice again';
+
+  @override
+  String get onboardingWelcomeTitle => 'Welcome to VocabLock';
+
+  @override
+  String get onboardingWelcomeSubtitle =>
+      'Master vocabulary through spaced repetition,\nAI-powered quizzes, and immersive practice.';
+
+  @override
+  String get onboardingFeature1 =>
+      '7 question types with AI-powered generation';
+
+  @override
+  String get onboardingFeature2 => 'Listening, reading & grammar practice';
+
+  @override
+  String get onboardingFeature3 =>
+      'Multi-language support with dynamic theming';
+
+  @override
+  String get onboardingFeature4 =>
+      'Focus lock screen for distraction-free study';
+
+  @override
+  String get onboardingGetStarted => 'Get Started';
+
+  @override
+  String get onboardingAiConfiguredEnv =>
+      'AI is configured via environment variable VOCABLOCK_AI_KEY';
+
+  @override
+  String get onboardingTestConnection => 'Test connection';
+
+  @override
+  String get onboardingTestSuccess => '✅ Connected';
+
+  @override
+  String get onboardingTestNoResponse => '❌ No response';
+
+  @override
+  String get onboardingTestConfigured => '✅ Configured';
+
+  @override
+  String get onboardingTestBadFormat => '⚠️ Key format may be incorrect';
+
+  @override
+  String get onboardingTestFailed =>
+      '❌ Connection failed — check API key or network';
+
+  @override
+  String onboardingInterviewRoundCount(Object rounds) {
+    return 'Rounds: $rounds';
+  }
+
+  @override
+  String get onboardingInterviewDone => ' · Profile created';
+
+  @override
+  String get onboardingInterviewReady => ' · Ready to generate plan';
+
+  @override
+  String onboardingInterviewMinHint(Object rounds) {
+    return ' (min $rounds rounds)';
+  }
+
+  @override
+  String get onboardingConnectingAI => 'Connecting to AI...';
+
+  @override
+  String get onboardingAIThinking => 'AI is thinking...';
+
+  @override
+  String get onboardingChatInputHint => 'Type your answer...';
+
+  @override
+  String get onboardingAiFailed =>
+      'AI assistant connection failed, check your network and retry.';
+
+  @override
+  String get onboardingAiTimeout =>
+      'AI response timed out — tap below to retry.';
+
+  @override
+  String get onboardingVoiceTts => 'Text-to-Speech (TTS)';
+
+  @override
+  String get onboardingDictCheck => 'Dictionary check (Dict)';
+
+  @override
+  String get onboardingConnected => 'Connected';
+
+  @override
+  String get onboardingNotConnected => 'Not connected';
+
+  @override
+  String get onboardingNotConfigured => 'Not configured';
+
+  @override
+  String get progressToday => 'Today\'s Progress';
+
+  @override
+  String get progressWordsUnit => 'words';
+
+  @override
+  String get labelRecentMistakes => 'Recent Mistakes';
+
+  @override
+  String get labelAccuracy => 'Accuracy';
+
+  @override
+  String get close => 'Close';
+
+  @override
+  String get done => 'Done';
+
+  @override
+  String get homeworkEmpty => 'No homework yet';
+
+  @override
+  String get homeworkEmptyHint =>
+      'Homework appears according to your cadence — it\'s not time yet.';
+
+  @override
+  String get homeworkRecommendedCadence => 'Recommended cadence';
+
+  @override
+  String get homeworkAnswerHint => 'Write your answer here...';
+
+  @override
+  String get nextQuestion => 'Next question';
+
+  @override
+  String get typeSentence => 'Sentence';
+
+  @override
+  String get typeTranslation => 'Translation';
+
+  @override
+  String get typeFillPassage => 'Fill the passage';
+
+  @override
+  String get typeEssay => 'Short essay';
+
+  @override
+  String homeworkCadence(Object count, Object days) {
+    return 'AI recommends: $count questions every $days days';
+  }
+
+  @override
+  String get yourAnswer => 'Your answer';
+
+  @override
+  String get aiPolish => 'AI polish';
+
+  @override
+  String scoreBar(Object pct) {
+    return 'Score $pct%';
+  }
+
+  @override
+  String get errorMarkLabel => 'Error marks:';
+
+  @override
+  String get aiSessionSummary => 'AI Session Summary';
+
+  @override
+  String get aiAnalyzingSession =>
+      'AI is analyzing your session and updating your study plan...';
+
+  @override
+  String get analyzing => 'Analyzing...';
+
+  @override
+  String get aiAnalysisFailed => 'AI analysis failed';
+
+  @override
+  String get gotIt => 'Got it';
+
+  @override
+  String get sessionAnalysis => 'This session\'s analysis';
+
+  @override
+  String get labelStrengths => 'Strengths:';
+
+  @override
+  String get labelWeaknesses => 'To improve:';
+
+  @override
+  String get labelSuggestions => 'Study suggestions';
+
+  @override
+  String get labelUpdatedPlan => 'Updated study plan';
+
+  @override
+  String get labelPlanDirection => 'Direction';
+
+  @override
+  String get labelPlanConfidence => 'Confidence';
+
+  @override
+  String get audioGenerating => 'Generating...';
+
+  @override
+  String get audioPlaying => 'Playing...';
+
+  @override
+  String get audioPlayed => 'Finished';
+
+  @override
+  String get audioNotConfigured =>
+      'TTS not configured (external binary required)';
+
+  @override
+  String get audioGenerateFailed => 'Generation failed';
+
+  @override
+  String get audioPlayFailed => 'Playback failed';
+
+  @override
+  String get audioUnavailable => 'TTS unavailable';
+
+  @override
+  String audioPlayingWord(Object word) {
+    return 'Playing: $word';
+  }
+
+  @override
+  String audioPlayedWord(Object word) {
+    return 'Played: $word';
+  }
+
+  @override
+  String get audioPreviewHint => 'Type text to preview...';
+
+  @override
+  String get audioQuickPlay => 'Quick play';
+
+  @override
+  String get audioNoWords => 'No words yet';
+
+  @override
+  String approveTitle(Object word) {
+    return 'Approve \"$word\"';
+  }
+
+  @override
+  String get fieldReadingRequired => 'Reading (required)';
+
+  @override
+  String get fieldMeaningRequired => 'Meaning (required)';
+
+  @override
+  String get fieldPosRequired => 'Part of speech (required)';
+
+  @override
+  String get fieldLevelOptional => 'Level (optional)';
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
+  String get approve => 'Approve';
+
+  @override
+  String approvedMsg(Object word) {
+    return '\"$word\" approved';
+  }
+
+  @override
+  String rejectTitle(Object word) {
+    return 'Reject \"$word\"';
+  }
+
+  @override
+  String get rejectReasonHint => 'Reason (feedback for AI)';
+
+  @override
+  String get reject => 'Reject';
+
+  @override
+  String rejectedMsg(Object word) {
+    return '\"$word\" returned to AI';
+  }
+
+  @override
+  String editTagsTitle(Object word) {
+    return 'Edit tags: $word';
+  }
+
+  @override
+  String get tagsHint => 'Comma-separated, e.g. hard, confusing, exam focus';
+
+  @override
+  String get save => 'Save';
+
+  @override
+  String opFailed(Object error) {
+    return 'Operation failed: $error';
+  }
+
+  @override
+  String get pendingTitle => 'Pending Review';
+
+  @override
+  String loadFailed(Object error) {
+    return 'Load failed: $error';
+  }
+
+  @override
+  String get pendingEmpty => 'No words pending review';
+
+  @override
+  String get pendingEmptyHint =>
+      'AI-generated words validated by the dictionary are added automatically;\nwords that fail validation appear here for your review.';
+
+  @override
+  String get pendingBadge => 'Pending';
+
+  @override
+  String get labelTags => 'Tags';
+
+  @override
+  String get tagsUpdated => 'Tags updated';
+
+  @override
+  String get submit => 'Submit';
+
+  @override
+  String get exit => 'Exit';
+
+  @override
+  String get statsTitle => 'Statistics';
+
+  @override
+  String get statStreak => 'Current Streak';
+
+  @override
+  String statOfTotal(Object total) {
+    return 'of $total';
+  }
+
+  @override
+  String get statActivity => 'Activity';
+
+  @override
+  String get aiChatTitle => 'AI Chat';
+
+  @override
+  String get aiChatEmptyHint => 'Ask me anything about your vocabulary!';
+
+  @override
+  String get aiChatInputHint => 'Type a message...';
+
+  @override
+  String get expandStatusGenerating => 'AI is generating new words...';
+
+  @override
+  String expandStatusDone(Object direction, Object count, Object verified,
+      Object pending, Object context) {
+    return 'Generated $count words for [$direction] ($verified added, $pending pending review, $context existing words considered)';
+  }
+
+  @override
+  String expandStatusDoneSimple(Object count, Object verified, Object pending) {
+    return 'Generated $count words ($verified added, $pending pending review)';
+  }
+
+  @override
+  String get expandStatusNone => 'No new words generated';
+
+  @override
+  String get expandStatusFailed => 'Word generation failed';
+
+  @override
+  String get expandStatusNoApi => 'API not connected — cannot generate words';
+
+  @override
+  String quizGoalRemaining(Object count) {
+    return 'Today\'s goal: $count more questions to unlock';
+  }
+
+  @override
+  String get quizReviewPool => 'Due review pool';
+
+  @override
+  String quizReviewNote(Object count) {
+    return '$count items due — session ends automatically once the goal is met';
+  }
+
+  @override
+  String quizEstimateGoal(Object count, Object minutes) {
+    return 'Goal: $count questions · ~$minutes min';
+  }
+
+  @override
+  String get disputeGrade => 'I think this was graded wrong';
+
+  @override
+  String get sessionEmpty => 'Nothing to study right now';
+
+  @override
+  String get sessionEmptyHint =>
+      'Import more words, or configure AI expansion. Words on long intervals will return on their due dates.';
+
+  @override
+  String get sessionContinue => 'Keep training';
+
+  @override
+  String get pendingAcceptAll => 'Accept all';
+
+  @override
+  String pendingAcceptAllDone(Object activated, Object skipped) {
+    return 'Activated $activated, skipped $skipped (missing meaning)';
+  }
 }
