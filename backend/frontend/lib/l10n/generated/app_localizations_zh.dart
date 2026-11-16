@@ -42,7 +42,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sectionAIPlan => 'AI 学习方案';
 
   @override
-  String get sectionPassive => '被动答题 (即将推出)';
+  String get sectionPassive => '被动答题';
 
   @override
   String get sectionExpand => 'AI 扩词';
@@ -917,44 +917,44 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiChatInputHint => '输入消息...';
 
   @override
-  String get expandStatusGenerating => 'AI is generating new words...';
+  String get expandStatusGenerating => 'AI 正在生成新词...';
 
   @override
   String expandStatusDone(Object direction, Object count, Object verified,
       Object pending, Object context) {
-    return 'Generated $count words for [$direction] ($verified added, $pending pending review, $context existing words considered)';
+    return '已为【$direction】生成 $count 个词(入库 $verified,待审核 $pending,参考 $context 个旧词)';
   }
 
   @override
   String expandStatusDoneSimple(Object count, Object verified, Object pending) {
-    return 'Generated $count words ($verified added, $pending pending review)';
+    return '已生成 $count 个词(入库 $verified,待审核 $pending)';
   }
 
   @override
-  String get expandStatusNone => 'No new words generated';
+  String get expandStatusNone => '没有生成新词';
 
   @override
-  String get expandStatusFailed => 'Word generation failed';
+  String get expandStatusFailed => '词汇生成失败';
 
   @override
-  String get expandStatusNoApi => 'API not connected — cannot generate words';
+  String get expandStatusNoApi => 'API 未连接,无法生成词汇';
 
   @override
   String quizGoalRemaining(Object count) {
-    return 'Today\'s goal: $count more questions to unlock';
+    return '今日目标:再完成 $count 题解锁';
   }
 
   @override
-  String get quizReviewPool => 'Due review pool';
+  String get quizReviewPool => '到期复习池';
 
   @override
   String quizReviewNote(Object count) {
-    return '$count items due — session ends automatically once the goal is met';
+    return '$count 项到期 —— 达成目标后会话自动结束';
   }
 
   @override
   String quizEstimateGoal(Object count, Object minutes) {
-    return 'Goal: $count questions · ~$minutes min';
+    return '目标:$count 题 · 约 $minutes 分钟';
   }
 
   @override
@@ -976,4 +976,134 @@ class AppLocalizationsZh extends AppLocalizations {
   String pendingAcceptAllDone(Object activated, Object skipped) {
     return '已入库 $activated 个,跳过 $skipped 个(缺少释义)';
   }
+
+  @override
+  String get sidebarDiagnostics => '诊断';
+
+  @override
+  String get sidebarPassive => '被动';
+
+  @override
+  String get diagnosticsTitle => '学习诊断';
+
+  @override
+  String diagnosticsWindowShort(Object count) {
+    return '$count 天';
+  }
+
+  @override
+  String diagnosticsWindow(Object days) {
+    return '近 $days 天';
+  }
+
+  @override
+  String get diagnosticsCoverage => '词汇覆盖';
+
+  @override
+  String get diagnosticsWords => '词条';
+
+  @override
+  String get diagnosticsLongTerm => '长期掌握';
+
+  @override
+  String get diagnosticsPending => '待审核';
+
+  @override
+  String get diagnosticsErrors => '错因分布';
+
+  @override
+  String get diagnosticsNoErrors => '这段时间没有答错记录。';
+
+  @override
+  String get diagnosticsWeakPhonemes => '弱音素';
+
+  @override
+  String get diagnosticsNoPhonemes => '还没有跟读的音素数据 —— 做过发音题后才会出现。';
+
+  @override
+  String diagnosticsPhonemesMeasured(Object count) {
+    return '基于 $count 条跟读记录';
+  }
+
+  @override
+  String get diagnosticsAIDisagreement => 'AI 判定分歧';
+
+  @override
+  String get diagnosticsNoAIVerdicts => '这段时间没有 AI 判定。';
+
+  @override
+  String get diagnosticsAIVerdicts => 'AI 判定次数';
+
+  @override
+  String get diagnosticsAIFalseNegatives => '疑似误判';
+
+  @override
+  String get diagnosticsAISamples => '样例(你的答案 | 期望答案)';
+
+  @override
+  String get diagnosticsTypeAccuracy => '各题型准确率';
+
+  @override
+  String get diagnosticsNoTypes => '这段时间没有作答记录。';
+
+  @override
+  String get diagnosticsEmpty => '还没有可诊断的数据';
+
+  @override
+  String get diagnosticsEmptyHint => '完成几次练习后,这里就会有内容。';
+
+  @override
+  String get errorCategorySimilarity => '形近 / 音近';
+
+  @override
+  String get errorCategoryEmpty => '空答';
+
+  @override
+  String get errorCategoryOther => '其他';
+
+  @override
+  String get errorCategoryUnlabeled => '未归类';
+
+  @override
+  String get passiveTitle => '被动答题';
+
+  @override
+  String get passiveHint => '先自己回忆释义,想好再翻面。';
+
+  @override
+  String get passiveReveal => '显示释义';
+
+  @override
+  String get passiveRemember => '记得';
+
+  @override
+  String get passiveHard => '有点难';
+
+  @override
+  String get passiveForgot => '忘了';
+
+  @override
+  String get passiveEmpty => '当前没有到期的词';
+
+  @override
+  String get passiveEmptyHint => '单词到期后会出现在这里。';
+
+  @override
+  String passiveAnswered(Object count) {
+    return '本轮已评 $count 个';
+  }
+
+  @override
+  String get passiveSubmitRejected => '服务器没有接受这次评分。';
+
+  @override
+  String homeworkNextDue(Object when) {
+    return '下次作业:$when';
+  }
+
+  @override
+  String get homeworkAIRequired => '作业需要 AI —— 请先在设置里配置。';
+
+  @override
+  String get homeworkGenerationFailed => 'AI 生成作业失败,稍后再试。';
 }

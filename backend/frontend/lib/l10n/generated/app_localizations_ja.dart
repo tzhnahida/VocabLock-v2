@@ -42,7 +42,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get sectionAIPlan => 'AI学習プラン';
 
   @override
-  String get sectionPassive => 'パッシブ出題 (近日公開)';
+  String get sectionPassive => 'パッシブ出題';
 
   @override
   String get sectionExpand => 'AI単語拡張';
@@ -917,44 +917,44 @@ class AppLocalizationsJa extends AppLocalizations {
   String get aiChatInputHint => 'メッセージを入力...';
 
   @override
-  String get expandStatusGenerating => 'AI is generating new words...';
+  String get expandStatusGenerating => 'AI が新しい単語を生成しています...';
 
   @override
   String expandStatusDone(Object direction, Object count, Object verified,
       Object pending, Object context) {
-    return 'Generated $count words for [$direction] ($verified added, $pending pending review, $context existing words considered)';
+    return '【$direction】向けに $count 語を生成($verified 件登録、$pending 件承認待ち、既存語 $context 件を参照)';
   }
 
   @override
   String expandStatusDoneSimple(Object count, Object verified, Object pending) {
-    return 'Generated $count words ($verified added, $pending pending review)';
+    return '$count 語を生成($verified 件登録、$pending 件承認待ち)';
   }
 
   @override
-  String get expandStatusNone => 'No new words generated';
+  String get expandStatusNone => '新しい単語は生成されませんでした';
 
   @override
-  String get expandStatusFailed => 'Word generation failed';
+  String get expandStatusFailed => '単語の生成に失敗しました';
 
   @override
-  String get expandStatusNoApi => 'API not connected — cannot generate words';
+  String get expandStatusNoApi => 'API 未接続のため単語を生成できません';
 
   @override
   String quizGoalRemaining(Object count) {
-    return 'Today\'s goal: $count more questions to unlock';
+    return '今日の目標:あと $count 問で解除';
   }
 
   @override
-  String get quizReviewPool => 'Due review pool';
+  String get quizReviewPool => '期限の来た復習プール';
 
   @override
   String quizReviewNote(Object count) {
-    return '$count items due — session ends automatically once the goal is met';
+    return '$count 件が期限 — 目標達成後にセッションは自動終了します';
   }
 
   @override
   String quizEstimateGoal(Object count, Object minutes) {
-    return 'Goal: $count questions · ~$minutes min';
+    return '目標:$count 問 · 約 $minutes 分';
   }
 
   @override
@@ -977,4 +977,134 @@ class AppLocalizationsJa extends AppLocalizations {
   String pendingAcceptAllDone(Object activated, Object skipped) {
     return '$activated 件を登録、$skipped 件スキップ(意味なし)';
   }
+
+  @override
+  String get sidebarDiagnostics => '診断';
+
+  @override
+  String get sidebarPassive => 'パッシブ';
+
+  @override
+  String get diagnosticsTitle => '学習診断';
+
+  @override
+  String diagnosticsWindowShort(Object count) {
+    return '$count日';
+  }
+
+  @override
+  String diagnosticsWindow(Object days) {
+    return '直近 $days 日';
+  }
+
+  @override
+  String get diagnosticsCoverage => '語彙カバレッジ';
+
+  @override
+  String get diagnosticsWords => '語彙';
+
+  @override
+  String get diagnosticsLongTerm => '長期定着';
+
+  @override
+  String get diagnosticsPending => '承認待ち';
+
+  @override
+  String get diagnosticsErrors => '誤りの原因';
+
+  @override
+  String get diagnosticsNoErrors => 'この期間に誤答はありません。';
+
+  @override
+  String get diagnosticsWeakPhonemes => '苦手な音素';
+
+  @override
+  String get diagnosticsNoPhonemes => '音読の音素データがまだありません — 発音問題の後に表示されます。';
+
+  @override
+  String diagnosticsPhonemesMeasured(Object count) {
+    return '$count 件の音読記録に基づく';
+  }
+
+  @override
+  String get diagnosticsAIDisagreement => 'AI 採点の食い違い';
+
+  @override
+  String get diagnosticsNoAIVerdicts => 'この期間に AI 判定はありません。';
+
+  @override
+  String get diagnosticsAIVerdicts => 'AI 判定数';
+
+  @override
+  String get diagnosticsAIFalseNegatives => '誤判定の疑い';
+
+  @override
+  String get diagnosticsAISamples => '例(あなたの解答 | 期待解答)';
+
+  @override
+  String get diagnosticsTypeAccuracy => '問題タイプ別の正答率';
+
+  @override
+  String get diagnosticsNoTypes => 'この期間に解答記録がありません。';
+
+  @override
+  String get diagnosticsEmpty => '診断できるデータがまだありません';
+
+  @override
+  String get diagnosticsEmptyHint => '数回学習すると、ここに内容が表示されます。';
+
+  @override
+  String get errorCategorySimilarity => '形・音の混同';
+
+  @override
+  String get errorCategoryEmpty => '無解答';
+
+  @override
+  String get errorCategoryOther => 'その他';
+
+  @override
+  String get errorCategoryUnlabeled => '未分類';
+
+  @override
+  String get passiveTitle => 'パッシブ想起';
+
+  @override
+  String get passiveHint => 'まず意味を思い出し、決まったらめくってください。';
+
+  @override
+  String get passiveReveal => '意味を表示';
+
+  @override
+  String get passiveRemember => '覚えていた';
+
+  @override
+  String get passiveHard => '難しい';
+
+  @override
+  String get passiveForgot => '忘れた';
+
+  @override
+  String get passiveEmpty => '今は期限の来た単語がありません';
+
+  @override
+  String get passiveEmptyHint => '復習期限が来た単語がここに表示されます。';
+
+  @override
+  String passiveAnswered(Object count) {
+    return '今回の評価: $count 件';
+  }
+
+  @override
+  String get passiveSubmitRejected => 'サーバーが評価を受け付けませんでした。';
+
+  @override
+  String homeworkNextDue(Object when) {
+    return '次の宿題: $when';
+  }
+
+  @override
+  String get homeworkAIRequired => '宿題には AI が必要です — 設定で構成してください。';
+
+  @override
+  String get homeworkGenerationFailed => 'AI が宿題を生成できませんでした。後でもう一度お試しください。';
 }

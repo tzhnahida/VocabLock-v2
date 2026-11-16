@@ -42,7 +42,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sectionAIPlan => 'AI Study Plan';
 
   @override
-  String get sectionPassive => 'Passive Quiz (Coming Soon)';
+  String get sectionPassive => 'Passive Quiz';
 
   @override
   String get sectionExpand => 'AI Word Expansion';
@@ -997,4 +997,140 @@ class AppLocalizationsEn extends AppLocalizations {
   String pendingAcceptAllDone(Object activated, Object skipped) {
     return 'Activated $activated, skipped $skipped (missing meaning)';
   }
+
+  @override
+  String get sidebarDiagnostics => 'Diagnostics';
+
+  @override
+  String get sidebarPassive => 'Passive';
+
+  @override
+  String get diagnosticsTitle => 'Learning diagnostics';
+
+  @override
+  String diagnosticsWindowShort(Object count) {
+    return '${count}d';
+  }
+
+  @override
+  String diagnosticsWindow(Object days) {
+    return 'Last $days days';
+  }
+
+  @override
+  String get diagnosticsCoverage => 'Vocabulary coverage';
+
+  @override
+  String get diagnosticsWords => 'Words';
+
+  @override
+  String get diagnosticsLongTerm => 'Long-term';
+
+  @override
+  String get diagnosticsPending => 'Pending';
+
+  @override
+  String get diagnosticsErrors => 'Error causes';
+
+  @override
+  String get diagnosticsNoErrors => 'No wrong answers in this window.';
+
+  @override
+  String get diagnosticsWeakPhonemes => 'Weak phonemes';
+
+  @override
+  String get diagnosticsNoPhonemes =>
+      'No read-aloud phoneme data yet — it appears after a pronunciation question.';
+
+  @override
+  String diagnosticsPhonemesMeasured(Object count) {
+    return 'Based on $count read-aloud rows';
+  }
+
+  @override
+  String get diagnosticsAIDisagreement => 'AI grading disagreement';
+
+  @override
+  String get diagnosticsNoAIVerdicts => 'No AI verdicts in this window.';
+
+  @override
+  String get diagnosticsAIVerdicts => 'AI verdicts';
+
+  @override
+  String get diagnosticsAIFalseNegatives => 'Likely false negatives';
+
+  @override
+  String get diagnosticsAISamples => 'Samples (your answer | expected)';
+
+  @override
+  String get diagnosticsTypeAccuracy => 'Accuracy by question type';
+
+  @override
+  String get diagnosticsNoTypes => 'No answers in this window.';
+
+  @override
+  String get diagnosticsEmpty => 'Nothing to diagnose yet';
+
+  @override
+  String get diagnosticsEmptyHint =>
+      'Finish a few sessions and this panel fills in.';
+
+  @override
+  String get errorCategorySimilarity => 'Form / sound confusion';
+
+  @override
+  String get errorCategoryEmpty => 'Blank answer';
+
+  @override
+  String get errorCategoryOther => 'Other';
+
+  @override
+  String get errorCategoryUnlabeled => 'Unlabeled';
+
+  @override
+  String get passiveTitle => 'Passive recall';
+
+  @override
+  String get passiveHint =>
+      'Recall the meaning first — reveal only when you have an answer.';
+
+  @override
+  String get passiveReveal => 'Reveal meaning';
+
+  @override
+  String get passiveRemember => 'Remembered';
+
+  @override
+  String get passiveHard => 'Hard';
+
+  @override
+  String get passiveForgot => 'Forgot';
+
+  @override
+  String get passiveEmpty => 'Nothing due right now';
+
+  @override
+  String get passiveEmptyHint =>
+      'Words show up here when they are due for review.';
+
+  @override
+  String passiveAnswered(Object count) {
+    return 'Rated this round: $count';
+  }
+
+  @override
+  String get passiveSubmitRejected => 'The server did not accept that rating.';
+
+  @override
+  String homeworkNextDue(Object when) {
+    return 'Next homework: $when';
+  }
+
+  @override
+  String get homeworkAIRequired =>
+      'Homework needs an AI provider — configure one in Settings.';
+
+  @override
+  String get homeworkGenerationFailed =>
+      'AI could not generate homework. Try again later.';
 }

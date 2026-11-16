@@ -169,7 +169,7 @@ abstract class AppLocalizations {
   /// No description provided for @sectionPassive.
   ///
   /// In en, this message translates to:
-  /// **'Passive Quiz (Coming Soon)'**
+  /// **'Passive Quiz'**
   String get sectionPassive;
 
   /// No description provided for @sectionExpand.
@@ -1918,6 +1918,246 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Activated {activated}, skipped {skipped} (missing meaning)'**
   String pendingAcceptAllDone(Object activated, Object skipped);
+
+  /// No description provided for @sidebarDiagnostics.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostics'**
+  String get sidebarDiagnostics;
+
+  /// No description provided for @sidebarPassive.
+  ///
+  /// In en, this message translates to:
+  /// **'Passive'**
+  String get sidebarPassive;
+
+  /// No description provided for @diagnosticsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Learning diagnostics'**
+  String get diagnosticsTitle;
+
+  /// No description provided for @diagnosticsWindowShort.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}d'**
+  String diagnosticsWindowShort(Object count);
+
+  /// No description provided for @diagnosticsWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Last {days} days'**
+  String diagnosticsWindow(Object days);
+
+  /// No description provided for @diagnosticsCoverage.
+  ///
+  /// In en, this message translates to:
+  /// **'Vocabulary coverage'**
+  String get diagnosticsCoverage;
+
+  /// No description provided for @diagnosticsWords.
+  ///
+  /// In en, this message translates to:
+  /// **'Words'**
+  String get diagnosticsWords;
+
+  /// No description provided for @diagnosticsLongTerm.
+  ///
+  /// In en, this message translates to:
+  /// **'Long-term'**
+  String get diagnosticsLongTerm;
+
+  /// No description provided for @diagnosticsPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get diagnosticsPending;
+
+  /// No description provided for @diagnosticsErrors.
+  ///
+  /// In en, this message translates to:
+  /// **'Error causes'**
+  String get diagnosticsErrors;
+
+  /// No description provided for @diagnosticsNoErrors.
+  ///
+  /// In en, this message translates to:
+  /// **'No wrong answers in this window.'**
+  String get diagnosticsNoErrors;
+
+  /// No description provided for @diagnosticsWeakPhonemes.
+  ///
+  /// In en, this message translates to:
+  /// **'Weak phonemes'**
+  String get diagnosticsWeakPhonemes;
+
+  /// No description provided for @diagnosticsNoPhonemes.
+  ///
+  /// In en, this message translates to:
+  /// **'No read-aloud phoneme data yet — it appears after a pronunciation question.'**
+  String get diagnosticsNoPhonemes;
+
+  /// No description provided for @diagnosticsPhonemesMeasured.
+  ///
+  /// In en, this message translates to:
+  /// **'Based on {count} read-aloud rows'**
+  String diagnosticsPhonemesMeasured(Object count);
+
+  /// No description provided for @diagnosticsAIDisagreement.
+  ///
+  /// In en, this message translates to:
+  /// **'AI grading disagreement'**
+  String get diagnosticsAIDisagreement;
+
+  /// No description provided for @diagnosticsNoAIVerdicts.
+  ///
+  /// In en, this message translates to:
+  /// **'No AI verdicts in this window.'**
+  String get diagnosticsNoAIVerdicts;
+
+  /// No description provided for @diagnosticsAIVerdicts.
+  ///
+  /// In en, this message translates to:
+  /// **'AI verdicts'**
+  String get diagnosticsAIVerdicts;
+
+  /// No description provided for @diagnosticsAIFalseNegatives.
+  ///
+  /// In en, this message translates to:
+  /// **'Likely false negatives'**
+  String get diagnosticsAIFalseNegatives;
+
+  /// No description provided for @diagnosticsAISamples.
+  ///
+  /// In en, this message translates to:
+  /// **'Samples (your answer | expected)'**
+  String get diagnosticsAISamples;
+
+  /// No description provided for @diagnosticsTypeAccuracy.
+  ///
+  /// In en, this message translates to:
+  /// **'Accuracy by question type'**
+  String get diagnosticsTypeAccuracy;
+
+  /// No description provided for @diagnosticsNoTypes.
+  ///
+  /// In en, this message translates to:
+  /// **'No answers in this window.'**
+  String get diagnosticsNoTypes;
+
+  /// No description provided for @diagnosticsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to diagnose yet'**
+  String get diagnosticsEmpty;
+
+  /// No description provided for @diagnosticsEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish a few sessions and this panel fills in.'**
+  String get diagnosticsEmptyHint;
+
+  /// No description provided for @errorCategorySimilarity.
+  ///
+  /// In en, this message translates to:
+  /// **'Form / sound confusion'**
+  String get errorCategorySimilarity;
+
+  /// No description provided for @errorCategoryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Blank answer'**
+  String get errorCategoryEmpty;
+
+  /// No description provided for @errorCategoryOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get errorCategoryOther;
+
+  /// No description provided for @errorCategoryUnlabeled.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlabeled'**
+  String get errorCategoryUnlabeled;
+
+  /// No description provided for @passiveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Passive recall'**
+  String get passiveTitle;
+
+  /// No description provided for @passiveHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Recall the meaning first — reveal only when you have an answer.'**
+  String get passiveHint;
+
+  /// No description provided for @passiveReveal.
+  ///
+  /// In en, this message translates to:
+  /// **'Reveal meaning'**
+  String get passiveReveal;
+
+  /// No description provided for @passiveRemember.
+  ///
+  /// In en, this message translates to:
+  /// **'Remembered'**
+  String get passiveRemember;
+
+  /// No description provided for @passiveHard.
+  ///
+  /// In en, this message translates to:
+  /// **'Hard'**
+  String get passiveHard;
+
+  /// No description provided for @passiveForgot.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot'**
+  String get passiveForgot;
+
+  /// No description provided for @passiveEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing due right now'**
+  String get passiveEmpty;
+
+  /// No description provided for @passiveEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Words show up here when they are due for review.'**
+  String get passiveEmptyHint;
+
+  /// No description provided for @passiveAnswered.
+  ///
+  /// In en, this message translates to:
+  /// **'Rated this round: {count}'**
+  String passiveAnswered(Object count);
+
+  /// No description provided for @passiveSubmitRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'The server did not accept that rating.'**
+  String get passiveSubmitRejected;
+
+  /// No description provided for @homeworkNextDue.
+  ///
+  /// In en, this message translates to:
+  /// **'Next homework: {when}'**
+  String homeworkNextDue(Object when);
+
+  /// No description provided for @homeworkAIRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Homework needs an AI provider — configure one in Settings.'**
+  String get homeworkAIRequired;
+
+  /// No description provided for @homeworkGenerationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'AI could not generate homework. Try again later.'**
+  String get homeworkGenerationFailed;
 }
 
 class _AppLocalizationsDelegate
