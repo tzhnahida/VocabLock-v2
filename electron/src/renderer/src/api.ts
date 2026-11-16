@@ -109,14 +109,21 @@ export async function loadDashboard(ctx: Ctx | null): Promise<Dashboard> {
     const activeLang = languages.value[0] ?? 'en'
     const q = `?language=${activeLang}`
 
+    // Every call may be missing on an older server; the empty-object fallbacks
+    // are typed so the numeric readers below stay checkable.
+    const none = (): Record<string, unknown> => ({})
     const [config, progress, today, streak, heatmap, words, diagnostics] = await Promise.all([
-      get<Record<string, unknown>>(ctx, '/api/v1/config').catch(() => ({})),
-      get<Record<string, unknown>>(ctx, `/api/v1/quiz/progress${q}`).catch(() => ({})),
-      get<Record<string, unknown>>(ctx, `/api/v1/quiz/today-stats${q}`).catch(() => ({})),
-      get<Record<string, unknown>>(ctx, `/api/v1/stats/streak${q}`).catch(() => ({})),
-      get<Record<string, number>>(ctx, `/api/v1/stats/heatmap?days=30&language=${activeLang}`).catch(() => ({})),
-      get<{ words: Word[]; total?: number }>(ctx, `/api/v1/words?language=${activeLang}&limit=60`).catch(() => ({ words: [] })),
-      get<Record<string, unknown>>(ctx, '/api/v1/stats/diagnostics?days=30').catch(() => ({}))
+      get<Record<string, unknown>>(ctx, '/api/v1/config').catch(none),
+      get<Record<string, unknown>>(ctx, `/api/v1/quiz/progress${q}`).catch(none),
+      get<Record<string, unknown>>(ctx, `/api/v1/quiz/today-stats${q}`).catch(none),
+      get<Record<string, unknown>>(ctx, `/api/v1/stats/streak${q}`).catch(none),
+      get<Record<string, number>>(ctx, `/api/v1/stats/heatmap?days=30&language=${activeLang}`).catch(
+        (): Record<string, number> => ({})
+      ),
+      get<{ words: Word[]; total?: number }>(ctx, `/api/v1/words?language=${activeLang}&limit=60`).catch(
+        (): { words: Word[]; total?: number } => ({ words: [] })
+      ),
+      get<Record<string, unknown>>(ctx, '/api/v1/stats/diagnostics?days=30').catch(none)
     ])
 
     const reviewed = num(today['reviewed'], num(progress['reviewed_today']))
