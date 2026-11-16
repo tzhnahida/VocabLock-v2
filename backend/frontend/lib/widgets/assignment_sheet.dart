@@ -262,7 +262,7 @@ class _AssignmentSheetState extends State<AssignmentSheet> {
             ),
             if (_submitError != null) ...[
               const SizedBox(height: 10),
-              Text(l10n.loadFailed(_submitError!),
+              Text(l10n.homeworkSubmitFailed(_submitError!),
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 12, color: Colors.redAccent.withValues(alpha: 0.8))),
             ],

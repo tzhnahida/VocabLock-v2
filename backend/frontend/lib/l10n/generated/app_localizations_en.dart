@@ -1133,4 +1133,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get homeworkGenerationFailed =>
       'AI could not generate homework. Try again later.';
+
+  @override
+  String homeworkSubmitFailed(Object error) {
+    return 'Submit failed: $error';
+  }
 }

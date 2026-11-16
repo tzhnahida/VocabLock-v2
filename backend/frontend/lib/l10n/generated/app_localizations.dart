@@ -2158,6 +2158,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'AI could not generate homework. Try again later.'**
   String get homeworkGenerationFailed;
+
+  /// No description provided for @homeworkSubmitFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit failed: {error}'**
+  String homeworkSubmitFailed(Object error);
 }
 
 class _AppLocalizationsDelegate

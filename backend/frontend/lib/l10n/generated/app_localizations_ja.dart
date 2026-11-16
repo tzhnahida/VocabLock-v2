@@ -1107,4 +1107,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get homeworkGenerationFailed => 'AI が宿題を生成できませんでした。後でもう一度お試しください。';
+
+  @override
+  String homeworkSubmitFailed(Object error) {
+    return '提出に失敗しました: $error';
+  }
 }

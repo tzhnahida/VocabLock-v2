@@ -405,6 +405,7 @@
   "homeworkNextDue": "次の宿題: {when}",
   "homeworkAIRequired": "宿題には AI が必要です — 設定で構成してください。",
   "homeworkGenerationFailed": "AI が宿題を生成できませんでした。後でもう一度お試しください。",
+  "homeworkSubmitFailed": "提出に失敗しました: {error}",
   "expandStatusGenerating": "AI が新しい単語を生成しています...",
   "expandStatusDone": "【{direction}】向けに {count} 語を生成({verified} 件登録、{pending} 件承認待ち、既存語 {context} 件を参照)",
   "expandStatusDoneSimple": "{count} 語を生成({verified} 件登録、{pending} 件承認待ち)",

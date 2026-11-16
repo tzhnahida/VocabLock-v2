@@ -424,6 +424,8 @@
   "homeworkNextDue": "Next homework: {when}",
   "homeworkAIRequired": "Homework needs an AI provider — configure one in Settings.",
   "homeworkGenerationFailed": "AI could not generate homework. Try again later.",
+  "homeworkSubmitFailed": "Submit failed: {error}",
+  "@homeworkSubmitFailed": {"placeholders": {"error": {}}},
   "@diagnosticsWindowShort": {"placeholders": {"count": {}}},
   "@diagnosticsWindow": {"placeholders": {"days": {}}},
   "@diagnosticsPhonemesMeasured": {"placeholders": {"count": {}}},

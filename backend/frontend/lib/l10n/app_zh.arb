@@ -405,6 +405,7 @@
   "homeworkNextDue": "下次作业:{when}",
   "homeworkAIRequired": "作业需要 AI —— 请先在设置里配置。",
   "homeworkGenerationFailed": "AI 生成作业失败,稍后再试。",
+  "homeworkSubmitFailed": "提交失败:{error}",
   "expandStatusGenerating": "AI 正在生成新词...",
   "expandStatusDone": "已为【{direction}】生成 {count} 个词(入库 {verified},待审核 {pending},参考 {context} 个旧词)",
   "expandStatusDoneSimple": "已生成 {count} 个词(入库 {verified},待审核 {pending})",

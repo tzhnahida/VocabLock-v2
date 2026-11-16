@@ -1106,4 +1106,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get homeworkGenerationFailed => 'AI 生成作业失败,稍后再试。';
+
+  @override
+  String homeworkSubmitFailed(Object error) {
+    return '提交失败:$error';
+  }
 }
