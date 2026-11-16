@@ -105,6 +105,13 @@ docs/design/app.html?screen=lock&theme=dark&lang=ja
 - 未实现的交互：真实 API、录音、TTS、SM-2 数据、锁屏防绕过、多屏。
 - 原型里的数字/单词是演示数据，接后端时必须替换。
 
+## 实现状态（2026-11-17）
+
+- M0 已落地在仓库根 `electron/`（Electron 34 + electron-vite + React 19 + TS）。
+- `src/renderer/src/styles/design.css` 与 `i18n.json` 由 `electron/scripts/extract-design.mjs` 从本目录 `app.html` 抽取，token/文案与原型同源；改设计请改原型再重跑脚本。
+- 已实现：home / library / quiz / lock 四屏 + stats 简版；浅色/深色、中/英/日；导航 6 项（听力/设置/AI 标灰待 M2）。
+- 未实现：真实答题提交与 SM-2、听力/设置/AI 三屏、系统级锁屏、打包。详见 docs/STATUS.md。
+
 ## 已知限制
 
 - 锁屏只是网页遮罩，不是 OS 级锁定。

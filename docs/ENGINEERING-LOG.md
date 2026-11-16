@@ -13,6 +13,51 @@
 | 2026-11-08 | 新界面四屏原型；决定 Flutter → Electron |
 | 2026-11-10 | 全量代码审计；决定先修数据正确性，再加本地 ASR |
 
+## 2026-11-17 — UI 重构：Electron + React，按设计稿落地（M0）
+
+### 完成
+- 新建 electron/：Electron 34 + electron-vite + React 19 + TS。样式与三语文案由 electron/scripts/extract-design.mjs 从 docs/design/app.html 直接抽取成 design.css / i18n.json（18.9KB CSS、133 键 ×3 语），避免手抄漂移。
+- 四屏落地：
+  - home：今日目标环 + 进度、近 7 天柱状、最近学过（相对时间）、连续天数（周条）、待复习、薄弱项（题型准确率）、快捷操作。
+  - library：搜索 + 状态筛选（全部/学习中/待复习/已掌握）+ 表格（状态、下次复习、熟练度）+ 右侧详情（释义/复习参数/操作）。
+  - quiz：题卡 + 选项 + 键位（1–4/空格/Esc）+ 右侧 rail（今日、本轮方块、薄弱项、快捷键）。
+  - lock：全屏专注遮罩（题卡 + 进度 + 底部键位）。
+  - 另加 stats：题型准确率 + 词汇覆盖。
+- 导航回到设计稿的 6 项（学习/词库/听力/统计/设置 + 更多：AI 对话），侧栏 234px；听力/设置/AI 暂标灰。
+- 数据接真：/config/languages、/quiz/progress、/quiz/today-stats、/stats/streak、/stats/heatmap、/words、/stats/diagnostics；请求失败回落演示数据并在标题栏标 demo。
+- 新增后端 headless 通路 backend/cmd/devserver：只起 HTTP，不拉 UI、不碰锁屏/托盘，打印 {"port","token"}；Electron 接受与 Flutter 相同的 --api-port/--auth-token。
+- 验证：真实数据库副本（ja，127 词）渲染 home / library（深色 + 浅色），数字来自真库（待复习 54 词、连续 2 天、127 词）；演示数据下浅/深色、中/英/日均可渲染；npm run build 通过。
+
+### 完成方法
+- 不重画设计：把原型的 <style> 和三语 T 表抽成资产，组件只负责结构，所以 token、圆角、间距、字阶与设计稿是同一份。
+- 截图验证走 Electron 自己的 webContents.capturePage()（--screenshot= 参数），不需要窗口前台，完全不抢用户焦点 —— 这是在 Flutter 上做不到的（那边要么 UIA 空树，要么 headless 鼠标被拒）。
+- 先跑演示数据把版式对齐，再起 devserver 接真库；真库用副本，点坏也不影响真实进度。
+
+### 踩坑
+- npm 配着一个已死的代理（127.0.0.1:2026），npm install 静默卡了 13 分钟；用 `--userconfig` 指向空文件才通（不能只清 env，user 级 .npmrc 里有 proxy）。
+- 环境里 ELECTRON_RUN_AS_NODE=1：直接跑 electron 会被当成 Node，`ipcMain` undefined，报 "Cannot read properties of undefined (reading 'handle')"。必须 unset 再启动。
+- 原型把演示数字写进句子（"还剩 8 题 · 约 6 分钟"、"共 108 题"）；接真数据必须换成参数化文案，否则真库数字旁边挂着假句子。
+- /quiz/progress 的 remaining 是"池"口径：池空时返回 0，而今日 0 题，直接渲染会变成"100% 完成 / 还剩 0 题"。改成本地算 max(0, target − reviewed)；daily_target=0（dev 配置用来跳过锁屏）也按未配置处理，回落 20。
+- 原型 quiz 的例句是把答案挖空的句子；词库没有例句数据，照抄会把答案直接印在题干上。M0 先不显示例句，等例句数据再说。
+
+### 失败
+- 无（构建链路一次通过；首轮渲染的偏差都是文案/口径问题，不是结构问题）。
+
+### 失败原因
+- 不适用。
+
+### 剩余
+- quiz 只有本地判分：没有 /quiz/submit、没有 SM-2、没有错题记录 —— M1 要接回真回路。
+- 听力 / 设置 / AI 对话三屏未做（导航里标灰）；词库的"添加词/编辑"未接线。
+- 主进程仍是独立应用，Go 侧 spawnFlutter 还没换成 Electron；没有 electron-builder 打包。
+- 锁屏只是网页遮罩，不是 OS 级（Electron M3 才做防绕过）。
+- 诊断（错因/AI 分歧）只在 Flutter 面板里有，Electron stats 目前只覆盖题型准确率与词汇覆盖。
+
+### 规划
+1. M1：quiz 提交 + SM-2 + 词库编辑；顺手把被动/诊断数据接到 stats 屏。
+2. M2：听力 / 设置 / AI 对话三屏。
+3. M3：系统级锁屏 + 托盘 + 单实例；M4：打包与 Go 主进程切换。
+
 ## 2026-11-17 — 前端诊断 / 作业 / 被动 UI
 
 ### 完成

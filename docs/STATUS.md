@@ -67,6 +67,14 @@
   - 新增 home_flow_test：1280x720 下 pump 真实 HomeScreen + 真 loopback HTTP server，点诊断、翻被动卡并评分、开作业面板，断言新入口在可视区内。
   - 验证：flutter test 19/19；flutter analyze 0 error（150 warning/info）。
 
+- Electron M0（2026-11-17，按 docs/design/app.html 重构 UI）：
+  - 新前端放在 electron/（Electron 34 + electron-vite + React 19 + TS）。样式与三语文案由 scripts/extract-design.mjs 从原型直接抽取（design.css / i18n.json），不手抄，避免与设计稿漂移。
+  - 四屏落地：home（今日目标环、近 7 天柱状、最近学过、连续天数、待复习、薄弱项、快捷操作）、library（搜索 + 状态筛选 + 表格 + 右侧详情）、quiz（题卡 + 右侧 rail + 键位提示）、lock（全屏专注遮罩）；另有 stats 简版（题型准确率 + 词汇覆盖）。
+  - 导航回到设计稿的 6 项（学习 / 词库 / 听力 / 统计 / 设置 + 更多：AI 对话），侧栏 234px；听力、设置、AI 暂标灰（M2）。
+  - 数据接真：config/languages、quiz/progress、quiz/today-stats、stats/streak、stats/heatmap、words、stats/diagnostics；连不上回落演示数据，标题栏标 demo。
+  - 新增 headless 通路 backend/cmd/devserver：只起 HTTP、不拉 UI、不碰锁屏/托盘，打印 {"port","token"}；Electron 接受与 Flutter 相同的 --api-port/--auth-token，主进程替换留到 M4。
+  - 验证：真实数据库副本（ja，127 词）跑通 home/library 截图；浅色/深色、中/英/日均可渲染；npm run build 通过。
+
 ## 未完成
 
 | 优先级 | 事项 | 状态 |
@@ -78,12 +86,13 @@
 | P1 | Flutter 麦克风→HTTP→ASR 整链路人工回归（真人录音） | 未开始 |
 | P1 | 前端诊断 / 作业 / 被动答题三块 UI | 已完成（2026-11-17；工具驱动回归：真机构建+截图、widget 真 tap；未做人眼审美验收） |
 | P2 | base 模型中日语有识别误差，发布前评估 small | 待评估 |
-| P2 | Electron M0–M4 | 未开始 |
+| P2 | Electron M0（设计稿四屏 + 真数据） | 已完成（2026-11-17） |
+| P2 | Electron M1–M4（答题回路 / 听力设置 AI / 系统级锁屏 / 打包） | 未开始 |
 
 ## 下一步顺序
 
-1. 真人过一遍诊断 / 作业 / 被动三块 UI（含 900px 宽侧栏排版、被动「翻面→评分→下一条」节奏）。
-2. 进 Electron M0：用 docs/design/app.html 做视觉验收；顺带把 Windows 被动提醒窗与 Flutter 被动面板打通。
+1. Electron M1：把 quiz 的提交/SM-2 回路接上（现在只本地判分，不落库），词库编辑与「添加词」。
+2. 补齐听力 / 设置 / AI 对话三屏；主进程把 spawnFlutter 换成 Electron 并打包（electron-builder）。
 3. 补外挂组件的安装引导：设置页显示各 provider（TTS / 词典 / 发音 / ASR）是否已接线及期望路径；是否随安装器附带 whisper 组件包是产品决策，不是架构要求。评估用 small 替换 base 以降低中日语识别误差。
 
 ## 不要做
