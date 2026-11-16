@@ -60,6 +60,12 @@
   - l10n：新增 40 键 ×3 语言，并补齐 zh/ja 原先缺失的 10 个旧键（expandStatus*、quizGoal*）。
   - 修 .gitignore：backend/.gitignore 的裸 models/ 会吞 backend/frontend/lib/models/，根 test/ 会吞 backend/frontend/test/；改为 /models/ 与 /test/，把此前从未入库的 panel_smoke_test.dart、quiz_flow_test.dart 补进仓库。
   - 验证：flutter test 18/18（新增 diagnostics_test、api_live_test、两个面板 smoke）；flutter analyze 0 error（149 warning/info，新文件 0 条）；go vet 0；go test ./... 全绿（sim 23.4s）。
+- 真机 UI 回归（2026-11-17 补记）：
+  - 隔离副本启动真实构建（exe + Release + configs/data 副本，副本里 daily_target=0 防锁屏、passive 关闭），真实数据未动。
+  - 截图 + 视觉核对发现真 bug：720p 下 10 个工具塞不进 72px 侧栏，诊断/被动被挤出可视区且无滚动提示 → 条目 56→44、图标 22→20、常显 Scrollbar；修后截图确认 10 项齐全。
+  - 桌面自动化限制（记录在案）：Flutter Windows 的 UIA 树只有窗口层，headless 鼠标 POLICY_DENIED，PostMessage 的 WM_LBUTTON* 被 WM_POINTER 管线忽略，真实输入需要前台而用户正在用电脑 → 改用「截图 + 视觉」与「widget 级真 tap」两条不抢焦点的路。
+  - 新增 home_flow_test：1280x720 下 pump 真实 HomeScreen + 真 loopback HTTP server，点诊断、翻被动卡并评分、开作业面板，断言新入口在可视区内。
+  - 验证：flutter test 19/19；flutter analyze 0 error（150 warning/info）。
 
 ## 未完成
 
@@ -70,7 +76,7 @@
 | P2 | ASR 外挂组件的安装引导（首次运行提示 + 设置页 provider 状态） | 未开始 |
 | 可选 | 发行时附带 ASR 组件包（whisper-cli+DLL+模型，单独 zip 或安装器附加项） | 产品决策，未开始 |
 | P1 | Flutter 麦克风→HTTP→ASR 整链路人工回归（真人录音） | 未开始 |
-| P1 | 前端诊断 / 作业 / 被动答题三块 UI | 已完成（2026-11-17，待真人回归） |
+| P1 | 前端诊断 / 作业 / 被动答题三块 UI | 已完成（2026-11-17；工具驱动回归：真机构建+截图、widget 真 tap；未做人眼审美验收） |
 | P2 | base 模型中日语有识别误差，发布前评估 small | 待评估 |
 | P2 | Electron M0–M4 | 未开始 |
 

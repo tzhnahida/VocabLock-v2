@@ -43,8 +43,19 @@
 ### 失败原因
 - 不适用（本轮未出现红灯）。
 
+### 2026-11-17 补记 — 真机跑 UI（工具驱动）
+
+- 做法：把构建产物复制到临时目录（vocablock.exe + 前端 Release + configs/data 副本），改副本 config：`daily_target: 0`（否则启动即全屏锁屏）、`passive_enabled: false`（避免 25 分钟提醒窗干扰）、`auto_expand_words: false`；真实数据不动，点坏了也只坏副本。
+- 观测：agent-desktop 的 `snapshot` 只拿到窗口/标题栏，`FLUTTERVIEW` 是个没有任何子节点的 group —— Flutter Windows 的 UIA 树默认不暴露语义，按 ref 点击无从谈起；headless 下 `mouse-click` 直接 POLICY_DENIED；自己用 PostMessage 发 WM_LBUTTONDOWN/UP 也被 Flutter 的 WM_POINTER 管线忽略（截图前后主区域没变）。
+- 真实输入的拦路石是焦点：用户正在用 OrCAD，`focus-window` 报 "Target window did not become foreground before headed delivery"，我写的 SendInput 助手也拿不到前台。结论：**不要和正在用电脑的人抢焦点**，改用两条不抢焦点的路：
+  1. 截图 + 视觉核对（`desktop_screenshot` → `vision_inspect`）；
+  2. widget 级真 tap：`home_flow_test.dart` 在 1280×720 下 pump 真实 `HomeScreen`，配一个真 loopback HTTP server，点侧栏「诊断」、翻被动卡并评「记得」、打开作业面板。
+- 抓到的真 bug：10 个工具在 720p 下塞不进 72px 侧栏，最后两项（诊断、被动）被挤出可视区，桌面端 ListView 又没有任何滚动提示 —— 等于这两个入口不存在。修法：条目高度 56→44、图标 22→20、`Scrollbar(thumbVisibility: true)` 常显。修后截图确认「诊断」「被动」都在栏内。
+- 踩坑：`flutter_test` 默认把 HttpClient 换成恒返回 400 的假实现，要测真 HTTP 必须让 `HttpOverrides.global` 用自带实现（并 `idleTimeout = Duration.zero`）；dio 的 keep-alive 连接会留一个 3s 的 idle timer，测试结束时报 "A Timer is still pending"，要么 drain（末尾 `pump(5s)`）要么关 keep-alive。
+- 验证：flutter test **19/19**（新增 home_flow_test）；flutter analyze 0 error（150 warning/info）；真机构建 + 启动 + 截图确认侧栏 10 项齐全。
+
 ### 剩余
-- 三块 UI 只做过 widget / 真 HTTP 接口级验证，**没有真人点一遍**（尤其被动面板的「翻面 → 评分 → 下一条」节奏与诊断面板在 900px 宽侧栏下的排版）。
+- 三块 UI 已用工具驱动过（真机构建启动 + 截图、widget 级真 tap），但**没有经过人眼审美验收**（间距、字重、动画节奏）。
 - 被动入口目前是用户主动打开侧栏；Windows 原生 320x200 提醒窗（provider_windows.go）仍只画「复习提醒」，没有把点击转成打开 Flutter 被动面板。
 - 作业的 AI 生成路径：`ai_required` / `generation_failed` 两个 reason 分支只有 `ai_required` 有测试，生成失败分支靠代码审查。
 - 诊断按 `active_lang` 取数，前端虽传 `language` 参数但后端未使用；多语言混学时统计口径仍是「当前课程」。
