@@ -27,6 +27,8 @@ class ToolSidebar extends StatelessWidget {
     Icons.smart_toy,
     Icons.fact_check,
     Icons.assignment,
+    Icons.monitor_heart_outlined,
+    Icons.style_outlined,
   ];
 
   /// Icon-only tool list + localized labels (the old hardcoded English
@@ -42,6 +44,8 @@ class ToolSidebar extends StatelessWidget {
       case 5: return l10n.sidebarAI;
       case 6: return l10n.sidebarReview;
       case 7: return l10n.sidebarHomework;
+      case 8: return l10n.sidebarDiagnostics;
+      case 9: return l10n.sidebarPassive;
       default: return '';
     }
   }

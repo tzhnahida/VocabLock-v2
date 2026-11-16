@@ -14,6 +14,8 @@ import '../widgets/config_panel.dart';
 import '../widgets/ai_chat_panel.dart';
 import '../widgets/pending_review_panel.dart';
 import '../widgets/assignment_sheet.dart';
+import '../widgets/diagnostics_panel.dart';
+import '../widgets/passive_panel.dart';
 import '../models/assignment.dart';
 import '../models/word.dart';
 import '../utils/audio_player.dart';
@@ -176,6 +178,8 @@ class _HomeScreenState extends State<HomeScreen> {
       case 4: return ConfigPanel(key: ValueKey('config_$lang'), state: state);
       case 5: return AIChatPanel(key: ValueKey('ai_$lang'), state: state);
       case 6: return PendingReviewPanel(key: ValueKey('review_$lang'), state: state);
+      case 8: return DiagnosticsPanel(key: ValueKey('diag_$lang'), state: state);
+      case 9: return PassivePanel(key: ValueKey('passive_$lang'), state: state);
       default: return DashboardPanel(key: ValueKey('dash_$lang'), state: state, width: width, onStartQuiz: () => _showQuiz(state));
     }
   }
