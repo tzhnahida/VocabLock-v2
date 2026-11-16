@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../theme/app_theme.dart';
 
-class ToolSidebar extends StatelessWidget {
+class ToolSidebar extends StatefulWidget {
   final int activeToolIndex;
   final ValueChanged<int> onToolSelected;
   final String activeLangCode;
@@ -17,6 +17,13 @@ class ToolSidebar extends StatelessWidget {
     required this.langCodes,
     required this.onLangChanged,
   });
+
+  @override
+  State<ToolSidebar> createState() => _ToolSidebarState();
+}
+
+class _ToolSidebarState extends State<ToolSidebar> {
+  final _scroll = ScrollController();
 
   static const _tools = [
     Icons.auto_stories,
@@ -51,6 +58,12 @@ class ToolSidebar extends StatelessWidget {
   }
 
   @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
       width: 72,
@@ -70,20 +83,28 @@ class ToolSidebar extends StatelessWidget {
           _Brand(),
           const SizedBox(height: 28),
           Expanded(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: List.generate(_tools.length, (i) => _ToolIcon(
-                icon: _tools[i],
-                label: _toolLabel(context, i),
-                isActive: i == activeToolIndex,
-                onTap: () => onToolSelected(i),
-              )),
+            // 10 tools no longer fit a 720p window: without a visible
+            // scrollbar the last entries (diagnostics, passive) were
+            // unreachable — nothing on screen even hinted they existed.
+            child: Scrollbar(
+              controller: _scroll,
+              thumbVisibility: true,
+              child: ListView(
+                controller: _scroll,
+                padding: EdgeInsets.zero,
+                children: List.generate(_tools.length, (i) => _ToolIcon(
+                  icon: _tools[i],
+                  label: _toolLabel(context, i),
+                  isActive: i == widget.activeToolIndex,
+                  onTap: () => widget.onToolSelected(i),
+                )),
+              ),
             ),
           ),
           _LanguageDial(
-            activeCode: activeLangCode,
-            codes: langCodes,
-            onChanged: onLangChanged,
+            activeCode: widget.activeLangCode,
+            codes: widget.langCodes,
+            onChanged: widget.onLangChanged,
           ),
           const SizedBox(height: 16),
         ],
@@ -127,12 +148,12 @@ class _ToolIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 10),
+      padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 10),
       child: GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          height: 56,
+          height: 44,
           decoration: BoxDecoration(
             color: isActive ? AppTheme.primary.withValues(alpha: 0.1) : Colors.transparent,
             borderRadius: BorderRadius.circular(14),
@@ -142,7 +163,7 @@ class _ToolIcon extends StatelessWidget {
             children: [
               Icon(
                 icon,
-                size: 22,
+                size: 20,
                 color: isActive ? AppTheme.primary : AppTheme.textHint,
               ),
               const SizedBox(height: 3),
