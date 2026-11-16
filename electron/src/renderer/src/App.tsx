@@ -127,7 +127,7 @@ export default function App() {
             <Home dash={dash} lang={lang} onStart={() => go('quiz')} onLibrary={() => go('library')} onStats={() => go('stats')} onLock={() => setLocked(true)} />
           </section>
           <section className="screen s-library">
-            <Library dash={dash} lang={lang} />
+            <Library dash={dash} lang={lang} onChanged={refresh} />
           </section>
           <section className="screen s-quiz">
             <Quiz dash={dash} lang={lang} onExit={() => go('home')} onAnswered={refresh} />

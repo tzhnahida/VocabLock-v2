@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import { t, dyn, type Lang } from '../i18n'
-import { daysUntil, strengthOf, type Dashboard, type Word } from '../api'
+import { daysUntil, resetWord, strengthOf, type Dashboard, type Word } from '../api'
+import WordDialog from '../components/WordDialog'
 
-type Props = { dash: Dashboard; lang: Lang }
+type Props = { dash: Dashboard; lang: Lang; onChanged: () => void }
 type Filter = 'all' | 'learning' | 'due' | 'mastered'
 
 function statusOf(word: Word): Exclude<Filter, 'all'> {
@@ -12,10 +13,12 @@ function statusOf(word: Word): Exclude<Filter, 'all'> {
   return 'learning'
 }
 
-export default function Library({ dash, lang }: Props) {
+export default function Library({ dash, lang, onChanged }: Props) {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
   const [selectedId, setSelectedId] = useState<number | null>(dash.words[0]?.id ?? null)
+  const [dialog, setDialog] = useState<'add' | 'edit' | null>(null)
+  const [busy, setBusy] = useState(false)
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -57,7 +60,7 @@ export default function Library({ dash, lang }: Props) {
           ))}
         </div>
         <div style={{ flex: 1 }} />
-        <button className="btn" disabled title="M1">
+        <button className="btn" onClick={() => setDialog('add')} disabled={!dash.online}>
           {t(lang, 'lib.add')}
         </button>
       </div>
@@ -155,8 +158,23 @@ export default function Library({ dash, lang }: Props) {
                 </div>
               </div>
               <div className="dfoot">
-                <button className="btn ghost">{t(lang, 'lib.edit')}</button>
-                <button className="btn">{t(lang, 'lib.review')}</button>
+                <button className="btn ghost" onClick={() => setDialog('edit')} disabled={!dash.online}>
+                  {t(lang, 'lib.edit')}
+                </button>
+                <button
+                  className="btn"
+                  disabled={!dash.online || busy}
+                  title={dyn[lang].resetHint}
+                  onClick={() => {
+                    if (!selected || busy) return
+                    setBusy(true)
+                    void resetWord(selected.id)
+                      .then(() => onChanged())
+                      .finally(() => setBusy(false))
+                  }}
+                >
+                  {t(lang, 'lib.review')}
+                </button>
               </div>
             </>
           ) : (
@@ -164,6 +182,16 @@ export default function Library({ dash, lang }: Props) {
           )}
         </aside>
       </div>
+
+      {dialog ? (
+        <WordDialog
+          lang={lang}
+          language={dash.activeLang}
+          word={dialog === 'edit' ? (selected ?? undefined) : undefined}
+          onClose={() => setDialog(null)}
+          onSaved={onChanged}
+        />
+      ) : null}
     </div>
   )
 }

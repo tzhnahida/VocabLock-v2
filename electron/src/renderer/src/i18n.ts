@@ -50,7 +50,18 @@ export const dyn = {
     nextIn: (when: string) => `下次复习：${when}`,
     dispute: '我觉得判错了',
     disputed: '已提交申诉',
-    loadFailed: (err: string) => `加载失败：${err}`
+    loadFailed: (err: string) => `加载失败：${err}`,
+    readingLabel: '读音',
+    posLabel: '词性（可选）',
+    meaningLabel: '释义',
+    wordLabel: '单词',
+    save: '保存',
+    cancel: '取消',
+    remove: '删除',
+    addTitle: '添加词',
+    editTitle: '编辑词条',
+    saveFailed: (err: string) => `保存失败：${err}`,
+    resetHint: '重置进度并加入今日复习？'
   },
   en: {
     remain: (n: number, min: number) => `${n} left · about ${min} min`,
@@ -87,7 +98,18 @@ export const dyn = {
     nextIn: (when: string) => `Next review: ${when}`,
     dispute: 'I think this was graded wrong',
     disputed: 'Dispute sent',
-    loadFailed: (err: string) => `Could not load: ${err}`
+    loadFailed: (err: string) => `Could not load: ${err}`,
+    readingLabel: 'Reading',
+    posLabel: 'Part of speech (optional)',
+    meaningLabel: 'Meaning',
+    wordLabel: 'Word',
+    save: 'Save',
+    cancel: 'Cancel',
+    remove: 'Delete',
+    addTitle: 'Add word',
+    editTitle: 'Edit word',
+    saveFailed: (err: string) => `Could not save: ${err}`,
+    resetHint: 'Reset progress and review today?'
   },
   ja: {
     remain: (n: number, min: number) => `残り ${n} 問 · 約 ${min} 分`,
@@ -124,7 +146,18 @@ export const dyn = {
     nextIn: (when: string) => `次回：${when}`,
     dispute: '採点が間違っていると思う',
     disputed: '異議を送信しました',
-    loadFailed: (err: string) => `読み込み失敗：${err}`
+    loadFailed: (err: string) => `読み込み失敗：${err}`,
+    readingLabel: '読み',
+    posLabel: '品詞（任意）',
+    meaningLabel: '意味',
+    wordLabel: '単語',
+    save: '保存',
+    cancel: 'キャンセル',
+    remove: '削除',
+    addTitle: '単語を追加',
+    editTitle: '単語を編集',
+    saveFailed: (err: string) => `保存に失敗：${err}`,
+    resetHint: '進捗をリセットして今日の復習に追加しますか？'
   }
 } as const
 

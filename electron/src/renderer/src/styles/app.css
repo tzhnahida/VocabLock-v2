@@ -91,3 +91,67 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+/* Word editor — the prototype has no form, so it follows the same tokens. */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: grid;
+  place-items: center;
+  z-index: 60;
+}
+.dialog {
+  width: 420px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px 16px;
+}
+.dialog h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+.field label {
+  font-size: 11.5px;
+  color: var(--faint);
+}
+.field input {
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+}
+.field input:focus {
+  border-color: var(--accent);
+}
+.dialog .row {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+.dialog .row .btn {
+  flex: 1;
+  justify-content: center;
+}
+.dialog .err {
+  font-size: 11.5px;
+  color: #d25b5b;
+  margin-top: 8px;
+}
+.btn.danger {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: #d25b5b;
+}

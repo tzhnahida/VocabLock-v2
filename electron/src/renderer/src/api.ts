@@ -191,3 +191,55 @@ export function daysUntil(iso: string | null | undefined): number | null {
   const b = Date.UTC(target.getFullYear(), target.getMonth(), target.getDate())
   return Math.round((b - a) / 86400000)
 }
+async function jsonCall<T>(path: string, init: RequestInit): Promise<T> {
+  const ctx = context
+  if (!ctx) throw new Error('no backend')
+  const res = await fetch(`http://127.0.0.1:${ctx.port}${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${ctx.token}`,
+      'Content-Type': 'application/json',
+      ...(init.headers ?? {})
+    }
+  })
+  if (!res.ok) {
+    let detail = ''
+    try {
+      detail = ((await res.json()) as { error?: string }).error ?? ''
+    } catch {
+      /* status only */
+    }
+    throw new Error(detail || `${path} -> ${res.status}`)
+  }
+  return (await res.json()) as T
+}
+
+export type WordInput = {
+  word: string
+  reading?: string
+  meaning?: string
+  pos?: string
+}
+
+export function createWord(input: WordInput, language: string): Promise<Word> {
+  return jsonCall<Word>('/api/v1/words', {
+    method: 'POST',
+    body: JSON.stringify({ ...input, language })
+  })
+}
+
+export function updateWord(id: number, input: WordInput): Promise<Word> {
+  return jsonCall<Word>(`/api/v1/words/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(input)
+  })
+}
+
+export function deleteWord(id: number): Promise<unknown> {
+  return jsonCall(`/api/v1/words/${id}`, { method: 'DELETE' })
+}
+
+/** Puts the word back into the review queue (clears its SM-2 progress). */
+export function resetWord(id: number): Promise<unknown> {
+  return jsonCall(`/api/v1/words/${id}/reset`, { method: 'POST' })
+}
