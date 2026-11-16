@@ -1,0 +1,136 @@
+import { useCallback, useEffect, useState } from 'react'
+import TitleBar from './components/TitleBar'
+import Sidebar from './components/Sidebar'
+import Home from './screens/Home'
+import Library from './screens/Library'
+import Quiz from './screens/Quiz'
+import Stats from './screens/Stats'
+import Lock from './screens/Lock'
+import { loadDashboard, demoDashboard, type Dashboard } from './api'
+import { courseLabel, type Lang } from './i18n'
+
+export type Screen = 'home' | 'library' | 'quiz' | 'stats'
+
+type RuntimeConfig = {
+  apiPort: string | null
+  authToken: string | null
+  screen: string
+  theme: string | null
+  lang: string | null
+}
+
+const fonts: Record<Lang, string> = {
+  zh: '"Segoe UI Variable Text","Segoe UI","Microsoft YaHei UI",system-ui,sans-serif',
+  en: '"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif',
+  ja: '"Segoe UI Variable Text","Segoe UI","Yu Gothic UI","Meiryo",system-ui,sans-serif'
+}
+
+function asLang(value: string | null | undefined): Lang | null {
+  return value === 'zh' || value === 'en' || value === 'ja' ? value : null
+}
+
+export default function App() {
+  const [ready, setReady] = useState(false)
+  const [dash, setDash] = useState<Dashboard>(demoDashboard)
+  const [screen, setScreen] = useState<Screen>('home')
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark')
+  const [lang, setLang] = useState<Lang>('zh')
+  const [locked, setLocked] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const runtime: RuntimeConfig = await window.vocablock.runtime()
+      const nextLang = asLang(runtime.lang) ?? asLang(localStorage.getItem('vl-lang')) ?? 'zh'
+      const storedTheme = localStorage.getItem('vl-theme')
+      const nextTheme =
+        runtime.theme === 'light' || runtime.theme === 'dark'
+          ? runtime.theme
+          : storedTheme === 'light' || storedTheme === 'dark'
+            ? storedTheme
+            : 'dark'
+
+      const ctx =
+        runtime.apiPort && runtime.authToken
+          ? { port: runtime.apiPort, token: runtime.authToken }
+          : null
+      const loaded = await loadDashboard(ctx)
+      if (cancelled) return
+
+      setLang(nextLang)
+      setTheme(nextTheme)
+      setDash(loaded)
+      if (runtime.screen === 'library' || runtime.screen === 'quiz' || runtime.screen === 'stats') {
+        setScreen(runtime.screen)
+      } else if (runtime.screen === 'lock') {
+        setLocked(true)
+      }
+      setReady(true)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    document.body.dataset.screen = locked ? '' : screen
+    document.body.style.fontFamily = fonts[lang]
+    document.documentElement.lang = lang === 'zh' ? 'zh-CN' : lang
+    localStorage.setItem('vl-lang', lang)
+    localStorage.setItem('vl-theme', theme)
+  }, [theme, lang, screen, locked])
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent): void {
+      if (e.key === 'Escape') {
+        if (locked) setLocked(false)
+        else if (screen === 'quiz') setScreen('home')
+      }
+      if (!locked && e.key === 'l' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault()
+        setLocked(true)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [locked, screen])
+
+  const go = useCallback((next: Screen) => {
+    setLocked(false)
+    setScreen(next)
+  }, [])
+
+  if (!ready) return <div className="boot">Loading…</div>
+
+  return (
+    <div className="app">
+      <TitleBar
+        lang={lang}
+        onLang={setLang}
+        theme={theme}
+        onTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+        crumb={`${courseLabel(dash.activeLang, lang)}${dash.online ? '' : ' · demo'}`}
+        onLock={() => setLocked(true)}
+      />
+      <div className="body">
+        <Sidebar dash={dash} screen={screen} lang={lang} onNavigate={go} />
+        <main>
+          <section className="screen s-home">
+            <Home dash={dash} lang={lang} onStart={() => go('quiz')} onLibrary={() => go('library')} onStats={() => go('stats')} onLock={() => setLocked(true)} />
+          </section>
+          <section className="screen s-library">
+            <Library dash={dash} lang={lang} />
+          </section>
+          <section className="screen s-quiz">
+            <Quiz dash={dash} lang={lang} onExit={() => go('home')} />
+          </section>
+          <section className="screen s-stats">
+            <Stats dash={dash} lang={lang} />
+          </section>
+        </main>
+      </div>
+      {locked && <Lock dash={dash} lang={lang} onExit={() => setLocked(false)} />}
+    </div>
+  )
+}

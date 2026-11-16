@@ -1,0 +1,61 @@
+/* App-level additions on top of the extracted design (styles/design.css).
+   The prototype is the source of truth for tokens and layout; everything here
+   is either Electron-specific (draggable title bar, window buttons) or a state
+   the prototype did not model (disabled nav entry, empty state). */
+
+.titlebar {
+  -webkit-app-region: drag;
+}
+.titlebar button,
+.titlebar input,
+.titlebar .lang {
+  -webkit-app-region: no-drag;
+}
+.winbtns span {
+  cursor: pointer;
+}
+.winbtns span:hover {
+  background: var(--soft);
+  color: var(--text);
+}
+
+.nav.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.nav.disabled:hover {
+  background: transparent;
+  color: var(--muted);
+}
+
+.emptystate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 48px 24px;
+  color: var(--faint);
+  font-size: 12px;
+  text-align: center;
+}
+
+.boot {
+  display: grid;
+  place-items: center;
+  height: 100vh;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--track);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
