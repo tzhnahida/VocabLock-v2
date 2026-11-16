@@ -48,7 +48,9 @@
 - 被动入口目前是用户主动打开侧栏；Windows 原生 320x200 提醒窗（provider_windows.go）仍只画「复习提醒」，没有把点击转成打开 Flutter 被动面板。
 - 作业的 AI 生成路径：`ai_required` / `generation_failed` 两个 reason 分支只有 `ai_required` 有测试，生成失败分支靠代码审查。
 - 诊断按 `active_lang` 取数，前端虽传 `language` 参数但后端未使用；多语言混学时统计口径仍是「当前课程」。
-- ASR 发布打包（二进制 / 模型 / asr.yaml）未做；base 模型中日语误差未评估 small。
+- **口径修正**：2026-11-10 条目里“安装包必须单独带上 whisper”说得不对。ASR 是外挂二进制 provider（与 TTS / 词典 / 发音同一套 YAML + 接口机制，见 internal/asr/asr.go、config.ASRConfig），源码仓不带二进制是设计而非欠账；main.go 启动先 chdir 到 exe 目录，配置里的 bin/、models/ 天然相对 exe 解析；WireASR 找不到 provider 时只是不接线、朗读类题型自动隐藏。
+- 真正缺的是“用户能不能知道为什么没有朗读题”：设置页/诊断里没有 provider 状态（已接线？期望路径是什么？）。是否随安装器附带一份 whisper 组件包属产品决策，不阻塞主线。
+- base 模型中日语误差未评估 small。
 
 ### 规划
 1. 真人过一遍三块 UI，按截图修排版；再进 Electron M0（用 docs/design/app.html 验收）。

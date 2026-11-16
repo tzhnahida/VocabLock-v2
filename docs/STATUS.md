@@ -67,7 +67,8 @@
 |---|---|---|
 | P0 | 安全与稳定性：token、AI key、请求体上限、锁屏键盘钩子/线程锁定 | 已完成（e53b537） |
 | P1 | 本地 ASR provider（whisper.cpp）+ 两个对答式造句题型（手敲 / 朗读） | 已完成（1b1b06d + b1e15af 实机验证） |
-| P1 | ASR 发布打包：把 whisper-cli、DLL、模型与 asr.yaml 带进安装包 | 未开始 |
+| P2 | ASR 外挂组件的安装引导（首次运行提示 + 设置页 provider 状态） | 未开始 |
+| 可选 | 发行时附带 ASR 组件包（whisper-cli+DLL+模型，单独 zip 或安装器附加项） | 产品决策，未开始 |
 | P1 | Flutter 麦克风→HTTP→ASR 整链路人工回归（真人录音） | 未开始 |
 | P1 | 前端诊断 / 作业 / 被动答题三块 UI | 已完成（2026-11-17，待真人回归） |
 | P2 | base 模型中日语有识别误差，发布前评估 small | 待评估 |
@@ -77,7 +78,7 @@
 
 1. 真人过一遍诊断 / 作业 / 被动三块 UI（含 900px 宽侧栏排版、被动「翻面→评分→下一条」节奏）。
 2. 进 Electron M0：用 docs/design/app.html 做视觉验收；顺带把 Windows 被动提醒窗与 Flutter 被动面板打通。
-3. 发布前把 whisper 二进制、模型与 asr.yaml 纳入安装包；评估用 small 替换 base 以降低中日语识别误差。
+3. 补外挂组件的安装引导：设置页显示各 provider（TTS / 词典 / 发音 / ASR）是否已接线及期望路径；是否随安装器附带 whisper 组件包是产品决策，不是架构要求。评估用 small 替换 base 以降低中日语识别误差。
 
 ## 不要做
 
@@ -86,7 +87,8 @@
 - 不要把 docs/design/app.html 当成已实现界面；它是静态原型。
 - 不要再让学习卡跟读写 SM-2，或让 AI 缓存 miss 当答错。
 - 不要把 language: auto 当默认；whisper 会把清晰的中日语音判成英语并翻译。
-- 不要以为 ASR 模型已随包发布：backend/bin、backend/models、backend/configs/asr.yaml 都被 gitignore，安装包必须单独带上。
+- 不要把 ASR 二进制/模型当成源码的一部分：它们是**外挂二进制**（与 TTS / 词典同一套 provider + YAML 机制），backend/bin、backend/models、backend/configs/asr.yaml 被 gitignore 是设计如此；运行时 main.go 先 chdir 到 exe 目录，配置里的 bin/、models/ 就相对 exe 解析。
+- 不要以为缺了 ASR 组件会坏：WireASR 找不到 provider 时只是不接线，朗读类题型自动隐藏，其余闭环照常。缺的是“告诉用户为什么”，不是“打包进去”。
 - 不要把本次后端 provider 实机验证当成 Flutter 麦克风整链路已验证；录音权限、WAV 格式、提交链路仍需真人跑一遍。
 - 不要把诊断 / 作业 / 被动面板的 widget 与真 HTTP 测试当成 UI 已验收：排版、节奏、真实数据下的长文案都没被真人看过。
 - 不要在 .gitignore 里写裸 `models/` 或 `test/`：前者会吞 backend/frontend/lib/models/*.dart，后者会吞 backend/frontend/test/*（已踩过，已修）。
