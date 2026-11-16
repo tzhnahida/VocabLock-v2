@@ -30,6 +30,11 @@ class _AssignmentSheetState extends State<AssignmentSheet> {
   final _answerCtrl = TextEditingController();
   AssignmentGrade? _grade;
 
+  /// Failures used to be swallowed, which made "AI is down" and "nothing is
+  /// due" look identical to the user. Both are surfaced now.
+  String? _loadError;
+  String? _submitError;
+
   CadenceRecommendation? _cadence;
   bool _showCadenceTip = false;
 
@@ -46,10 +51,16 @@ class _AssignmentSheetState extends State<AssignmentSheet> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
     try {
-      _batch = await widget.onGetAssignments();
-    } catch (_) {}
+      final batch = await widget.onGetAssignments();
+      if (mounted) setState(() => _batch = batch);
+    } catch (e) {
+      if (mounted) setState(() => _loadError = e.toString());
+    }
     if (mounted) setState(() => _loading = false);
   }
 
@@ -68,10 +79,16 @@ class _AssignmentSheetState extends State<AssignmentSheet> {
     final answer = _answerCtrl.text.trim();
     if (answer.isEmpty || _submitting || _batch == null) return;
     final a = _batch!.assignments[_currentIndex];
-    setState(() => _submitting = true);
+    setState(() {
+      _submitting = true;
+      _submitError = null;
+    });
     try {
-      _grade = await widget.onSubmit(assignmentId: a.id, answer: answer);
-    } catch (_) {}
+      final grade = await widget.onSubmit(assignmentId: a.id, answer: answer);
+      if (mounted) setState(() => _grade = grade);
+    } catch (e) {
+      if (mounted) setState(() => _submitError = e.toString());
+    }
     if (mounted) setState(() => _submitting = false);
   }
 
@@ -105,6 +122,23 @@ class _AssignmentSheetState extends State<AssignmentSheet> {
     );
   }
 
+  /// Explains why the sheet is empty instead of always claiming "not due yet".
+  /// The backend reports a machine-readable reason (no_due / ai_required /
+  /// generation_failed) so the copy can be translated instead of echoed.
+  String _emptyHint(AppLocalizations l10n) {
+    switch (_batch?.reason) {
+      case 'ai_required':
+        return l10n.homeworkAIRequired;
+      case 'generation_failed':
+        return l10n.homeworkGenerationFailed;
+      case 'no_due':
+        final due = _batch?.nextDueLabel ?? '';
+        return due.isEmpty ? l10n.homeworkEmptyHint : l10n.homeworkNextDue(due);
+      default:
+        return l10n.homeworkEmptyHint;
+    }
+  }
+
   Widget _buildEmpty() {
     final l10n = AppLocalizations.of(context)!;
     return Padding(
@@ -116,8 +150,15 @@ class _AssignmentSheetState extends State<AssignmentSheet> {
           const SizedBox(height: 16),
           Text(l10n.homeworkEmpty, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
           const SizedBox(height: 8),
-          Text(l10n.homeworkEmptyHint,
+          Text(_emptyHint(l10n),
               textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: AppTheme.textHint)),
+          if (_loadError != null) ...[
+            const SizedBox(height: 10),
+            Text(l10n.loadFailed(_loadError!),
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Colors.redAccent.withValues(alpha: 0.8))),
+            TextButton(onPressed: _load, child: Text(l10n.retry)),
+          ],
           const SizedBox(height: 20),
           if (_cadence != null)
             _CadenceCard(cadence: _cadence!)
@@ -219,6 +260,12 @@ class _AssignmentSheetState extends State<AssignmentSheet> {
                 ),
               ],
             ),
+            if (_submitError != null) ...[
+              const SizedBox(height: 10),
+              Text(l10n.loadFailed(_submitError!),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, color: Colors.redAccent.withValues(alpha: 0.8))),
+            ],
             const SizedBox(height: 8),
             Center(
               child: TextButton(

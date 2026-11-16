@@ -82,7 +82,20 @@ class AssignmentBatch {
   final List<Assignment> assignments;
   final bool pending;
 
-  const AssignmentBatch({required this.assignments, this.pending = false});
+  /// Why the batch is empty, when it is: "no_due" (cadence not reached yet),
+  /// "ai_required" (no AI provider configured) or "generation_failed".
+  /// Older backends send only a human-readable [message].
+  final String? reason;
+
+  /// RFC3339 timestamp of the next due assignment (or "now").
+  final String? nextDueAt;
+
+  const AssignmentBatch({
+    required this.assignments,
+    this.pending = false,
+    this.reason,
+    this.nextDueAt,
+  });
 
   factory AssignmentBatch.fromJson(Map<String, dynamic> json) => AssignmentBatch(
         assignments: (json['assignments'] as List<dynamic>?)
@@ -90,7 +103,24 @@ class AssignmentBatch {
                 .toList() ??
             const [],
         pending: json['pending'] ?? false,
+        reason: json['reason'] as String?,
+        nextDueAt: json['next_due_at'] as String?,
       );
 
+  /// True while an already-generated assignment is waiting to be answered —
+  /// the empty state should not claim "nothing due" in that case.
   bool get isEmpty => assignments.isEmpty;
+
+  /// Next due time as a short local date-time (empty when unknown/unparsable).
+  String get nextDueLabel {
+    final raw = nextDueAt;
+    if (raw == null || raw.isEmpty) return '';
+    if (raw == 'now') return raw;
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return raw;
+    final local = parsed.toLocal();
+    final mm = local.minute.toString().padLeft(2, '0');
+    return '${local.year}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')} '
+        '${local.hour.toString().padLeft(2, '0')}:$mm';
+  }
 }
