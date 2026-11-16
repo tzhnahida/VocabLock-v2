@@ -1,50 +1,259 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { t, dyn, typeName, type Lang } from '../i18n'
 import type { Dashboard } from '../api'
+import {
+  completeSession,
+  disputeAnswer,
+  nextQuestion,
+  startSession,
+  submitAnswer,
+  type Question,
+  type SubmitResult
+} from '../quizApi'
 
-type Props = { dash: Dashboard; lang: Lang; onExit: () => void }
+type Props = { dash: Dashboard; lang: Lang; onExit: () => void; onAnswered: () => void }
+
+type Phase = 'starting' | 'question' | 'feedback' | 'done' | 'preparing' | 'empty' | 'error'
 
 /**
- * M0 renders the approved question layout with real words from the course and
- * local judging. The full submit/SM-2 loop arrives with the quiz API port;
- * see docs/STATUS.md for the boundary.
+ * M1 quiz loop against the real service: session/start → next → submit → next.
+ * Judging, SM-2 and the review log all happen on the Go side; this screen only
+ * renders the branch the server chose (preparing / empty / done / error).
  */
-export default function Quiz({ dash, lang, onExit }: Props) {
-  const pool = dash.words.length > 0 ? dash.words : [{ id: 0, word: 'ubiquitous', meaning: '无处不在的', reading: '/juːˈbɪk.wɪ.təs/', pos: 'adj.' } as any]
-  const [index, setIndex] = useState(0)
-  const [picked, setPicked] = useState<number | null>(null)
+export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
+  const [phase, setPhase] = useState<Phase>('starting')
+  const [question, setQuestion] = useState<Question | null>(null)
+  const [result, setResult] = useState<SubmitResult | null>(null)
+  const [answer, setAnswer] = useState('')
+  const [error, setError] = useState('')
+  const [answered, setAnswered] = useState(0)
+  const [disputed, setDisputed] = useState(false)
+  const inputRef = useRef<HTMLInputElement | null>(null)
 
-  const question = pool[index % pool.length]
-  const options = useMemo(() => {
-    const base = question.meaning ?? '—'
-    const others = pool.filter((w) => w.id !== question.id && w.meaning).slice(0, 3).map((w) => w.meaning as string)
-    while (others.length < 3) others.push(['转瞬即逝的', '必不可少的', '难以捉摸的'][others.length % 3])
-    const all = [base, ...others].map((label, i) => ({ label, correct: i === 0 }))
-    // deterministic shuffle so options are not always in the same position
-    const seed = (question.id * 7 + index) % 4
-    return all.map((_, i) => all[(i + seed) % all.length])
-  }, [question, pool, index])
+  const language = dash.activeLang
 
-  const correctIndex = options.findIndex((o) => o.correct)
+  const loadNext = useCallback(async () => {
+    setPhase('starting')
+    setResult(null)
+    setAnswer('')
+    setDisputed(false)
+    try {
+      const q = await nextQuestion(language)
+      if (!q) {
+        setPhase('done')
+        void completeSession().catch(() => undefined)
+        return
+      }
+      setQuestion(q)
+      setPhase('question')
+      if (!q.options?.length) setTimeout(() => inputRef.current?.focus(), 30)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+      setPhase('error')
+    }
+  }, [language])
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const started = await startSession(language)
+        if (cancelled) return
+        if (started.preparing) return setPhase('preparing')
+        if (started.daily_completed) return setPhase('done')
+        if (started.empty) return setPhase('empty')
+        await loadNext()
+      } catch (e) {
+        if (cancelled) return
+        setError(e instanceof Error ? e.message : String(e))
+        setPhase('error')
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [language, loadNext])
+
+  const submit = useCallback(
+    async (value: string) => {
+      if (!question || phase !== 'question') return
+      const trimmed = value.trim()
+      if (trimmed === '') return
+      try {
+        const res = await submitAnswer({
+          questionId: question.id,
+          subjectType: question.subject_type,
+          subjectId: question.subject_id,
+          questionType: question.type,
+          answer: trimmed,
+          language
+        })
+        setResult(res)
+        setAnswered((n) => n + 1)
+        setPhase('feedback')
+        onAnswered()
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e))
+        setPhase('error')
+      }
+    },
+    [question, phase, language, onAnswered]
+  )
 
   useEffect(() => {
     function onKey(e: KeyboardEvent): void {
-      if (e.key >= '1' && e.key <= '4') setPicked(Number(e.key) - 1)
-      if (e.key === ' ' && picked !== null) {
+      if (phase === 'question') {
+        const options = question?.options ?? []
+        if (options.length > 0 && e.key >= '1' && e.key <= String(options.length)) {
+          void submit(options[Number(e.key) - 1])
+        }
+      }
+      if (phase === 'feedback' && e.key === ' ') {
         e.preventDefault()
-        next()
+        void loadNext()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  })
-
-  function next(): void {
-    setPicked(null)
-    setIndex((i) => i + 1)
-  }
+  }, [phase, question, submit, loadNext])
 
   const progress = dash.dailyTarget > 0 ? Math.min(1, dash.reviewedToday / dash.dailyTarget) : 0
+
+  function renderBody() {
+    if (phase === 'preparing') {
+      return <div className="emptystate">{dyn[lang].preparing}</div>
+    }
+    if (phase === 'empty') {
+      return <div className="emptystate">{dyn[lang].emptyVault}</div>
+    }
+    if (phase === 'done') {
+      return (
+        <div className="emptystate">
+          <div>{dyn[lang].dailyDone}</div>
+          <button className="btn" onClick={onExit}>
+            {t(lang, 'quiz.back')}
+          </button>
+        </div>
+      )
+    }
+    if (phase === 'error') {
+      return (
+        <div className="emptystate">
+          <div>{dyn[lang].loadFailed(error)}</div>
+          <button className="btn" onClick={() => void loadNext()}>
+            {dyn[lang].retry}
+          </button>
+        </div>
+      )
+    }
+    if (!question) return <div className="emptystate">{dyn[lang].loading}</div>
+
+    const options = question.options ?? []
+    return (
+      <section className="card qcard">
+        <div className="qhead">
+          <span className="tag">{typeName(question.type, lang)}</span>
+          <span className="hint">{options.length > 0 ? dyn[lang].quizHint : dyn[lang].inputHint}</span>
+        </div>
+        {question.subject_word ? <h1 className="word">{question.subject_word}</h1> : null}
+        {question.subject_reading ? (
+          <div className="phon">
+            <span className="play">
+              <svg viewBox="0 0 24 24">
+                <path d="M6 4l10 8-10 8z" fill="currentColor" />
+              </svg>
+            </span>
+            {question.subject_reading}
+          </div>
+        ) : null}
+        <p className="sentence">{question.prompt}</p>
+
+        {options.length > 0 ? (
+          <div className="opts">
+            {options.map((opt, i) => {
+              const answered = phase === 'feedback'
+              const isCorrect = answered && result?.correct === true && answer === opt
+              const isWrongPick = answered && answer === opt && result?.correct === false
+              const showRight = answered && result?.correct === false && result.expected_answer === opt
+              return (
+                <div
+                  key={i}
+                  className={`opt${isCorrect || showRight ? ' good' : ''}${isWrongPick ? ' bad' : ''}`}
+                  onClick={() => void submit(opt)}
+                >
+                  <span className="k">{i + 1}</span>
+                  <span>{opt}</span>
+                  {isCorrect || showRight ? <span className="mark">✓</span> : null}
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="answerbox">
+            <input
+              ref={inputRef}
+              value={answer}
+              disabled={phase === 'feedback'}
+              onChange={(e) => setAnswer(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void submit(answer)
+              }}
+              placeholder={dyn[lang].inputHint}
+            />
+            <button className="btn" disabled={phase === 'feedback'} onClick={() => void submit(answer)}>
+              {dyn[lang].submit}
+            </button>
+          </div>
+        )}
+
+        {phase === 'feedback' && result ? (
+          <div className="fb">
+            <span className="ic">{result.correct ? '✓' : '×'}</span>
+            <div>
+              <div className="l1">
+                {result.correct ? dyn[lang].correct : (result.feedback || typeName(question.type, lang))}
+                {result.next_review_at ? ` · ${dyn[lang].nextIn(result.next_review_at.slice(0, 10))}` : ''}
+              </div>
+              {!result.correct && result.expected_answer ? (
+                <div className="l2">{dyn[lang].correctAnswer(result.expected_answer)}</div>
+              ) : null}
+              {!result.correct && result.source === 'ai' && (result.log_id ?? 0) > 0 ? (
+                <button
+                  className="link"
+                  disabled={disputed}
+                  onClick={() => {
+                    if (!result.log_id) return
+                    setDisputed(true)
+                    void disputeAnswer(result.log_id).catch(() => undefined)
+                  }}
+                >
+                  {disputed ? dyn[lang].disputed : dyn[lang].dispute}
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
+        <div className="qfoot">
+          <div className="keys">
+            <span>
+              <kbd>Esc</kbd> <i>{t(lang, 'keys.exit')}</i>
+            </span>
+            <span>
+              <kbd>1</kbd>–<kbd>4</kbd> <i>{t(lang, 'keys.choose')}</i>
+            </span>
+            <span>
+              <kbd>R</kbd> <i>{t(lang, 'keys.replay')}</i>
+            </span>
+          </div>
+          <button className="btn" onClick={() => void loadNext()} disabled={phase !== 'feedback'}>
+            <i>{t(lang, 'next')}</i>
+            <kbd>Space</kbd>
+          </button>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <div className="content">
@@ -61,66 +270,7 @@ export default function Quiz({ dash, lang, onExit }: Props) {
         <div className="progress">
           <i style={{ width: `${progress * 100}%` }} />
         </div>
-
-        <section className="card qcard">
-          <div className="qhead">
-            <span className="tag">{dyn[lang].quizTag}</span>
-            <span className="hint">{dyn[lang].quizHint}</span>
-          </div>
-          <h1 className="word">{question.word}</h1>
-          <div className="phon">
-            <span className="play">
-              <svg viewBox="0 0 24 24">
-                <path d="M6 4l10 8-10 8z" fill="currentColor" />
-              </svg>
-            </span>
-            {question.reading ?? ''} {question.pos ? <span className="pos">{question.pos}</span> : null}
-          </div>
-          {/* The prototype shows an example sentence with the word blanked out.
-              Course data has no example sentences yet, so showing anything here
-              would either repeat the answer or invent one (see STATUS.md). */}
-          <div className="opts">
-            {options.map((opt, i) => {
-              const answered = picked !== null
-              const cls = `opt${answered && i === correctIndex ? ' good' : ''}${answered && picked === i && picked !== correctIndex ? ' bad' : ''}`
-              return (
-                <div key={i} className={cls} onClick={() => setPicked(i)}>
-                  <span className="k">{i + 1}</span>
-                  <span>{opt.label}</span>
-                  {answered && i === correctIndex ? <span className="mark">✓</span> : null}
-                </div>
-              )
-            })}
-          </div>
-          {picked !== null ? (
-            <div className="fb">
-              <span className="ic">{picked === correctIndex ? '✓' : '×'}</span>
-              <div>
-                <div className="l1">{picked === correctIndex ? dyn[lang].correct : t(lang, 'fb.t')}</div>
-                <div className="l2">
-                  {question.word} {question.reading ?? ''} — {question.meaning ?? ''}
-                </div>
-              </div>
-            </div>
-          ) : null}
-          <div className="qfoot">
-            <div className="keys">
-              <span>
-                <kbd>Esc</kbd> <i>{t(lang, 'keys.exit')}</i>
-              </span>
-              <span>
-                <kbd>1</kbd>–<kbd>4</kbd> <i>{t(lang, 'keys.choose')}</i>
-              </span>
-              <span>
-                <kbd>R</kbd> <i>{t(lang, 'keys.replay')}</i>
-              </span>
-            </div>
-            <button className="btn" onClick={next} disabled={picked === null}>
-              <i>{t(lang, 'next')}</i>
-              <kbd>Space</kbd>
-            </button>
-          </div>
-        </section>
+        {renderBody()}
       </div>
 
       <div className="rail">
@@ -136,20 +286,9 @@ export default function Quiz({ dash, lang, onExit }: Props) {
           <div className="rbar">
             <i style={{ width: `${progress * 100}%` }} />
           </div>
+          {answered > 0 ? <div className="note">{`${t(lang, 'rail.round')} · ${answered}`}</div> : null}
         </section>
-        <section className="card rcard">
-          <div className="rh">
-            <span>{t(lang, 'rail.round')}</span>
-            <span>
-              {index + 1} / {pool.length}
-            </span>
-          </div>
-          <div className="dots">
-            {Array.from({ length: Math.min(20, pool.length) }).map((_, i) => (
-              <i key={i} className={i < index ? 'd' : i === index ? 'c' : undefined} />
-            ))}
-          </div>
-        </section>
+
         <section className="card rcard">
           <div className="rh">
             <span>{t(lang, 'rail.weak')}</span>
@@ -173,6 +312,7 @@ export default function Quiz({ dash, lang, onExit }: Props) {
               ))}
           </div>
         </section>
+
         <div className="hintbox">
           <kbd>Ctrl</kbd>+<kbd>K</kbd> <span>{t(lang, 'hint.cmd')}</span> · <kbd>Ctrl</kbd>+<kbd>L</kbd> <span>{t(lang, 'hint.lock')}</span>
         </div>

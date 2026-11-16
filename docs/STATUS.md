@@ -75,6 +75,13 @@
   - 新增 headless 通路 backend/cmd/devserver：只起 HTTP、不拉 UI、不碰锁屏/托盘，打印 {"port","token"}；Electron 接受与 Flutter 相同的 --api-port/--auth-token，主进程替换留到 M4。
   - 验证：真实数据库副本（ja，127 词）跑通 home/library 截图；浅色/深色、中/英/日均可渲染；npm run build 通过。
 
+- Electron M1（2026-11-17，答题回路接真）：
+  - quiz 屏走真接口：session/start → next → submit → next；preparing / empty / daily_completed / error 四种分支各有独立状态与重试。
+  - 选择题 1–4 作答，填空/发音题输入框 + Enter；反馈显示对错、服务器 feedback、正确答案、下次复习日期；AI 判错且带 log_id 时出现「我觉得判错了」申诉。
+  - 每答一题刷新侧栏与主页计数，不再等下次启动。
+  - 验证（CDP 驱动真实 UI + 真实服务，数据来自副本库）：道 输入 みち → 反馈「正确 · 下次复习：2026-11-23」，review_log 319→320（type=pronounce / source=exact / language=ja），词条 reps 2、interval 6、EF 2.7；再答错 → 「正确答案: みぎ · 下次复习：2026-11-18」，next 可用。
+  - 新增 --nowindow：无窗口 + CDP 可脚本化操作界面（不抢前台）。
+
 ## 未完成
 
 | 优先级 | 事项 | 状态 |
@@ -87,7 +94,9 @@
 | P1 | 前端诊断 / 作业 / 被动答题三块 UI | 已完成（2026-11-17；工具驱动回归：真机构建+截图、widget 真 tap；未做人眼审美验收） |
 | P2 | base 模型中日语有识别误差，发布前评估 small | 待评估 |
 | P2 | Electron M0（设计稿四屏 + 真数据） | 已完成（2026-11-17） |
-| P2 | Electron M1–M4（答题回路 / 听力设置 AI / 系统级锁屏 / 打包） | 未开始 |
+| P2 | Electron M1 答题回路（session/next/submit/complete） | 已完成（2026-11-17） |
+| P2 | Electron M1 其余：词库增改、听力 / 设置 / AI 三屏 | 未开始 |
+| P2 | Electron M3–M4：系统级锁屏、主进程替换 spawnFlutter、electron-builder 打包 | 未开始 |
 
 ## 下一步顺序
 

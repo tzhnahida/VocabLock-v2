@@ -59,3 +59,35 @@
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+/* Text answers (fill / spelling) — the prototype only ever drew choice cards. */
+.answerbox {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+.answerbox input {
+  flex: 1;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+}
+.answerbox input:focus {
+  border-color: var(--accent);
+}
+.answerbox .btn {
+  height: 40px;
+}
+.opt.bad {
+  border-color: rgba(220, 80, 80, 0.55);
+  background: rgba(220, 80, 80, 0.08);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

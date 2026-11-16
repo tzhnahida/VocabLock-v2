@@ -6,7 +6,7 @@ import Library from './screens/Library'
 import Quiz from './screens/Quiz'
 import Stats from './screens/Stats'
 import Lock from './screens/Lock'
-import { loadDashboard, demoDashboard, type Dashboard } from './api'
+import { apiContext, configureApi, loadDashboard, demoDashboard, type Dashboard } from './api'
 import { courseLabel, type Lang } from './i18n'
 
 export type Screen = 'home' | 'library' | 'quiz' | 'stats'
@@ -54,6 +54,7 @@ export default function App() {
         runtime.apiPort && runtime.authToken
           ? { port: runtime.apiPort, token: runtime.authToken }
           : null
+      configureApi(ctx)
       const loaded = await loadDashboard(ctx)
       if (cancelled) return
 
@@ -101,6 +102,12 @@ export default function App() {
     setScreen(next)
   }, [])
 
+  // Answering a question moves the daily counters, so the shell re-reads them
+  // instead of keeping a stale hero/sidebar until the next launch.
+  const refresh = useCallback(async () => {
+    setDash(await loadDashboard(apiContext()))
+  }, [])
+
   if (!ready) return <div className="boot">Loading…</div>
 
   return (
@@ -123,7 +130,7 @@ export default function App() {
             <Library dash={dash} lang={lang} />
           </section>
           <section className="screen s-quiz">
-            <Quiz dash={dash} lang={lang} onExit={() => go('home')} />
+            <Quiz dash={dash} lang={lang} onExit={() => go('home')} onAnswered={refresh} />
           </section>
           <section className="screen s-stats">
             <Stats dash={dash} lang={lang} />

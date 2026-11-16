@@ -38,7 +38,19 @@ export const dyn = {
     correct: '正确',
     next: '下一题',
     loading: '加载中…',
-    mastery: '熟练度'
+    mastery: '熟练度',
+    preparing: 'AI 正在准备今天的题目…',
+    emptyVault: '词库为空：先导入词表，或配置 AI 自动扩词',
+    dailyDone: '今日目标已完成',
+    again: '再练一轮',
+    retry: '重试',
+    inputHint: '输入答案，回车提交',
+    submit: '提交',
+    correctAnswer: (answer: string) => `正确答案：${answer}`,
+    nextIn: (when: string) => `下次复习：${when}`,
+    dispute: '我觉得判错了',
+    disputed: '已提交申诉',
+    loadFailed: (err: string) => `加载失败：${err}`
   },
   en: {
     remain: (n: number, min: number) => `${n} left · about ${min} min`,
@@ -63,7 +75,19 @@ export const dyn = {
     correct: 'Correct',
     next: 'Next',
     loading: 'Loading…',
-    mastery: 'Strength'
+    mastery: 'Strength',
+    preparing: 'Preparing today’s questions…',
+    emptyVault: 'No words yet — import a list or configure AI expansion',
+    dailyDone: 'Today’s goal is done',
+    again: 'Practise again',
+    retry: 'Retry',
+    inputHint: 'Type your answer, Enter to submit',
+    submit: 'Submit',
+    correctAnswer: (answer: string) => `Answer: ${answer}`,
+    nextIn: (when: string) => `Next review: ${when}`,
+    dispute: 'I think this was graded wrong',
+    disputed: 'Dispute sent',
+    loadFailed: (err: string) => `Could not load: ${err}`
   },
   ja: {
     remain: (n: number, min: number) => `残り ${n} 問 · 約 ${min} 分`,
@@ -88,7 +112,19 @@ export const dyn = {
     correct: '正解',
     next: '次の問題',
     loading: '読み込み中…',
-    mastery: '習熟度'
+    mastery: '習熟度',
+    preparing: 'AI が今日の問題を準備しています…',
+    emptyVault: '単語がありません — リストを読み込むか AI 拡張を設定してください',
+    dailyDone: '今日の目標は達成しました',
+    again: 'もう一度',
+    retry: '再試行',
+    inputHint: '入力して Enter で提出',
+    submit: '提出',
+    correctAnswer: (answer: string) => `正解：${answer}`,
+    nextIn: (when: string) => `次回：${when}`,
+    dispute: '採点が間違っていると思う',
+    disputed: '異議を送信しました',
+    loadFailed: (err: string) => `読み込み失敗：${err}`
   }
 } as const
 
@@ -115,6 +151,7 @@ const typeNames: Record<string, Record<Lang, string>> = {
   reading_comp: { zh: '阅读理解', en: 'Comprehension', ja: '読解' },
   listening: { zh: '听力', en: 'Listening', ja: '聴解' },
   grammar: { zh: '语法', en: 'Grammar', ja: '文法' },
+  pronounce: { zh: '发音', en: 'Pronunciation', ja: '発音' },
   read_word: { zh: '发音', en: 'Pronunciation', ja: '発音' },
   read_sentence: { zh: '朗读', en: 'Read aloud', ja: '音読' },
   dialogue_write: { zh: '造句', en: 'Writing', ja: '作文' },

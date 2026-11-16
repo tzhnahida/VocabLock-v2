@@ -40,6 +40,19 @@ function iso(offsetDays: number): string {
 
 // Demo content mirrors the approved prototype so running without a Go service
 // still shows the design as signed off (docs/design/app.html).
+export type ApiContext = { port: string; token: string }
+
+let context: ApiContext | null = null
+
+/** Called once the main process hands over the Go service coordinates. */
+export function configureApi(next: ApiContext | null): void {
+  context = next
+}
+
+export function apiContext(): ApiContext | null {
+  return context
+}
+
 const DEMO_WORDS: Word[] = [
   { id: 1, word: 'ubiquitous', reading: '/juːˈbɪk.wɪ.təs/', meaning: '无处不在的', pos: 'adj.', status: 'active', repetitions: 3, interval: 4, easiness_factor: 2.5, next_review_at: iso(4), last_review_at: iso(0) },
   { id: 2, word: 'ephemeral', reading: '/ɪˈfem.ər.əl/', meaning: '转瞬即逝的', pos: 'adj.', status: 'active', repetitions: 1, interval: 1, easiness_factor: 2.3, next_review_at: iso(0), last_review_at: iso(-1) },

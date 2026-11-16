@@ -13,6 +13,37 @@
 | 2026-11-08 | 新界面四屏原型；决定 Flutter → Electron |
 | 2026-11-10 | 全量代码审计；决定先修数据正确性，再加本地 ASR |
 
+## 2026-11-17 — Electron M1：答题回路接真
+
+### 完成
+- electron/src/quizApi.ts：session/start、next、submit、complete、dispute 的客户端；Quiz.tsx 改成状态机 starting/question/feedback/done/preparing/empty/error。
+- 作答：选择题点选或 1–4；填空/发音题输入框 + Enter；反馈区显示对错、server feedback、正确答案、下次复习日期；AI 误判（source=ai 且有 log_id）显示申诉按钮，提交后置灰。
+- 答完自动刷新 shell 数据（侧栏目标环、主页计数），不再等下次启动。
+- 主进程新增 --nowindow：隐藏窗口 + --remote-debugging-port，可用 CDP 脚本化点击/输入，完全不抢前台。
+
+### 完成方法
+- 用 CDP 驱动真界面而不是只调接口：Runtime.evaluate 点选项、Input.insertText + Enter 打输入题、读 .fb/.opt.good/.qfoot 断言状态，最后查 SQLite 确认落库。
+- 数据仍用副本库，答题污染不到真实进度。
+
+### 踩坑
+- dev 副本里 daily_target=0（当初为跳过锁屏设的），session/start 直接判「今日目标已完成」，答题页永远空白；改成 20 才跑得起来。
+- 隐藏窗口下 CDP 的 Page.captureScreenshot 会挂住；截图仍用主进程的 --screenshot（capturePage 对隐藏窗口有效）。
+- 前一次截图出全黑：devserver 已退出 + 截图时机太早；重启服务并确认进程后才正常。
+- 发音题在词表里 type=pronounce，弱点标签表漏了它，界面上出现原始英文 id；补进 typeName。
+
+### 失败
+- 无（首轮空白是配置口径问题，不是代码缺陷）。
+
+### 剩余
+- 词库的「添加词 / 编辑 / 删除 / 重置」还没接（现在是只读表格 + 详情）。
+- 听力、设置、AI 三屏未做。
+- 音频（TTS 播放）、朗读评分、被动提醒未接。
+
+### 规划
+1. 词库 CRUD + 标签编辑。
+2. 设置屏（active_lang / interface_lang / daily_target / 主题 / AI key）。
+3. 听力屏 + TTS 播放；最后打包与主进程替换。
+
 ## 2026-11-17 — UI 重构：Electron + React，按设计稿落地（M0）
 
 ### 完成

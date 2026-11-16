@@ -17,6 +17,7 @@ const screenshotPath = readArg('screenshot')
 const initialScreen = readArg('screen') ?? 'home'
 const initialTheme = readArg('theme')
 const initialLang = readArg('lang')
+const hidden = process.argv.includes('--nowindow')
 
 let win: BrowserWindow | null = null
 
@@ -26,7 +27,7 @@ function createWindow(): void {
     height: 800,
     minWidth: 1040,
     minHeight: 680,
-    show: !screenshotPath,
+    show: !screenshotPath && !hidden,
     frame: false,
     backgroundColor: initialTheme === 'light' ? '#F4F4F1' : '#0B0D10',
     title: 'VocabLock',
