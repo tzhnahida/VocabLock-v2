@@ -201,19 +201,27 @@ func (s *Server) handleSystemPassiveSubmit(w http.ResponseWriter, r *http.Reques
 				word.NextReviewAt = &sm2.NextReviewAt
 			}
 			word.LastReviewAt = &now
-			s.DB.UpdateWord(word)
+			if err := s.DB.UpdateWord(word); err != nil {
+				log.Warn("system", "passive submit: update word %d: %v", req.WordID, err)
+			}
 
-			// Log passive review
-			s.DB.InsertReviewLog(&db.ReviewLog{
+			// Log passive review. language/subject_* are not decoration:
+			// /stats/diagnostics filters review_log by language and per-word
+			// history filters by (subject_type, subject_id), so omitting them
+			// would make every passive answer invisible to both.
+			if _, err := s.DB.InsertReviewLog(&db.ReviewLog{
 				SubjectType:    "word",
 				SubjectID:      req.WordID,
 				WordID:         req.WordID,
+				Language:       s.Config.App.ActiveLang,
 				QuestionType:   "passive",
 				ExpectedAnswer: word.Meaning,
 				Correct:        quality >= 3,
 				Score:          float64(quality) / 5.0,
 				Source:         "passive",
-			})
+			}); err != nil {
+				log.Warn("system", "passive submit: insert review log: %v", err)
+			}
 			log.Debug("system", "passive submit: word=%s recall=%s quality=%d", word.Word, req.Recall, quality)
 		}
 	}

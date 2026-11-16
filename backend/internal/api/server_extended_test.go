@@ -105,6 +105,11 @@ func TestAssignmentNext_NoAI(t *testing.T) {
 	if msg == "" {
 		t.Error("expected non-empty message when no AI")
 	}
+	// The Flutter empty state translates the machine-readable reason; without
+	// it the sheet can only echo an English sentence.
+	if m["reason"] != "ai_required" {
+		t.Errorf("reason = %v, want ai_required", m["reason"])
+	}
 }
 
 func TestAssignmentSubmit_NoAI(t *testing.T) {

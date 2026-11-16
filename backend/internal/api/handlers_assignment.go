@@ -30,6 +30,7 @@ func (s *Server) handleAssignmentNext(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]interface{}{
 			"assignments": []interface{}{},
 			"message":     "AI required for assignments",
+			"reason":      "ai_required",
 		})
 		return
 	}
@@ -53,6 +54,7 @@ func (s *Server) handleAssignmentNext(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]interface{}{
 			"assignments": []interface{}{},
 			"message":     "no assignments due",
+			"reason":      "no_due",
 			"next_due_at": nextDue,
 		})
 		return
@@ -101,6 +103,7 @@ func (s *Server) handleAssignmentNext(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]interface{}{
 			"assignments": []interface{}{},
 			"message":     "AI generation failed, try again later",
+			"reason":      "generation_failed",
 		})
 		return
 	}
