@@ -13,6 +13,48 @@
 | 2026-11-08 | 新界面四屏原型；决定 Flutter → Electron |
 | 2026-11-10 | 全量代码审计；决定先修数据正确性，再加本地 ASR |
 
+## 2026-11-17 — 前端诊断 / 作业 / 被动 UI
+
+### 完成
+- 诊断面板（新）：`StatsApi.getDiagnostics` + `models/diagnostics.dart` + `widgets/diagnostics_panel.dart`，挂到侧栏第 9 项。展示词汇覆盖（词条 / 长期掌握 / 待审核）、错因分布、弱音素（含「有音素数据的跟读记录 N 条」与无数据态）、AI 判定分歧率与样例、各题型准确率；7/30/90 天窗口可切。
+- 被动答题面板（新）：`widgets/passive_panel.dart`，取一道到期词 → 回忆 → 翻面 → 记得/有点难/忘了，提交后自动取下一条；侧栏第 10 项。空态（没有到期词）、加载失败、提交被拒都有独立文案。
+- 被动提交终于带载荷：`SystemApi.passiveSubmit(wordId, recall)` 之前 POST 空 body，后端按「向后兼容 ack」直接返回 accepted，**什么都没写**；现在发 `{word_id, recall}`。
+- 作业：空态不再一律说「还没到时间」，改由后端 `reason`（`no_due` / `ai_required` / `generation_failed`）决定文案，并显示 `next_due_at`；加载/提交失败不再被 `catch (_) {}` 吞掉，改为面板内错误行 + 重试。
+- l10n：新增诊断 26 键、被动 11 键、作业 3 键（en/zh/ja 各一份，共 40 键 ×3）；顺手补上 zh/ja 各缺的 10 个旧键（expandStatus* ×6、quizGoalRemaining/quizReviewPool/quizReviewNote/quizEstimateGoal）——此前这两门语言这几个位置一直回退英文。
+- 修两个 .gitignore 陷阱（见「踩坑」）。
+- 验证：flutter test 18/18；flutter analyze 0 error（149 warning/info，均为既有 `AppLocalizations.of(context)!` 等风格项，新文件 0 条）；go vet 0；go test ./... 全绿（sim 23.4s）。
+
+### 完成方法
+- 面板只渲染后端给的数字，不在客户端重算比率，避免两个口径打架；错因/题型分布带分母，空分区显示「本窗口没有数据」而不是画 0。
+- 契约两侧都钉住：Go 侧 `diagnostics_test.go` 直接断言 `/stats/diagnostics` 的 JSON 形状（错因、弱音素阈值 <0.45、AI 假阴性、题型计数、coverage 排除 pending）；Dart 侧 `api_live_test.dart` 起真 HTTP server，走 dio 真发请求，断言 `passiveSubmit` 确实带 `word_id`+`recall`、`getDiagnostics` 确实带 `days`。
+- 三个面板都进 `panel_smoke_test` 同款「无后端也要能建」测试，避免后端不可达时白屏或抛异常。
+- 被动面板不自己算 SM-2：评分语义（easy→4 / hard→3 / forgot→1）留在后端 `QualityFromPassiveRecall`，前端只传字符串。
+
+### 踩坑
+- **`backend/.gitignore` 里的 `models/` 本意是 backend/models（ASR 模型），实际把 `backend/frontend/lib/models/` 一起吞了**：新写的 `diagnostics.dart` 在 `git status` 里根本不出现。已改成 `/models/`（锚定 backend 根）。
+- **根 `.gitignore` 的 `test/` 同样吞掉了 `backend/frontend/test/`**：`panel_smoke_test.dart`、`quiz_flow_test.dart` 写了几个月却没进过仓库，CI 只跑了 `widget_test.dart`。改成 `/test/` 后两个文件才浮现，已一并入库。
+- 被动提交写的 review_log 没带 `language`/`subject_type`/`subject_id`：诊断按 language 过滤、单词历史按 (subject_type,subject_id) 查，两条路径都看不到被动作答。补上后被动记录才进得了统计口径。
+- `/stats/diagnostics` 此前没有任何测试，字段改名会让前端面板静默变空——先补形状测试再接 UI。
+- `go test` 会重写仓库根的 SIMULATION.md（仿真产物），提交前必须 `git checkout -- SIMULATION.md`，否则混进无意义 diff。
+
+### 失败
+- 无编译/测试级失败。前端 `flutter analyze` 退出码仍为 1（仅告警），符合既有事实口径。
+
+### 失败原因
+- 不适用（本轮未出现红灯）。
+
+### 剩余
+- 三块 UI 只做过 widget / 真 HTTP 接口级验证，**没有真人点一遍**（尤其被动面板的「翻面 → 评分 → 下一条」节奏与诊断面板在 900px 宽侧栏下的排版）。
+- 被动入口目前是用户主动打开侧栏；Windows 原生 320x200 提醒窗（provider_windows.go）仍只画「复习提醒」，没有把点击转成打开 Flutter 被动面板。
+- 作业的 AI 生成路径：`ai_required` / `generation_failed` 两个 reason 分支只有 `ai_required` 有测试，生成失败分支靠代码审查。
+- 诊断按 `active_lang` 取数，前端虽传 `language` 参数但后端未使用；多语言混学时统计口径仍是「当前课程」。
+- ASR 发布打包（二进制 / 模型 / asr.yaml）未做；base 模型中日语误差未评估 small。
+
+### 规划
+1. 真人过一遍三块 UI，按截图修排版；再进 Electron M0（用 docs/design/app.html 验收）。
+2. Electron 阶段把被动提醒窗与 Flutter 被动面板打通（点击提醒 → 弹面板）。
+3. 发布前定 ASR 打包方案（体积 vs 模型质量），评估 small。
+
 ## 2026-11-10 — ASR 实机验证（b1e15af）
 
 ### 完成

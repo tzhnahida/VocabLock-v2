@@ -2,7 +2,7 @@
 
 ## 一句话
 
-全量审计、P0 数据正确性与安全稳定性修复已完成并 push；本地 ASR provider 与两个“对答式造句”题型已实现，并已用真实 whisper.cpp 二进制 + 模型实机验证中英日识别、90s 超时与失败分支（修复提交 b1e15af）。下一步补前端诊断 / 作业 / 被动 UI，最后进 Electron。
+全量审计、P0 数据正确性与安全稳定性修复已完成并 push；本地 ASR provider 与两个“对答式造句”题型已实现，并已用真实 whisper.cpp 二进制 + 模型实机验证中英日识别、90s 超时与失败分支（修复提交 b1e15af）。前端诊断 / 作业 / 被动三块 UI 已补齐（2026-11-17，接口与 widget 级验证通过，尚未真人点过）。下一步进 Electron M0。
 
 ## 仓库状态
 
@@ -52,6 +52,14 @@
   - 合法 base64 但非 WAV 的 payload 会让 whisper 退出 0、返回空文本，原来会被当成 empty 记错；现加 RIFF/WAVE 头校验，归为 bad_audio。
   - 新增 dialogue_asr_test.go：语言解析、90s deadline、no_asr/bad_base64/bad_wav/asr_error 不写库、asr_empty 记 1 条错、cache_miss 不调 ASR。
   - 验证：go test ./... 全绿（sim 20.6s）；go vet ./... 0。
+- 前端诊断 / 作业 / 被动 UI（2026-11-17）：
+  - 诊断面板：StatsApi.getDiagnostics + models/diagnostics.dart + widgets/diagnostics_panel.dart，侧栏可进入；覆盖 / 错因分布 / 弱音素 / AI 分歧 / 题型准确率，7-30-90 天窗口。
+  - 被动面板：widgets/passive_panel.dart，取到期词→回忆→翻面→记得/有点难/忘了→下一条；提交带 {word_id, recall}（此前 POST 空 body，后端只 ack 不写库）。
+  - 作业：空态按后端 reason（no_due / ai_required / generation_failed）+ next_due_at 出文案；加载与提交失败不再被吞掉。
+  - 后端：handleSystemPassiveSubmit 的 review_log 补 language / subject_type / subject_id（否则诊断与单词历史都看不到被动作答）；/quiz/assignment 三个空态加 reason。
+  - l10n：新增 40 键 ×3 语言，并补齐 zh/ja 原先缺失的 10 个旧键（expandStatus*、quizGoal*）。
+  - 修 .gitignore：backend/.gitignore 的裸 models/ 会吞 backend/frontend/lib/models/，根 test/ 会吞 backend/frontend/test/；改为 /models/ 与 /test/，把此前从未入库的 panel_smoke_test.dart、quiz_flow_test.dart 补进仓库。
+  - 验证：flutter test 18/18（新增 diagnostics_test、api_live_test、两个面板 smoke）；flutter analyze 0 error（149 warning/info，新文件 0 条）；go vet 0；go test ./... 全绿（sim 23.4s）。
 
 ## 未完成
 
@@ -61,14 +69,14 @@
 | P1 | 本地 ASR provider（whisper.cpp）+ 两个对答式造句题型（手敲 / 朗读） | 已完成（1b1b06d + b1e15af 实机验证） |
 | P1 | ASR 发布打包：把 whisper-cli、DLL、模型与 asr.yaml 带进安装包 | 未开始 |
 | P1 | Flutter 麦克风→HTTP→ASR 整链路人工回归（真人录音） | 未开始 |
-| P1 | 前端诊断 / 作业 / 被动答题三块 UI | 未开始 |
+| P1 | 前端诊断 / 作业 / 被动答题三块 UI | 已完成（2026-11-17，待真人回归） |
 | P2 | base 模型中日语有识别误差，发布前评估 small | 待评估 |
 | P2 | Electron M0–M4 | 未开始 |
 
 ## 下一步顺序
 
-1. 补前端诊断 / 作业 / 被动 UI。
-2. 最后进 Electron M0：用 docs/design/app.html 做视觉验收。
+1. 真人过一遍诊断 / 作业 / 被动三块 UI（含 900px 宽侧栏排版、被动「翻面→评分→下一条」节奏）。
+2. 进 Electron M0：用 docs/design/app.html 做视觉验收；顺带把 Windows 被动提醒窗与 Flutter 被动面板打通。
 3. 发布前把 whisper 二进制、模型与 asr.yaml 纳入安装包；评估用 small 替换 base 以降低中日语识别误差。
 
 ## 不要做
@@ -80,6 +88,9 @@
 - 不要把 language: auto 当默认；whisper 会把清晰的中日语音判成英语并翻译。
 - 不要以为 ASR 模型已随包发布：backend/bin、backend/models、backend/configs/asr.yaml 都被 gitignore，安装包必须单独带上。
 - 不要把本次后端 provider 实机验证当成 Flutter 麦克风整链路已验证；录音权限、WAV 格式、提交链路仍需真人跑一遍。
+- 不要把诊断 / 作业 / 被动面板的 widget 与真 HTTP 测试当成 UI 已验收：排版、节奏、真实数据下的长文案都没被真人看过。
+- 不要在 .gitignore 里写裸 `models/` 或 `test/`：前者会吞 backend/frontend/lib/models/*.dart，后者会吞 backend/frontend/test/*（已踩过，已修）。
+- 不要以为被动作答会进每日目标：它只写 SM-2 + review_log（source=passive），不写 daily_stats。
 - 不要把 base 模型的中日语识别当成零误差；ja 实测有 散歩→3歩，发布前评估 small。
 - 锁屏无法拦截 Ctrl+Alt+Del（Windows 安全注意序列），不要声称能完全锁死系统。
 - token stdin 与锁屏钩子尚未在打包 GUI 实机回归，发布前必须验证。
