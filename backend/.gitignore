@@ -29,7 +29,9 @@ internal/sim/app.yaml
 internal/sim/secrets.yaml
 configs/asr.yaml
 bin/
-models/
+# Anchor to backend/ — a bare "models/" also swallowed
+# backend/frontend/lib/models/*.dart (new Dart model files never got committed).
+/models/
 
 # ——— 本地 ASR 实机验证产物 ———
 .asr-test/

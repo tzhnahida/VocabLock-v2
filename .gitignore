@@ -73,4 +73,6 @@ backend/scripts/_shots.sh
 # OS
 Thumbs.db
 .DS_Store
-test/
+# Root-level only: a bare "test/" also ignored backend/frontend/test/, so
+# newly added Flutter tests were silently kept out of the repo.
+/test/
