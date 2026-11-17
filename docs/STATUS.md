@@ -84,6 +84,8 @@
   - 词库转可写：添加词（对话框）、编辑（含删除）、加入复习（重置进度后进今日队列）；保存/失败都有提示，操作后刷新表格与计数。
   - 设置屏：课程语言、每日目标题数、达标准确率、AI 扩词开关、界面语言、主题、AI（base_url / model / API Key，留空不覆盖），一次保存写 app.yaml 与 secrets.yaml。
   - 验证（CDP + 真服务）：每日目标 20→25、主题切浅色后保存 → 界面回显「已保存」，app.yaml 实际写入 daily_target: 25 / theme: vscode-light；interface_lang 由 zh-CN 归一为 zh 写入。
+  - 启动链路：Go 新增 `--shell=electron`；resolveElectron 先找打包产物（vocablock-desktop.exe），再找仓库里的 electron/ 检出；token 走环境变量 VOCABLOCK_AUTH_TOKEN（不进 argv），Electron 侧已实测能用 env token 拿到真数据。resolver 有 3 个单测。
+  - 截图管线修复：隐藏窗口在无 DevTools 附着时不重绘 → 截图模式改为离屏窗口 + showInactive，等 .app 挂载后 capturePage。
   - 验证（CDP）：添加 → 表格与库内出现新词（127→128）；编辑 → 释义写入并回显；删除 → 词条消失（128→127）。测试数据已还原。
 
 ## 未完成
@@ -102,7 +104,9 @@
 | P2 | Electron M1 词库增删改（对话框） | 已完成（2026-11-17） |
 | P2 | Electron 设置屏（课程/目标/主题/AI） | 已完成（2026-11-17） |
 | P2 | Electron 听力 / AI 对话两屏、TTS 播放、朗读评分 | 未开始 |
-| P2 | Electron M3–M4：系统级锁屏、主进程替换 spawnFlutter、electron-builder 打包 | 未开始 |
+| P2 | Electron M4 启动切换（--shell=electron + token 环境变量） | 代码完成（缺打包产物路径实跑） |
+| P2 | Electron M3–M4：系统级锁屏、electron-builder 打包 | 未开始 |
+| P2 | 听力 / AI 对话屏 | 受阻：本机 edge-tts 退出码 3、AI key 未配置 |
 
 ## 下一步顺序
 

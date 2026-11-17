@@ -47,8 +47,16 @@
 - 踩坑（截图管线）：`--screenshot` 用的隐藏窗口在无 DevTools 附着时不重绘，截出来永远是启动时的「Loading…」。修法：截图模式把窗口放到屏幕外（x/y=-32000）并 `showInactive()`（显示但不抢焦点），等 `.app` 挂载后再 capturePage。此前 home/library 截图能成只是撞上了时序。
 - 踩坑：CDP 连续 fill 多个输入需要给控件稳定 id（已加 set-course / set-daily-target / set-theme 等），否则按 nth-of-type 选到的是别的控件，改完才发现改错字段。
 
+### 补记 — 启动链路与 token 交付（同日）
+- 完成：Go 服务加 `--shell=flutter|electron`；spawnElectron 通过 resolveElectron 找壳（打包产物 vocablock-desktop.exe → 仓库 electron/ 检出 → VOCABLOCK_ELECTRON_APP），token 用环境变量交给 Electron，不进 argv。
+- 完成：Electron 支持 --auth-token-stdin / VOCABLOCK_AUTH_TOKEN / 显式 args 三种来源，优先级 env > stdin > argv。
+- 验证：resolver 3 个单测（打包优先 / 检出发现 / 缺 package.json 拒绝）；Electron 用 env token 实跑截图拿到真库数据（127 語）。
+- 踩坑：Windows 上 Electron 的 stdin 是管道时收不到数据（GUI 子系统），`--auth-token-stdin` 实测拿不到 token，界面退回 demo。改用环境变量后正常 —— 仍然满足"token 不进命令行"的原始约束。
+- 未验证：Go 真正 exec 起 Electron 这一步（本机没有打包产物，实跑会弹窗抢焦点）。留到打包时验证。
+- 阻塞：听力屏依赖 TTS，本机 edge-tts 返回 `exit status 3`（网络或依赖问题），AI 对话屏依赖 AI key（当前 ai: disabled）。这两屏先不动，避免做出无法验证的界面。
+
 ### 剩余
-- 听力 / AI 对话两屏未做。
+- 听力 / AI 对话两屏未做（provider 不可用，见上）。
 - 听力、设置、AI 三屏未做。
 - 音频（TTS 播放）、朗读评分、被动提醒未接。
 

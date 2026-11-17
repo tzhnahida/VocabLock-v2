@@ -24,6 +24,7 @@ import (
 
 func main() {
 	mockMode := flag.Bool("mock", false, "Run with mock handlers (no AI, no SQLite, no external processes)")
+	shell := flag.String("shell", "flutter", "UI shell to spawn: flutter | electron")
 	flag.Parse()
 
 	// Change working directory to the executable's directory so that ALL
@@ -136,7 +137,11 @@ func main() {
 	// Bootstrap seed words + grammar points for active language on first run
 	srv.EnsureBootstrap(cfg.App.ActiveLang)
 
-	flutterPID := spawnFlutter(srv.Port, srv.Token)
+	uiPID := spawnFlutter(srv.Port, srv.Token)
+	if *shell == "electron" {
+		uiPID = spawnElectron(srv.Port, srv.Token)
+	}
+	flutterPID := uiPID
 	healthURL := fmt.Sprintf("http://127.0.0.1:%d/health", srv.Port)
 	srv.FlutterPID = flutterPID
 	srv.RestartFunc = func() {
@@ -265,5 +270,78 @@ func spawnFlutter(port int, token string) int {
 		return 0
 	}
 	log.Info("server", "flutter pid=%d", cmd.Process.Pid)
+	return cmd.Process.Pid
+}
+
+// electronTarget is what we found to launch: a packaged desktop app, or the
+// electron-vite checkout during development.
+type electronTarget struct {
+	Bin    string
+	AppDir string // empty for a packaged build
+	Packed bool
+}
+
+// resolveElectron looks for the desktop shell next to the service binary first
+// (packaged layout), then in the electron/ checkout used during development.
+func resolveElectron(exeDir string) (electronTarget, bool) {
+	candidates := []string{
+		filepath.Join(exeDir, "vocablock-desktop.exe"),
+		filepath.Join(exeDir, "electron", "vocablock-desktop.exe"),
+	}
+	for _, c := range candidates {
+		if _, err := os.Stat(c); err == nil {
+			return electronTarget{Bin: c, Packed: true}, true
+		}
+	}
+
+	appDirs := []string{}
+	if env := os.Getenv("VOCABLOCK_ELECTRON_APP"); env != "" {
+		appDirs = append(appDirs, env)
+	}
+	appDirs = append(appDirs,
+		filepath.Join(exeDir, "electron"),
+		filepath.Join(exeDir, "..", "electron"),
+	)
+	for _, app := range appDirs {
+		bin := filepath.Join(app, "node_modules", "electron", "dist", "electron.exe")
+		if _, err := os.Stat(bin); err != nil {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(app, "package.json")); err != nil {
+			continue
+		}
+		return electronTarget{Bin: bin, AppDir: app}, true
+	}
+	return electronTarget{}, false
+}
+
+// spawnElectron starts the desktop shell. The auth token travels in the
+// environment, never in argv: a command line is readable by any process.
+func spawnElectron(port int, token string) int {
+	exe, err := os.Executable()
+	if err != nil {
+		return 0
+	}
+	target, ok := resolveElectron(filepath.Dir(exe))
+	if !ok {
+		log.Warn("server", "electron shell not found next to %s", exe)
+		return 0
+	}
+
+	args := []string{}
+	if target.AppDir != "" {
+		args = append(args, target.AppDir)
+	}
+	args = append(args, "--api-port", fmt.Sprintf("%d", port))
+
+	cmd := exec.Command(target.Bin, args...)
+	cmd.Env = append(os.Environ(), "VOCABLOCK_AUTH_TOKEN="+token)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		log.Warn("server", "electron spawn: %v", err)
+		return 0
+	}
+	log.Info("server", "electron pid=%d", cmd.Process.Pid)
 	return cmd.Process.Pid
 }

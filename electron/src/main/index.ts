@@ -12,7 +12,29 @@ function readArg(name: string): string | undefined {
 }
 
 const apiPort = readArg('api-port')
-const authToken = readArg('auth-token')
+const authTokenArg = readArg('auth-token')
+
+// The Go service hands the token over stdin so it never appears in a process
+// listing (same rule the Flutter shell followed).
+const stdinToken = new Promise<string | null>((resolve) => {
+  const fromEnv = process.env['VOCABLOCK_AUTH_TOKEN']
+  if (fromEnv) {
+    resolve(fromEnv)
+    return
+  }
+  if (!process.argv.includes('--auth-token-stdin')) {
+    resolve(authTokenArg ?? null)
+    return
+  }
+  let buf = ''
+  process.stdin.setEncoding('utf8')
+  process.stdin.on('data', (chunk) => {
+    buf += chunk
+  })
+  process.stdin.on('end', () => resolve(buf.trim() || null))
+  // If nothing arrives, fail open to "no token" rather than hanging the shell.
+  setTimeout(() => resolve(buf.trim() || null), 5000)
+})
 const screenshotPath = readArg('screenshot')
 const initialScreen = readArg('screen') ?? 'home'
 const initialTheme = readArg('theme')
@@ -86,9 +108,9 @@ function createWindow(): void {
   }
 }
 
-ipcMain.handle('runtime:config', () => ({
+ipcMain.handle('runtime:config', async () => ({
   apiPort: apiPort ?? null,
-  authToken: authToken ?? null,
+  authToken: await stdinToken,
   screen: initialScreen,
   theme: initialTheme ?? null,
   lang: initialLang ?? null
