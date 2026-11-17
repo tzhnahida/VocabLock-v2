@@ -55,8 +55,15 @@
 - 未验证：Go 真正 exec 起 Electron 这一步（本机没有打包产物，实跑会弹窗抢焦点）。留到打包时验证。
 - 阻塞：听力屏依赖 TTS，本机 edge-tts 返回 `exit status 3`（网络或依赖问题），AI 对话屏依赖 AI key（当前 ai: disabled）。这两屏先不动，避免做出无法验证的界面。
 
+### 补记 — 听力屏与 TTS 诊断（同日）
+- 更正上一条：TTS 并不是"不可用"。我当时的临时运行目录只复制了 configs/data，**没带 backend/tts 脚本**，所以 edge-tts 直接 `exit status 3`；补上脚本后又暴露第二个问题——edge-tts 7.2.8 与 Microsoft 端点的 WSS 握手返回 403（`Invalid response status`），升级到 7.3.1 后立刻正常。
+- 完成听力屏：单词朗读、任意文本朗读、原文隐藏/显示、词表切换；TTS 状态（接続済み）与失败原因都会显示。
+- 踩坑：`file://` 页面里用 `<audio src="http://127.0.0.1...">` 会被 Chromium 的 URL safety check 拒掉（Media load rejected by URL safety check）。改为 fetch(带 Bearer) → Blob → `URL.createObjectURL`，顺带把 token 从音频 URL 里拿掉；CSP 加 `media-src 'self' blob:`。
+- 验证（CDP + 真服务）：点播放后 audio.readyState=4、currentTime 0.07→0.78→1.49→1.56 自然结束，状态从「播放中」自动清空；词表 14 行、原文一开始为 `— — —`，点「原文を表示」后显示 泳ぐ / およぐ / 游泳。
+- 剩余：AI 对话屏需要 AI key；打包（electron-builder）未做。
+
 ### 剩余
-- 听力 / AI 对话两屏未做（provider 不可用，见上）。
+- AI 对话屏需要 AI key。
 - 听力、设置、AI 三屏未做。
 - 音频（TTS 播放）、朗读评分、被动提醒未接。
 

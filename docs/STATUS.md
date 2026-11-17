@@ -86,6 +86,8 @@
   - 验证（CDP + 真服务）：每日目标 20→25、主题切浅色后保存 → 界面回显「已保存」，app.yaml 实际写入 daily_target: 25 / theme: vscode-light；interface_lang 由 zh-CN 归一为 zh 写入。
   - 启动链路：Go 新增 `--shell=electron`；resolveElectron 先找打包产物（vocablock-desktop.exe），再找仓库里的 electron/ 检出；token 走环境变量 VOCABLOCK_AUTH_TOKEN（不进 argv），Electron 侧已实测能用 env token 拿到真数据。resolver 有 3 个单测。
   - 截图管线修复：隐藏窗口在无 DevTools 附着时不重绘 → 截图模式改为离屏窗口 + showInactive，等 .app 挂载后 capturePage。
+  - 听力屏：单词朗读（/tts/word/{id}）、任意文本朗读（/tts/text）、原文隐藏/显示、词表切换。音频用 fetch+blob 播放（file:// 页面加载 http 媒体会被 Chromium 的 URL safety check 拒掉）。
+  - TTS 诊断：之前记录的 exit status 3 是临时目录缺 backend/tts 脚本；真实原因是 edge-tts 7.2.8 被 Microsoft 拒（WSS 403），升级到 7.3.1 后正常。实测播放：currentTime 0.07→1.49→1.56s 结束，readyState 4。
   - 验证（CDP）：添加 → 表格与库内出现新词（127→128）；编辑 → 释义写入并回显；删除 → 词条消失（128→127）。测试数据已还原。
 
 ## 未完成
@@ -106,7 +108,8 @@
 | P2 | Electron 听力 / AI 对话两屏、TTS 播放、朗读评分 | 未开始 |
 | P2 | Electron M4 启动切换（--shell=electron + token 环境变量） | 代码完成（缺打包产物路径实跑） |
 | P2 | Electron M3–M4：系统级锁屏、electron-builder 打包 | 未开始 |
-| P2 | 听力 / AI 对话屏 | 受阻：本机 edge-tts 退出码 3、AI key 未配置 |
+| P2 | Electron 听力屏（单词朗读 + 任意文本朗读） | 已完成（2026-11-17，真机出声） |
+| P2 | Electron AI 对话屏 | 受阻：AI key 未配置 |
 
 ## 下一步顺序
 
