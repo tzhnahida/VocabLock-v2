@@ -82,6 +82,8 @@
   - 验证（CDP 驱动真实 UI + 真实服务，数据来自副本库）：道 输入 みち → 反馈「正确 · 下次复习：2026-11-23」，review_log 319→320（type=pronounce / source=exact / language=ja），词条 reps 2、interval 6、EF 2.7；再答错 → 「正确答案: みぎ · 下次复习：2026-11-18」，next 可用。
   - 新增 --nowindow：无窗口 + CDP 可脚本化操作界面（不抢前台）。
   - 词库转可写：添加词（对话框）、编辑（含删除）、加入复习（重置进度后进今日队列）；保存/失败都有提示，操作后刷新表格与计数。
+  - 设置屏：课程语言、每日目标题数、达标准确率、AI 扩词开关、界面语言、主题、AI（base_url / model / API Key，留空不覆盖），一次保存写 app.yaml 与 secrets.yaml。
+  - 验证（CDP + 真服务）：每日目标 20→25、主题切浅色后保存 → 界面回显「已保存」，app.yaml 实际写入 daily_target: 25 / theme: vscode-light；interface_lang 由 zh-CN 归一为 zh 写入。
   - 验证（CDP）：添加 → 表格与库内出现新词（127→128）；编辑 → 释义写入并回显；删除 → 词条消失（128→127）。测试数据已还原。
 
 ## 未完成
@@ -98,7 +100,8 @@
 | P2 | Electron M0（设计稿四屏 + 真数据） | 已完成（2026-11-17） |
 | P2 | Electron M1 答题回路（session/next/submit/complete） | 已完成（2026-11-17） |
 | P2 | Electron M1 词库增删改（对话框） | 已完成（2026-11-17） |
-| P2 | Electron 听力 / 设置 / AI 三屏、TTS 播放、朗读评分 | 未开始 |
+| P2 | Electron 设置屏（课程/目标/主题/AI） | 已完成（2026-11-17） |
+| P2 | Electron 听力 / AI 对话两屏、TTS 播放、朗读评分 | 未开始 |
 | P2 | Electron M3–M4：系统级锁屏、主进程替换 spawnFlutter、electron-builder 打包 | 未开始 |
 
 ## 下一步顺序

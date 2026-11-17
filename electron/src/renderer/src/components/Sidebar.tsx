@@ -49,7 +49,7 @@ export default function Sidebar({ dash, screen, lang, onNavigate }: Props) {
     { key: '2', label: t(lang, 'nav.words'), d: ICONS.words, target: 'library' },
     { key: '3', label: t(lang, 'nav.audio'), d: ICONS.audio, disabled: true },
     { key: '4', label: t(lang, 'nav.stats'), d: ICONS.stats, target: 'stats' },
-    { key: '5', label: t(lang, 'nav.settings'), d: ICONS.settings, disabled: true }
+    { key: '5', label: t(lang, 'nav.settings'), d: ICONS.settings, target: 'settings' }
   ]
 
   return (

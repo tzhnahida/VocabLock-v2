@@ -163,6 +163,15 @@ export const dyn = {
 
 export const langNative: Record<Lang, string> = { zh: '中文', en: 'English', ja: '日本語' }
 
+/** Config stores "zh-CN"; the UI only knows zh/en/ja. */
+export function normaliseLang(value: string | null | undefined): Lang {
+  const v = (value ?? '').toLowerCase()
+  if (v.startsWith('zh')) return 'zh'
+  if (v.startsWith('ja')) return 'ja'
+  if (v.startsWith('en')) return 'en'
+  return 'en'
+}
+
 /** Course (studied language) names, localized per UI language. */
 export const courseName: Record<string, Record<Lang, string>> = {
   en: { zh: '英语', en: 'English', ja: '英語' },

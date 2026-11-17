@@ -5,11 +5,12 @@ import Home from './screens/Home'
 import Library from './screens/Library'
 import Quiz from './screens/Quiz'
 import Stats from './screens/Stats'
+import Settings from './screens/Settings'
 import Lock from './screens/Lock'
 import { apiContext, configureApi, loadDashboard, demoDashboard, type Dashboard } from './api'
 import { courseLabel, type Lang } from './i18n'
 
-export type Screen = 'home' | 'library' | 'quiz' | 'stats'
+export type Screen = 'home' | 'library' | 'quiz' | 'stats' | 'settings'
 
 type RuntimeConfig = {
   apiPort: string | null
@@ -61,7 +62,12 @@ export default function App() {
       setLang(nextLang)
       setTheme(nextTheme)
       setDash(loaded)
-      if (runtime.screen === 'library' || runtime.screen === 'quiz' || runtime.screen === 'stats') {
+      if (
+        runtime.screen === 'library' ||
+        runtime.screen === 'quiz' ||
+        runtime.screen === 'stats' ||
+        runtime.screen === 'settings'
+      ) {
         setScreen(runtime.screen)
       } else if (runtime.screen === 'lock') {
         setLocked(true)
@@ -134,6 +140,15 @@ export default function App() {
           </section>
           <section className="screen s-stats">
             <Stats dash={dash} lang={lang} />
+          </section>
+          <section className="screen s-settings">
+            <Settings
+              lang={lang}
+              theme={theme}
+              onTheme={(next) => setTheme(next)}
+              onLang={(next) => setLang(next)}
+              onSaved={refresh}
+            />
           </section>
         </main>
       </div>

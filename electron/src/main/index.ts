@@ -22,11 +22,16 @@ const hidden = process.argv.includes('--nowindow')
 let win: BrowserWindow | null = null
 
 function createWindow(): void {
+  // Scripted captures need a painting window; park it far off-screen and show
+  // it without activation so the user keeps focus on whatever they are doing.
+  const captureMode = Boolean(screenshotPath)
   win = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 1040,
     minHeight: 680,
+    x: captureMode ? -32000 : undefined,
+    y: captureMode ? -32000 : undefined,
     show: !screenshotPath && !hidden,
     frame: false,
     backgroundColor: initialTheme === 'light' ? '#F4F4F1' : '#0B0D10',
@@ -34,7 +39,10 @@ function createWindow(): void {
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
-      contextIsolation: true
+      contextIsolation: true,
+      // Scripted captures run against a hidden window: without this Electron
+      // throttles rAF/timers and React can stay on its "Loading…" frame.
+      backgroundThrottling: false
     }
   })
 
@@ -45,22 +53,35 @@ function createWindow(): void {
     void win.loadFile(join(__dirname, '../renderer/index.html'))
   }
 
+  if (captureMode) win.showInactive()
+
   win.on('closed', () => {
     win = null
   })
 
   if (screenshotPath) {
     win.webContents.once('did-finish-load', () => {
-      // Give React one animation frame plus the data fetch a moment to settle.
-      setTimeout(async () => {
+      void (async () => {
+        // Wait for the shell to mount and the first data load to settle rather
+        // than guessing a delay — a slow disk or a cold fetch used to produce a
+        // screenshot of the "Loading…" boot state.
+        const deadline = Date.now() + 15000
+        while (Date.now() < deadline) {
+          if (!win) return
+          const ready = await win.webContents
+            .executeJavaScript("!!document.querySelector('.app')")
+            .catch(() => false)
+          if (ready) break
+          await new Promise((r) => setTimeout(r, 200))
+        }
+        await new Promise((r) => setTimeout(r, 600))
         if (!win) return
         const image = await win.webContents.capturePage()
-        const dir = join(screenshotPath, '..')
-        mkdirSync(dir, { recursive: true })
+        mkdirSync(join(screenshotPath, '..'), { recursive: true })
         writeFileSync(screenshotPath, image.toPNG())
         console.log('screenshot:', screenshotPath)
         app.quit()
-      }, 2500)
+      })()
     })
   }
 }

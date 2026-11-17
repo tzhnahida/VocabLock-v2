@@ -40,8 +40,15 @@
 - 踩坑：用 CDP 的 Input.insertText 连续填四个框，四个值会全部灌进第一个输入框（焦点在两次调用之间丢失）；React 受控组件要用原生 value setter + dispatch input 事件，才能可靠地逐字段写入。
 - 踩坑：点「保存」时按索引取最后一个按钮，曾误点到相邻位置；改成按文案匹配（innerText === 保存）后稳定。
 
+### 补记 — 设置屏 + 截图管线修复（同日）
+- 完成：Settings 屏（课程语言 / 每日目标 / 达标准确率 / AI 扩词 / 界面语言 / 主题 / AI base_url+model+API Key）。保存一次同时写 /config 与 /config/ai；保存后回写界面语言与主题，并刷新侧栏数据。
+- 验证（CDP + 真服务）：daily_target 20→25、主题切浅色 → 「已保存」，副本 app.yaml 里 daily_target: 25、theme: vscode-light。
+- 踩坑：config 里 interface_lang 存的是 `zh-CN`，直接塞进 UI 的 Lang（zh/en/ja）会查不到词表并抛错，表现为「点了保存但没有任何提示」。修法：入口处 normaliseLang() 归一（zh-CN→zh），先报结果再切语言。
+- 踩坑（截图管线）：`--screenshot` 用的隐藏窗口在无 DevTools 附着时不重绘，截出来永远是启动时的「Loading…」。修法：截图模式把窗口放到屏幕外（x/y=-32000）并 `showInactive()`（显示但不抢焦点），等 `.app` 挂载后再 capturePage。此前 home/library 截图能成只是撞上了时序。
+- 踩坑：CDP 连续 fill 多个输入需要给控件稳定 id（已加 set-course / set-daily-target / set-theme 等），否则按 nth-of-type 选到的是别的控件，改完才发现改错字段。
+
 ### 剩余
-- 听力 / 设置 / AI 三屏未做。
+- 听力 / AI 对话两屏未做。
 - 听力、设置、AI 三屏未做。
 - 音频（TTS 播放）、朗读评分、被动提醒未接。
 

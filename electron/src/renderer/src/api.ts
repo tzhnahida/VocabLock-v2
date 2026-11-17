@@ -1,3 +1,5 @@
+import { normaliseLang } from './i18n'
+
 export type Word = {
   id: number
   word: string
@@ -242,4 +244,38 @@ export function deleteWord(id: number): Promise<unknown> {
 /** Puts the word back into the review queue (clears its SM-2 progress). */
 export function resetWord(id: number): Promise<unknown> {
   return jsonCall(`/api/v1/words/${id}/reset`, { method: 'POST' })
+}
+export type Settings = {
+  activeLang: string
+  interfaceLang: string
+  dailyTarget: number
+  minAccuracy: number
+  autoExpand: boolean
+  theme: string
+  languages: string[]
+  aiBaseUrl: string
+  aiModel: string
+  aiConfigured: boolean
+}
+export async function loadSettings(): Promise<Settings> {
+  const cfg = await jsonCall<Record<string, unknown>>('/api/v1/config', { method: 'GET' })
+  const ai = await jsonCall<Record<string, unknown>>('/api/v1/config/ai', { method: 'GET' })
+  return {
+    activeLang: String(cfg['active_lang'] ?? 'en'),
+    interfaceLang: normaliseLang(String(cfg['interface_lang'] ?? 'zh')),
+    dailyTarget: num(cfg['daily_target'], 20),
+    minAccuracy: typeof cfg['min_accuracy'] === 'number' ? cfg['min_accuracy'] : 0.8,
+    autoExpand: cfg['auto_expand_words'] === true,
+    theme: String(cfg['theme'] ?? 'vs-dark'),
+    languages: (cfg['languages'] as string[]) ?? [],
+    aiBaseUrl: String(ai['base_url'] ?? ''),
+    aiModel: String(ai['model'] ?? ''),
+    aiConfigured: ai['configured'] === true
+  }
+}
+export function saveAppConfig(patch: Record<string, unknown>): Promise<unknown> {
+  return jsonCall('/api/v1/config', { method: 'PUT', body: JSON.stringify(patch) })
+}
+export function saveAIConfig(input: { baseUrl?: string; apiKey?: string; model?: string }): Promise<unknown> {
+  return jsonCall('/api/v1/config/ai', { method: 'PUT', body: JSON.stringify(input) })
 }
