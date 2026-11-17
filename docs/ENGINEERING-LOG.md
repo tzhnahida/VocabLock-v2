@@ -516,3 +516,19 @@
 
 ### 规划
 - 每次勾选 ROADMAP 前，至少跑一次对应端到端路径（API + UI + 数据）。
+## 老代码审计 A–D（2026-11-17 深夜）
+
+### 做了什么
+- **A 清理**：删 6 处死代码（wordsToInfos / GetGrammarPointsByIDs / sessionBudget.markSessionStarted+isSessionStarted / questionMinutes / 前端 mediaUrl）；mock 的 pending accept/reject 接线（列表在 mock 模式返回空数组而非 500）；慢题集合统一到 engine.IsSlowType；--shell 默认改 electron。
+- **B 配置**：「loadYAML 错误被吞」改为启动即报错并指明文件（缺文件仍回落到默认值，有测试）；_languages/ja.yaml 严重陈旧（8 题型、无 pronounce、无字段定义、还留着 grammar_points/seed_words_file）已按现配置重写；TryLoadTemplate 更名 InstallTemplate（它会写文件）。
+- **C 解耦**：Server.NativeShell 只在 --shell=flutter 时为 true；enterNativeLock/exitNativeLock 收敛了 5 处答题解锁 + lock/unlock/escape，Electron 下不再调用 Windows 窗口 API（fake SystemProvider 两个分支都测了）。
+- **D 数据**：扩词的 exists, _ = WordExists 与词表回退 list 失败改为 log.Warn，不再把查询错误当成「不存在」。
+
+### 验证
+- go test ./... 全绿（新增：严格配置、模板解析、shell 分支三组测试）
+- strict 配置下 devserver 用真实配置正常启动
+- npm run typecheck（含 7 屏守卫）与 build 通过
+
+### 结论
+- 类型层面的『死代码』不多，真正的风险在**两份实现/两份配置各说各话**：题时估计有两套、慢题集合有三份、ja 模板与 ja 配置漂了一年。
+- 这类问题不会报错，只会在换语言/换前端时突然失效，所以都补了守卫（模板解析测试、shell 分支测试、严格配置测试）。
