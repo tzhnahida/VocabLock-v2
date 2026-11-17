@@ -79,6 +79,9 @@ type Server struct {
 	// server must not manipulate (or try to find) a Flutter window.
 	NativeShell bool
 
+	lockMu sync.Mutex
+	locked bool
+
 	// Escape tracking (daily limits)
 	escapeMu           sync.Mutex
 	escapeDate         string
@@ -386,8 +389,25 @@ func (s *Server) isExpanding() bool {
 // hasNativeLock reports whether server-side lock calls can do anything.
 func (s *Server) hasNativeLock() bool { return s.NativeShell && s.System != nil }
 
+// MarkLocked records the lock state. The Electron shell polls /system/status
+// and opens or closes its kiosk window accordingly, so the decision (daily
+// target, emergency escape) stays on the server while the window is the shell.
+func (s *Server) MarkLocked(locked bool) {
+	s.lockMu.Lock()
+	defer s.lockMu.Unlock()
+	s.locked = locked
+}
+
+// IsLocked reports the current lock state.
+func (s *Server) IsLocked() bool {
+	s.lockMu.Lock()
+	defer s.lockMu.Unlock()
+	return s.locked
+}
+
 // enterNativeLock blocks the desktop through the Flutter shell's topmost window.
 func (s *Server) enterNativeLock() error {
+	s.MarkLocked(true)
 	if !s.hasNativeLock() {
 		return nil
 	}
@@ -398,6 +418,7 @@ func (s *Server) enterNativeLock() error {
 
 // exitNativeLock releases the native lock, if the shell has one.
 func (s *Server) exitNativeLock() {
+	s.MarkLocked(false)
 	if !s.hasNativeLock() {
 		return
 	}

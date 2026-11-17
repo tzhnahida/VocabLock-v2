@@ -39,6 +39,8 @@ export default function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>('dark')
   const [lang, setLang] = useState<Lang>('zh')
   const [locked, setLocked] = useState(false)
+  // True only in the dedicated kiosk window; there the server owns the lock.
+  const [lockWindow, setLockWindow] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -74,6 +76,7 @@ export default function App() {
       ) {
         setScreen(runtime.screen)
       } else if (runtime.screen === 'lock') {
+        setLockWindow(true)
         setLocked(true)
       }
       setReady(true)
@@ -95,7 +98,12 @@ export default function App() {
   useEffect(() => {
     function onKey(e: KeyboardEvent): void {
       if (e.key === 'Escape') {
-        if (locked) setLocked(false)
+        // Inside the kiosk lock window the server owns the lock state, so
+        // dismiss it through the bridge instead of only hiding the overlay.
+        if (lockWindow) {
+          window.vocablock.dismissLock()
+          setLocked(false)
+        } else if (locked) setLocked(false)
         else if (screen === 'quiz') setScreen('home')
       }
       if (!locked && e.key === 'l' && (e.ctrlKey || e.metaKey)) {
@@ -105,7 +113,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [locked, screen])
+  }, [locked, screen, lockWindow])
 
   const go = useCallback((next: Screen) => {
     setLocked(false)

@@ -83,3 +83,34 @@ func TestSystemLockDrivesNativeWindowWithFlutterShell(t *testing.T) {
 		t.Errorf("native unlock not driven: %+v", sys)
 	}
 }
+
+// The Electron shell follows /system/status, so the server must publish the
+// lock state it decided on (startup auto-lock, tray lock, emergency escape).
+func TestSystemStatusReportsLockState(t *testing.T) {
+	s, _ := newShellTestServer(false)
+
+	rec := httptest.NewRecorder()
+	s.handleSystemStatus(rec, httptest.NewRequest("GET", "/api/v1/system/status", nil))
+	var body map[string]interface{}
+	_ = json.Unmarshal(rec.Body.Bytes(), &body)
+	if body["locked"] != false {
+		t.Errorf("initial locked = %v, want false", body["locked"])
+	}
+
+	s.handleSystemLock(httptest.NewRecorder(), httptest.NewRequest("POST", "/api/v1/system/lock", nil))
+	if !s.IsLocked() {
+		t.Fatal("MarkLocked(true) not applied by lock handler")
+	}
+	rec = httptest.NewRecorder()
+	s.handleSystemStatus(rec, httptest.NewRequest("GET", "/api/v1/system/status", nil))
+	body = nil
+	_ = json.Unmarshal(rec.Body.Bytes(), &body)
+	if body["locked"] != true {
+		t.Errorf("locked = %v after lock, want true", body["locked"])
+	}
+
+	s.handleSystemUnlock(httptest.NewRecorder(), httptest.NewRequest("POST", "/api/v1/system/unlock", nil))
+	if s.IsLocked() {
+		t.Error("unlock handler left the server locked")
+	}
+}

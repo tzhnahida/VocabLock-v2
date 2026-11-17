@@ -15,7 +15,7 @@ func (s *Server) handleSystemStatus(w http.ResponseWriter, r *http.Request) {
 	log.Debug("system", "status")
 	writeJSON(w, map[string]interface{}{
 		"status":      "running",
-		"locked":      false,
+		"locked":      s.IsLocked(),
 		"active_lang": s.Config.App.ActiveLang,
 	})
 }

@@ -3,6 +3,9 @@
 declare global {
   interface Window {
     vocablock: {
+      requestLock: () => void
+      dismissLock: () => void
+      appInfo: () => Promise<Record<string, unknown>>
       runtime: () => Promise<{
         apiPort: string | null
         authToken: string | null

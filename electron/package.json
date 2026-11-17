@@ -29,7 +29,8 @@
       "target": [
         "dir"
       ],
-      "executableName": "vocablock-desktop"
+      "executableName": "vocablock-desktop",
+      "icon": "resources/icon.png"
     }
   },
   "devDependencies": {

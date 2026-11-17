@@ -50,7 +50,10 @@ const zh = {
     notConfigured: '未配置',
     save: '保存',
     saved: '已保存',
-    failed: '保存失败：'
+    failed: '保存失败：',
+    startup: '启动',
+    autoStart: '开机自启',
+    autoStartHint: '登录 Windows 后自动启动 VocabLock',
   },
   listen: {
     title: '听力',
@@ -151,7 +154,10 @@ const en: typeof zh = {
     notConfigured: 'not configured',
     save: 'Save',
     saved: 'Saved',
-    failed: 'Save failed: '
+    failed: 'Save failed: ',
+    startup: 'Startup',
+    autoStart: 'Start with Windows',
+    autoStartHint: 'Launch VocabLock automatically after you sign in',
   },
   listen: {
     title: 'Listening',
@@ -252,7 +258,10 @@ const ja: typeof zh = {
     notConfigured: '未設定',
     save: '保存',
     saved: '保存しました',
-    failed: '保存に失敗：'
+    failed: '保存に失敗：',
+    startup: '起動',
+    autoStart: 'Windows 起動時に開く',
+    autoStartHint: 'サインイン後に VocabLock を自動で起動します',
   },
   listen: {
     title: 'リスニング',

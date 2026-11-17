@@ -252,6 +252,7 @@ export type Settings = {
   dailyTarget: number
   minAccuracy: number
   autoExpand: boolean
+  autoStart: boolean
   theme: string
   languages: string[]
   aiBaseUrl: string
@@ -268,6 +269,7 @@ export async function loadSettings(): Promise<Settings> {
     dailyTarget: num(cfg['daily_target'], 20),
     minAccuracy: typeof cfg['min_accuracy'] === 'number' ? cfg['min_accuracy'] : 0.8,
     autoExpand: cfg['auto_expand_words'] === true,
+    autoStart: cfg['auto_start'] === true,
     theme: String(cfg['theme'] ?? 'vs-dark'),
     languages: (cfg['languages'] as string[]) ?? [],
     aiBaseUrl: String(ai['base_url'] ?? ''),

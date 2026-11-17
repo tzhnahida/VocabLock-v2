@@ -88,12 +88,14 @@ func main() {
 	}
 	srv.System = systemProvider
 
-	// Refresh auto-start registry entry to point to the current executable path.
-	// If the user moved the install directory, the old entry would point to a dead path.
-	if cfg.App.AutoStart {
-		if err := systemProvider.SetAutoStart(true); err != nil {
-			log.Warn("system", "auto-start refresh: %v", err)
-		}
+	// Keep the registry entry in sync with the config: enable it (refreshing a
+	// stale path after the install directory moved) or remove it when the
+	// setting is off, so a leftover value cannot start the app behind the
+	// user's back.
+	if err := systemProvider.SetAutoStart(cfg.App.AutoStart); err != nil {
+		log.Warn("system", "auto-start sync: %v", err)
+	} else if cfg.App.AutoStart {
+		log.Info("system", "auto-start: enabled")
 	}
 
 	// Wire AI client (if configured)
@@ -184,10 +186,15 @@ func main() {
 			reviewed, spent, cfg.App.DailyTarget, cfg.App.DailyTimeTarget, cfg.App.ActiveLang)
 		if !srv.DailyTargetMet(cfg.App.ActiveLang) {
 			nw, ng, rw, rg, _ := database.SessionCounts(cfg.App.ActiveLang)
-			if nw+ng+rw+rg > 0 {
+			if nw+ng+rw+rg > 0 && srv.NativeShell {
 				log.Info("system", "auto-lock: fullscreen + lock")
 				systemProvider.FullscreenFlutterWindow()
 				systemProvider.EnterLockMode(0)
+			} else if nw+ng+rw+rg > 0 {
+				// The Electron shell draws its own lock window; the server only
+				// publishes the state and the shell follows it.
+				log.Info("system", "daily target not met — lock requested for the shell")
+				srv.MarkLocked(true)
 			} else {
 				log.Info("system", "startup: no items — skip lock (reviewed=%d target=%d)", reviewed, cfg.App.DailyTarget)
 			}

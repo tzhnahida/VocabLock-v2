@@ -12,5 +12,8 @@ contextBridge.exposeInMainWorld('vocablock', {
   runtime: (): Promise<RuntimeConfig> => ipcRenderer.invoke('runtime:config'),
   minimize: (): void => ipcRenderer.send('window:minimize'),
   maximize: (): void => ipcRenderer.send('window:maximize'),
-  close: (): void => ipcRenderer.send('window:close')
+  close: (): void => ipcRenderer.send('window:close'),
+  requestLock: (): void => ipcRenderer.send('lock:request'),
+  dismissLock: (): void => ipcRenderer.send('lock:dismiss'),
+  appInfo: (): Promise<Record<string, unknown>> => ipcRenderer.invoke('app:info')
 })

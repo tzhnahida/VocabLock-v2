@@ -42,6 +42,7 @@ export default function Settings({ lang, theme, onTheme, onLang, onSaved }: Prop
         min_accuracy: data.minAccuracy,
         ai_explanation_lang: data.explanationLang,
         auto_expand_words: data.autoExpand,
+        auto_start: data.autoStart,
         theme: theme === 'light' ? 'vscode-light' : 'vs-dark'
       })
       if (apiKey.trim() !== '') {
@@ -123,6 +124,22 @@ export default function Settings({ lang, theme, onTheme, onLang, onSaved }: Prop
                   <option value="off">off</option>
                 </select>
               </div>
+            </div>
+          </section>
+
+          <section className="card sect">
+            <h3>{copy.startup}</h3>
+            <div className="field">
+              <label htmlFor="set-auto-start">{copy.autoStart}</label>
+              <select
+                id="set-auto-start"
+                value={data.autoStart ? 'on' : 'off'}
+                onChange={(e) => setData({ ...data, autoStart: e.target.value === 'on' })}
+              >
+                <option value="on">on</option>
+                <option value="off">off</option>
+              </select>
+              <div className="hintline">{copy.autoStartHint}</div>
             </div>
           </section>
 

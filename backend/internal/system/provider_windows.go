@@ -349,8 +349,69 @@ func (p *windowsProvider) StopTray() error {
 	return nil
 }
 
+// autoStartValueName is the HKCU\...\Run value the app owns.
+const autoStartValueName = "VocabLock"
+
+// runKeyPath is the per-user startup key.
+const runKeyPath = `Software\Microsoft\Windows\CurrentVersion\Run`
+
 func (p *windowsProvider) SetAutoStart(enabled bool) error {
-	keyName, _ := windows.UTF16PtrFromString(`Software\Microsoft\Windows\CurrentVersion\Run`)
+	if !enabled {
+		return deleteRunValue(autoStartValueName)
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("locate executable: %w", err)
+	}
+	// The Run key is parsed as a command line: an unquoted path with spaces
+	// ("C:\Program Files\VocabLock\vocablock.exe") would launch
+	// "C:\Program" instead. Quote it.
+	return setRunValue(autoStartValueName, "\""+exe+"\"")
+}
+
+// setRunValue writes a REG_SZ under HKCU\...\Run.
+func setRunValue(name, command string) error {
+	hKey, err := openRunKey()
+	if err != nil {
+		return err
+	}
+	defer procRegCloseKey.Call(uintptr(hKey))
+
+	valName, _ := windows.UTF16PtrFromString(name)
+	valData, _ := windows.UTF16PtrFromString(command)
+	ret, _, _ := procRegSetValueEx.Call(
+		uintptr(hKey),
+		uintptr(unsafe.Pointer(valName)),
+		0,
+		1, // REG_SZ
+		uintptr(unsafe.Pointer(valData)),
+		uintptr(len(command)*2+2),
+	)
+	if ret != 0 {
+		return fmt.Errorf("RegSetValueEx: %d", ret)
+	}
+	return nil
+}
+
+// deleteRunValue removes a value; a missing value is not an error.
+func deleteRunValue(name string) error {
+	hKey, err := openRunKey()
+	if err != nil {
+		return err
+	}
+	defer procRegCloseKey.Call(uintptr(hKey))
+
+	valName, _ := windows.UTF16PtrFromString(name)
+	ret, _, _ := procRegDeleteValue.Call(uintptr(hKey), uintptr(unsafe.Pointer(valName)))
+	// 2 = ERROR_FILE_NOT_FOUND: already absent, which is the desired state.
+	if ret != 0 && ret != 2 {
+		return fmt.Errorf("RegDeleteValue: %d", ret)
+	}
+	return nil
+}
+
+func openRunKey() (windows.Handle, error) {
+	keyName, _ := windows.UTF16PtrFromString(runKeyPath)
 	var hKey windows.Handle
 	ret, _, _ := procRegOpenKeyEx.Call(
 		uintptr(HKEY_CURRENT_USER),
@@ -360,30 +421,9 @@ func (p *windowsProvider) SetAutoStart(enabled bool) error {
 		uintptr(unsafe.Pointer(&hKey)),
 	)
 	if ret != 0 {
-		return fmt.Errorf("RegOpenKeyEx: %d", ret)
+		return 0, fmt.Errorf("RegOpenKeyEx: %d", ret)
 	}
-	defer procRegCloseKey.Call(uintptr(hKey))
-
-	if enabled {
-		exe, _ := os.Executable()
-		valName, _ := windows.UTF16PtrFromString("VocabLock")
-		valData, _ := windows.UTF16PtrFromString(exe)
-		ret, _, _ = procRegSetValueEx.Call(
-			uintptr(hKey),
-			uintptr(unsafe.Pointer(valName)),
-			0,
-			1, // REG_SZ
-			uintptr(unsafe.Pointer(valData)),
-			uintptr(len(exe)*2+2),
-		)
-		if ret != 0 {
-			return fmt.Errorf("RegSetValueEx: %d", ret)
-		}
-	} else {
-		valName, _ := windows.UTF16PtrFromString("VocabLock")
-		procRegDeleteValue.Call(uintptr(hKey), uintptr(unsafe.Pointer(valName)))
-	}
-	return nil
+	return hKey, nil
 }
 
 func (p *windowsProvider) FindFlutterWindow() (uintptr, error) {
