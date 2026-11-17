@@ -7,11 +7,12 @@ import Quiz from './screens/Quiz'
 import Stats from './screens/Stats'
 import Settings from './screens/Settings'
 import Listening from './screens/Listening'
+import Chat from './screens/Chat'
 import Lock from './screens/Lock'
 import { apiContext, configureApi, loadDashboard, demoDashboard, type Dashboard } from './api'
 import { courseLabel, type Lang } from './i18n'
 
-export type Screen = 'home' | 'library' | 'quiz' | 'stats' | 'settings' | 'listening'
+export type Screen = 'home' | 'library' | 'quiz' | 'stats' | 'settings' | 'listening' | 'chat'
 
 type RuntimeConfig = {
   apiPort: string | null
@@ -68,7 +69,8 @@ export default function App() {
         runtime.screen === 'quiz' ||
         runtime.screen === 'stats' ||
         runtime.screen === 'settings' ||
-        runtime.screen === 'listening'
+        runtime.screen === 'listening' ||
+        runtime.screen === 'chat'
       ) {
         setScreen(runtime.screen)
       } else if (runtime.screen === 'lock') {
@@ -142,6 +144,9 @@ export default function App() {
           </section>
           <section className="screen s-stats">
             <Stats dash={dash} lang={lang} />
+          </section>
+          <section className="screen s-chat">
+            <Chat lang={lang} online={dash.online} />
           </section>
           <section className="screen s-listening">
             <Listening dash={dash} lang={lang} />

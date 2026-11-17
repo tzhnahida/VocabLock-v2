@@ -1,5 +1,6 @@
 import { t, dyn, typeName, ago, type Lang } from '../i18n'
 import { daysUntil, type Dashboard } from '../api'
+import AssignmentCard from '../components/Assignment'
 
 type Props = {
   dash: Dashboard
@@ -186,6 +187,8 @@ export default function Home({ dash, lang, onStart, onLibrary, onStats, onLock }
               )}
             </div>
           </section>
+
+          <AssignmentCard lang={lang} language={dash.activeLang} />
 
           <section className="card c-quick">
             <div className="rh">

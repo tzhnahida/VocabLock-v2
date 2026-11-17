@@ -326,3 +326,90 @@ body[data-screen="listening"] .s-listening {
   flex-wrap: wrap;
   justify-content: center;
 }
+/* Assignment card (home) */
+.assign-prompt {
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 8px 0 6px;
+  white-space: pre-wrap;
+}
+.assign-input {
+  width: 100%;
+  margin: 8px 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12.5px;
+  resize: vertical;
+  outline: none;
+}
+.assign-result .l1 {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.assign-result .l2 {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-bottom: 6px;
+  white-space: pre-wrap;
+}
+.note.err {
+  color: #d25b5b;
+}
+
+/* Passive recall card (stats) */
+.passive-word {
+  font-size: 26px;
+  font-weight: 600;
+  margin: 10px 0 6px;
+}
+.passive-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+/* Pending review (library) */
+.c-pending {
+  margin-top: 12px;
+  max-height: 320px;
+  overflow: auto;
+}
+.pending-row {
+  border-top: 1px solid var(--border);
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pending-row:first-of-type {
+  border-top: 0;
+}
+.pending-word {
+  font-size: 14px;
+  font-weight: 600;
+}
+.pending-fields {
+  display: grid;
+  grid-template-columns: 1fr 80px 1fr;
+  gap: 6px;
+}
+.pending-fields input {
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--panel2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+  width: 100%;
+}
+.pending-actions {
+  display: flex;
+  gap: 6px;
+}

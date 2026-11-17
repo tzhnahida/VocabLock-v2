@@ -3,6 +3,8 @@ import { t, dyn, type Lang } from '../i18n'
 import { daysUntil, resetWord, strengthOf, type Dashboard, type Word } from '../api'
 import WordDialog from '../components/WordDialog'
 
+import PendingReview from '../components/PendingReview'
+
 type Props = { dash: Dashboard; lang: Lang; onChanged: () => void }
 type Filter = 'all' | 'learning' | 'due' | 'mastered'
 
@@ -121,6 +123,8 @@ export default function Library({ dash, lang, onChanged }: Props) {
             </div>
           </div>
         </section>
+
+        <PendingReview lang={lang} language={dash.activeLang} onAccepted={onChanged} />
 
         <aside className="card detail">
           {selected ? (

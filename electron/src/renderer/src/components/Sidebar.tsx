@@ -96,7 +96,10 @@ export default function Sidebar({ dash, screen, lang, onNavigate }: Props) {
           )
         })}
         <div className="glabel">{t(lang, 'nav.more')}</div>
-        <div className="nav disabled" title="M2">
+        <div
+          className={`nav${screen === 'chat' ? ' on' : ''}`}
+          onClick={() => onNavigate('chat')}
+        >
           <NavIcon d={ICONS.ai} />
           <span>{t(lang, 'nav.ai')}</span>
           <span className="k">6</span>

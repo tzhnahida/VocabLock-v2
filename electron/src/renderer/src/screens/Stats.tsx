@@ -1,5 +1,6 @@
 import { t, dyn, typeName, type Lang } from '../i18n'
 import type { Dashboard } from '../api'
+import PassiveCard from '../components/Passive'
 
 type Props = { dash: Dashboard; lang: Lang }
 
@@ -70,6 +71,7 @@ export default function Stats({ dash, lang }: Props) {
               <span>{t(lang, 'streak.unit')}</span>
             </div>
           </section>
+          <PassiveCard lang={lang} />
         </div>
       </div>
     </div>
