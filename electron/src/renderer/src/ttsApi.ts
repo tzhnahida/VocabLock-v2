@@ -16,14 +16,6 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T
 }
 
-/** Audio URLs are served from /data/audio/, which accepts the token as a query. */
-export function mediaUrl(path: string): string {
-  const ctx = apiContext()
-  if (!ctx || path === '') return ''
-  const sep = path.includes('?') ? '&' : '?'
-  return `http://127.0.0.1:${ctx.port}${path}${sep}token=${ctx.token}`
-}
-
 export async function audioObjectUrl(path: string): Promise<string> {
   const ctx = apiContext()
   if (!ctx) throw new Error('no backend')

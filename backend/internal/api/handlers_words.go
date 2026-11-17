@@ -487,6 +487,10 @@ func extractJSON(s string) string {
 
 // handleWordsPendingReview lists words with pending_review status.
 func (s *Server) handleWordsPendingReview(w http.ResponseWriter, r *http.Request) {
+	if s.Mock {
+		writeJSON(w, map[string]interface{}{"words": []interface{}{}})
+		return
+	}
 	if s.DB == nil {
 		writeError(w, 500, "database not available")
 		return
@@ -510,6 +514,10 @@ func (s *Server) handleWordsPendingReview(w http.ResponseWriter, r *http.Request
 // User must provide reading, meaning, and pos — these are required.
 // AI then fills extended detail fields automatically.
 func (s *Server) handleWordsPendingAccept(w http.ResponseWriter, r *http.Request) {
+	if s.Mock {
+		mock.HandleWordsPendingAccept(w, r)
+		return
+	}
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
 		writeError(w, 400, "invalid word id")
@@ -608,6 +616,10 @@ func (s *Server) handleWordsPendingAccept(w http.ResponseWriter, r *http.Request
 
 // handleWordsPendingReject rejects a pending_review word.
 func (s *Server) handleWordsPendingReject(w http.ResponseWriter, r *http.Request) {
+	if s.Mock {
+		mock.HandleWordsPendingReject(w, r)
+		return
+	}
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
 		writeError(w, 400, "invalid word id")

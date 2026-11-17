@@ -1390,14 +1390,6 @@ func wordToInfo(w *db.Word) *engine.WordInfo {
 	}
 }
 
-func wordsToInfos(words []*db.Word) []*engine.WordInfo {
-	infos := make([]*engine.WordInfo, len(words))
-	for i, w := range words {
-		infos[i] = wordToInfo(w)
-	}
-	return infos
-}
-
 // expectedAnswers returns acceptable answers for a question type.
 // For fill/spelling, both Word and Reading are accepted (if non-empty and distinct),
 // so typing kana instead of kanji (or vice versa) is also correct.

@@ -31,14 +31,6 @@ type cachedQuestion struct {
 	createdAt time.Time
 }
 
-var slowTypes = map[string]bool{
-	"listening":      true,
-	"reading_comp":   true,
-	"grammar":        true,
-	"dialogue_write": true,
-	"dialogue_speak": true,
-}
-
 type Server struct {
 	http      *http.Server
 	Port      int
@@ -440,16 +432,15 @@ func (s *Server) Shutdown() error {
 
 // sessionBudget tracks time and type usage during a single day session.
 type sessionBudget struct {
-	mu             sync.Mutex
-	date           string
-	timeUsed       int
-	slowCount      int
-	totalCount     int
-	typeWeights    map[string]int // cached from training plan's question_type_ratio
-	grammarFocus   []string       // cached from training plan's grammar_focus
-	sessionDone    bool           // true once quiz/complete was called today
-	sessionStarted bool           // true once first READY was returned today
-	forceContinue  bool           // student opted in past the soft cap (see hitSoftCap)
+	mu            sync.Mutex
+	date          string
+	timeUsed      int
+	slowCount     int
+	totalCount    int
+	typeWeights   map[string]int // cached from training plan's question_type_ratio
+	grammarFocus  []string       // cached from training plan's grammar_focus
+	sessionDone   bool           // true once quiz/complete was called today
+	forceContinue bool           // student opted in past the soft cap (see hitSoftCap)
 }
 
 func (b *sessionBudget) reset() {
@@ -460,7 +451,6 @@ func (b *sessionBudget) reset() {
 	b.slowCount = 0
 	b.totalCount = 0
 	b.sessionDone = false
-	b.sessionStarted = false
 	b.forceContinue = false
 }
 
@@ -522,23 +512,6 @@ func (b *sessionBudget) isSessionDone() bool {
 		b.sessionDone = false
 	}
 	return b.sessionDone
-}
-
-func (b *sessionBudget) markSessionStarted() {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.sessionStarted = true
-	b.date = clock.Today()
-}
-
-func (b *sessionBudget) isSessionStarted() bool {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	today := clock.Today()
-	if b.date != today {
-		b.sessionStarted = false
-	}
-	return b.sessionStarted
 }
 
 func (b *sessionBudget) setTypeWeights(weights map[string]int) {
@@ -622,7 +595,7 @@ func mergeTypeWeights(aiWeights map[string]int, maxSlowRatio float64) map[string
 	fastTotal := 0
 	for t, w := range aiWeights {
 		total += w
-		if slowTypes[t] {
+		if engine.IsSlowType(t) {
 			slowTotal += w
 		} else {
 			fastTotal += w
@@ -639,7 +612,7 @@ func mergeTypeWeights(aiWeights map[string]int, maxSlowRatio float64) map[string
 	maxSlow := int(float64(total) * maxSlowRatio)
 	result := make(map[string]int, len(aiWeights))
 	for t, w := range aiWeights {
-		if slowTypes[t] {
+		if engine.IsSlowType(t) {
 			scaled := int(float64(w) * float64(maxSlow) / float64(slowTotal))
 			if scaled < 1 && w > 0 {
 				scaled = 1 // keep at least 1 for any slow type that has weight
@@ -654,13 +627,13 @@ func mergeTypeWeights(aiWeights map[string]int, maxSlowRatio float64) map[string
 		excess := slowTotal - maxSlow
 		fastWeightTotal := 0
 		for t, w := range aiWeights {
-			if !slowTypes[t] {
+			if !engine.IsSlowType(t) {
 				fastWeightTotal += w
 			}
 		}
 		if fastWeightTotal > 0 {
 			for t, w := range result {
-				if !slowTypes[t] {
+				if !engine.IsSlowType(t) {
 					result[t] = w + excess*w/fastWeightTotal
 				}
 			}

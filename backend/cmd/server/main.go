@@ -24,7 +24,9 @@ import (
 
 func main() {
 	mockMode := flag.Bool("mock", false, "Run with mock handlers (no AI, no SQLite, no external processes)")
-	shell := flag.String("shell", "flutter", "UI shell to spawn: flutter | electron")
+	// The Electron shell is the current UI; the Flutter shell stays available
+	// with --shell=flutter while the old frontend is retired.
+	shell := flag.String("shell", "electron", "UI shell to spawn: electron | flutter")
 	flag.Parse()
 
 	// Change working directory to the executable's directory so that ALL

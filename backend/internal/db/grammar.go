@@ -201,35 +201,3 @@ func (d *Database) GetReviewGrammarPoints(language string, limit int) ([]*Gramma
 	}
 	return points, nil
 }
-
-func (d *Database) GetGrammarPointsByIDs(ids []int64) ([]*GrammarPoint, error) {
-	if len(ids) == 0 {
-		return nil, nil
-	}
-	query := `SELECT ` + grammarColumns + ` FROM grammar_points WHERE id IN (?`
-	for i := 1; i < len(ids); i++ {
-		query += ", ?"
-	}
-	query += ")"
-
-	args := make([]interface{}, len(ids))
-	for i, id := range ids {
-		args[i] = id
-	}
-
-	rows, err := d.DB.Query(query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("get grammar points by ids: %w", err)
-	}
-	defer rows.Close()
-
-	var points []*GrammarPoint
-	for rows.Next() {
-		g, err := scanGrammarRow(rows)
-		if err != nil {
-			return nil, fmt.Errorf("scan grammar point: %w", err)
-		}
-		points = append(points, g)
-	}
-	return points, nil
-}
