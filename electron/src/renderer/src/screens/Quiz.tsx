@@ -10,10 +10,14 @@ import {
   type Question,
   type SubmitResult
 } from '../quizApi'
+import { useRecorder } from '../audio/useRecorder'
 
 type Props = { dash: Dashboard; lang: Lang; onExit: () => void; onAnswered: () => void }
 
 type Phase = 'starting' | 'question' | 'feedback' | 'done' | 'preparing' | 'empty' | 'error'
+
+/** Types the service grades from a recording, not from typed text. */
+const AUDIO_TYPES = ['read_word', 'read_sentence', 'dialogue_speak']
 
 /**
  * M1 quiz loop against the real service: session/start → next → submit → next.
@@ -29,6 +33,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   const [answered, setAnswered] = useState(0)
   const [disputed, setDisputed] = useState(false)
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const recorder = useRecorder()
 
   const language = dash.activeLang
 
@@ -75,10 +80,12 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   }, [language, loadNext])
 
   const submit = useCallback(
-    async (value: string) => {
+    async (value: string, audio?: string) => {
       if (!question || phase !== 'question') return
       const trimmed = value.trim()
-      if (trimmed === '') return
+      // Read-aloud questions carry their answer in the recording: an empty
+      // recording is a deliberate skip, not a no-op.
+      if (trimmed === '' && audio === undefined) return
       try {
         const res = await submitAnswer({
           questionId: question.id,
@@ -86,7 +93,8 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
           subjectId: question.subject_id,
           questionType: question.type,
           answer: trimmed,
-          language
+          language,
+          audio
         })
         setResult(res)
         setAnswered((n) => n + 1)
@@ -116,6 +124,11 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [phase, question, submit, loadNext])
+
+  useEffect(() => {
+    recorder.reset()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only on question change
+  }, [question?.id])
 
   const progress = dash.dailyTarget > 0 ? Math.min(1, dash.reviewedToday / dash.dailyTarget) : 0
 
@@ -149,6 +162,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
     if (!question) return <div className="emptystate">{dyn[lang].loading}</div>
 
     const options = question.options ?? []
+    const needsAudio = AUDIO_TYPES.includes(question.type)
     return (
       <section className="card qcard">
         <div className="qhead">
@@ -168,7 +182,48 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
         ) : null}
         <p className="sentence">{question.prompt}</p>
 
-        {options.length > 0 ? (
+        {needsAudio ? (
+          <div className="recorder">
+            <div className={`rec-state st-${recorder.state}`}>
+              {recorder.state === 'recording'
+                ? dyn[lang].recordSeconds(recorder.seconds)
+                : recorder.state === 'ready'
+                  ? dyn[lang].recordReady
+                  : recorder.state === 'error'
+                    ? recorder.error === 'permission'
+                      ? dyn[lang].recordPermission
+                      : dyn[lang].recordFailed(recorder.error)
+                    : recorder.state === 'requesting'
+                      ? dyn[lang].loading
+                      : dyn[lang].recordHint}
+            </div>
+            <div className="rec-actions">
+              {recorder.state === 'recording' ? (
+                <button className="btn" onClick={recorder.stop}>
+                  {dyn[lang].recordStop}
+                </button>
+              ) : recorder.state === 'ready' ? (
+                <>
+                  <button className="btn" disabled={phase === 'feedback'} onClick={() => void submit('', recorder.audio)}>
+                    {dyn[lang].recordSubmit}
+                  </button>
+                  <button className="btn ghost" onClick={recorder.reset}>
+                    {dyn[lang].recordAgain}
+                  </button>
+                </>
+              ) : (
+                <button className="btn" disabled={recorder.state === 'requesting'} onClick={() => void recorder.start()}>
+                  {dyn[lang].record}
+                </button>
+              )}
+              {question.type === 'read_word' || question.type === 'read_sentence' ? (
+                <button className="btn ghost" disabled={phase === 'feedback'} onClick={() => void submit('', '')}>
+                  {dyn[lang].recordSkip}
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : options.length > 0 ? (
           <div className="opts">
             {options.map((opt, i) => {
               const answered = phase === 'feedback'
@@ -212,6 +267,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
             <div>
               <div className="l1">
                 {result.correct ? dyn[lang].correct : (result.feedback || typeName(question.type, lang))}
+                {typeof result.score === 'number' && result.score > 0 ? ` · ${Math.round(result.score * 100)}%` : ''}
                 {result.next_review_at ? ` · ${dyn[lang].nextIn(result.next_review_at.slice(0, 10))}` : ''}
               </div>
               {!result.correct && result.expected_answer ? (

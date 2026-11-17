@@ -78,6 +78,7 @@ export function submitAnswer(input: {
   questionType: string
   answer: string
   language: string
+  audio?: string
 }): Promise<SubmitResult> {
   return call<SubmitResult>('/api/v1/quiz/submit', {
     method: 'POST',
@@ -87,7 +88,8 @@ export function submitAnswer(input: {
       subject_id: input.subjectId,
       question_type: input.questionType,
       answer: input.answer,
-      language: input.language
+      language: input.language,
+      ...(input.audio ? { audio: input.audio } : {})
     })
   })
 }

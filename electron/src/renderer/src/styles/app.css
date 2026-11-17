@@ -294,3 +294,35 @@ body[data-screen="listening"] .s-listening {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Recording answer (read_word / read_sentence / dialogue_speak) */
+.recorder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 0 6px;
+}
+.rec-state {
+  font-size: 13px;
+  color: var(--muted);
+  min-height: 20px;
+  text-align: center;
+}
+.rec-state.st-recording {
+  color: #d25b5b;
+  font-weight: 600;
+}
+.rec-state.st-ready {
+  color: var(--green);
+}
+.rec-state.st-error {
+  color: #d25b5b;
+  max-width: 460px;
+  line-height: 1.5;
+}
+.rec-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
