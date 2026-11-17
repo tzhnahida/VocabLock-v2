@@ -52,7 +52,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
       const q = await nextQuestion(language)
       if (!q) {
         setPhase('done')
-        void completeSession().catch(() => undefined)
+        void completeSession().catch((err) => console.error('[quiz] complete failed', err))
         return
       }
       setQuestion(q)
@@ -350,7 +350,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
                   onClick={() => {
                     if (!result.log_id) return
                     setDisputed(true)
-                    void disputeAnswer(result.log_id).catch(() => undefined)
+                    void disputeAnswer(result.log_id).catch((err) => console.error('[quiz] dispute failed', err))
                   }}
                 >
                   {disputed ? dyn[lang].disputed : dyn[lang].dispute}

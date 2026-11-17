@@ -20,7 +20,7 @@ export default function AssignmentCard({ lang, language }: Props) {
       .then((res) => {
         if (!cancelled) setData(res)
       })
-      .catch(() => undefined)
+      .catch((err) => console.error('[assignment] load failed', err))
     return () => {
       cancelled = true
     }
@@ -71,7 +71,9 @@ export default function AssignmentCard({ lang, language }: Props) {
                   setResult(null)
                   setAnswer('')
                   setData(null)
-                  void listAssignments(language).then(setData).catch(() => undefined)
+                  void listAssignments(language)
+                    .then(setData)
+                    .catch((err) => console.error('[assignment] reload failed', err))
                 }}
               >
                 {copy.close}

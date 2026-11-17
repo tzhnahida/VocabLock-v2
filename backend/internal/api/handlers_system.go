@@ -235,8 +235,8 @@ func (s *Server) handleSystemQuit(w http.ResponseWriter, r *http.Request) {
 	}()
 }
 
-// handleDebugLog accepts log lines from the Flutter frontend so they
-// appear in the unified Go server output stream.
+// handleDebugLog accepts log lines from whichever UI shell is running so
+// renderer-side failures show up in the unified Go server log stream.
 func (s *Server) handleDebugLog(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Level    string   `json:"level"`
@@ -249,11 +249,11 @@ func (s *Server) handleDebugLog(w http.ResponseWriter, r *http.Request) {
 	emit := func(msg string) {
 		switch req.Level {
 		case "warn":
-			log.Warn("flutter", "%s", msg)
+			log.Warn("ui", "%s", msg)
 		case "error":
-			log.Error("flutter", "%s", msg)
+			log.Error("ui", "%s", msg)
 		default:
-			log.Debug("flutter", "%s", msg)
+			log.Debug("ui", "%s", msg)
 		}
 	}
 	if req.Message != "" {

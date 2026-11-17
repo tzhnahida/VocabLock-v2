@@ -16,7 +16,7 @@ export default function PassiveCard({ lang }: Props) {
   useEffect(() => {
     void passiveCard()
       .then(setCard)
-      .catch(() => undefined)
+      .catch((err) => console.error('[passive] load failed', err))
   }, [])
 
   async function rate(recall: 'easy' | 'hard' | 'forgot'): Promise<void> {
