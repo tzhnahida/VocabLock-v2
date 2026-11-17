@@ -110,7 +110,8 @@
 | P2 | Electron 托盘 / 单实例 / 开机自启（Go 端已有，Electron 未接） | 未开始 |
 | 可选 | 移除 Flutter 前端（55 个 dart 文件） | 等 Electron 功能对齐 |
 | P2 | Electron 听力屏（单词朗读 + 任意文本朗读） | 已完成（2026-11-17，真机出声） |
-| P2 | Electron AI 对话屏（/ai/chat；/ai/profile 未接） | 已完成 UI（2026-11-17）；需 AI key 才能真对话 |
+| P2 | Electron AI 对话屏（/ai/chat；/ai/profile 未接） | 已完成（2026-11-17，真 key 实跑：日语回答 + 中文讲解） |
+| P1 | AI 对话改为课程内对话（不再反问"想学哪门语言"） | 已完成（2026-11-17，prompt v2.3） |
 | P0 | Electron 录音答题（read_word / read_sentence / dialogue_speak） | 已完成（2026-11-17，真机麦克风→WAV→判分） |
 | P1 | Electron listening 题型的音频播放 | 未开始（需 AI 开启才会派到） |
 | P2 | Electron 作业（首页卡片）/ 待审词（词库面板）/ 被动回忆（统计卡片） | 已完成（2026-11-17） |

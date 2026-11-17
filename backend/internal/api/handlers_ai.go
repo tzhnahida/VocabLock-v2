@@ -57,17 +57,23 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// UI language takes precedence over the language config (aiExplLang),
-	// so a translated interface gets AI replies in the same language.
-	teacherRole := "语言教师"
-	explLang := s.aiExplLang(s.Config.App.ActiveLang)
+	// The chat is course-scoped: the student is already enrolled, so the prompt
+	// must not ask which language they want to learn.
+	teacherRole, explLang, level := s.langContext(s.Config.App.ActiveLang)
+	courseLang := s.Config.App.ActiveLang
 	if lc, ok := s.Config.Languages[s.Config.App.ActiveLang]; ok {
-		teacherRole = lc.PromptContext.TeacherRole
+		if lc.Lang.NativeName != "" {
+			courseLang = lc.Lang.NativeName
+		} else if lc.Lang.DisplayName != "" {
+			courseLang = lc.Lang.DisplayName
+		}
 	}
 
 	messages, err := pt.BuildMessages(&ai.PromptVars{
 		TeacherRole:     teacherRole,
 		ExplanationLang: explLang,
+		Language:        courseLang,
+		Level:           level,
 		ExtraContext:    req.Message,
 	})
 	if err != nil {

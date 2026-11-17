@@ -69,6 +69,12 @@
 4. **AI 对话**：nav 第 6 项启用，/ai/chat 带历史；无 key 时把服务端 "AI chat requires API key" 显示为提示条而不是报错。
 - ⚠️ 教训：直接跑真实服务会**触发桌面锁屏**（DailyTargetMet 含准确率门槛，读了但准确率不达标也算未达标）。冒烟测试必须用副本配置 + `daily_target` 已达标 + `min_accuracy: 0`，或干脆别跑真服务。
 
+### 补记 — AI key 接入（同日）
+- 现象：`backend/configs/app.yaml` 的 `api_key` 是空的 `""`（后面跟着注释），所以服务一直打 `ai: disabled`；key 其实在 `release/VocabLock-ja/configs/app.yaml`（release/ 已 gitignore，未进仓库）。
+- 结论：Go 已支持 `VOCABLOCK_AI_KEY` / `VOCABLOCK_AI_BASE_URL` / `VOCABLOCK_AI_MODEL` 环境变量覆盖；用 `VOCABLOCK_AI_KEY=… ./vocablock.exe` 就能启用，**不需要把 key 写进仓库里的 config**。我把写进 backend 配置的 key 又撤掉了，避免被提交。
+- 验证（真 key）：`ai: configured`；/ai/chat 正常回复；UI 里作业卡显示真实题目并批改「得分 100%」；对话屏用日语回答 + 中文解释。
+- 顺手修：chat 提示词原来是「你不知道学生想学什么语言，先问」——这在已经选了课程的 App 里是错的（问完还是问）。改成课程内对话（{{.TeacherRole}} + {{.Language}} + {{.Level}}），实测直接日语作答，不再反问。
+
 ### 剩余
 - listening 题型的音频播放（AI 开启后才会派到）；/ai/profile、每日报告、语法点、词库 import/export/tags 未接。
 - 听力、设置、AI 三屏未做。
