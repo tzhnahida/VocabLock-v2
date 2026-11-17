@@ -87,6 +87,9 @@ func main() {
 		os.Exit(1)
 	}
 	srv.System = systemProvider
+	// Ctrl+Shift+Q while the shield is up releases the lock (and the shell
+	// window follows through /system/status).
+	systemProvider.SetLockEscapeHandler(srv.ReleaseLock)
 
 	// Keep the registry entry in sync with the config: enable it (refreshing a
 	// stale path after the install directory moved) or remove it when the
@@ -193,8 +196,10 @@ func main() {
 			} else if nw+ng+rw+rg > 0 {
 				// The Electron shell draws its own lock window; the server only
 				// publishes the state and the shell follows it.
-				log.Info("system", "daily target not met — lock requested for the shell")
-				srv.MarkLocked(true)
+				log.Info("system", "daily target not met — arming the shell lock")
+				if err := srv.EnterLock(); err != nil {
+					log.Warn("system", "enter lock: %v", err)
+				}
 			} else {
 				log.Info("system", "startup: no items — skip lock (reviewed=%d target=%d)", reviewed, cfg.App.DailyTarget)
 			}

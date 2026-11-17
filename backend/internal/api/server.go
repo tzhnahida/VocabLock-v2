@@ -405,26 +405,42 @@ func (s *Server) IsLocked() bool {
 	return s.locked
 }
 
-// enterNativeLock blocks the desktop through the Flutter shell's topmost window.
+// enterNativeLock starts a lock. The Flutter shell gets a topmost native
+// window; the Electron shell gets the keyboard shield only, because it draws
+// the lock UI itself.
 func (s *Server) enterNativeLock() error {
 	s.MarkLocked(true)
-	if !s.hasNativeLock() {
+	if s.System == nil {
 		return nil
+	}
+	if !s.hasNativeLock() {
+		return s.System.EnterLockShield()
 	}
 	_ = s.System.FullscreenFlutterWindow()
 	hwnd, _ := s.System.FindFlutterWindow()
 	return s.System.EnterLockMode(hwnd)
 }
 
-// exitNativeLock releases the native lock, if the shell has one.
+// exitNativeLock releases whichever lock the shell owns.
 func (s *Server) exitNativeLock() {
 	s.MarkLocked(false)
+	if s.System == nil {
+		return
+	}
 	if !s.hasNativeLock() {
+		_ = s.System.ExitLockShield()
 		return
 	}
 	_ = s.System.ExitLockMode()
 	_ = s.System.RestoreFlutterWindow()
 }
+
+// EnterLock starts the lock (window for Flutter, keyboard shield for Electron).
+func (s *Server) EnterLock() error { return s.enterNativeLock() }
+
+// ReleaseLock is the emergency-escape callback: the Win32 hook fires it when
+// the user presses Ctrl+Shift+Q while the shield is up.
+func (s *Server) ReleaseLock() { s.exitNativeLock() }
 
 func NewServer(mock bool, cfg *config.Config, database *db.Database) *Server {
 	token := make([]byte, 16)

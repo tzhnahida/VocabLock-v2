@@ -203,6 +203,9 @@ type windowsProvider struct {
 	lockClassName string
 	lockHwnd      windows.HWND
 	lockRunning   bool
+	// shieldOnly runs the lock loop's keyboard shield without a visible window.
+	shieldOnly bool
+	lockEscape func()
 
 	trayClassName string
 	trayHwnd      windows.HWND
@@ -291,6 +294,38 @@ func (p *windowsProvider) EnterLockMode(hwnd uintptr) error {
 
 	go p.lockMessageLoop(done)
 	return nil
+}
+
+// EnterLockShield installs the same low-level hooks as the lock window but
+// without covering the screen: the Electron shell owns the lock UI, this only
+// makes Alt+Tab / Win / Alt+F4 unreachable.
+func (p *windowsProvider) EnterLockShield() error {
+	p.mu.Lock()
+	if p.lockRunning {
+		p.mu.Unlock()
+		return fmt.Errorf("lock already active")
+	}
+	p.shieldOnly = true
+	p.mu.Unlock()
+	if err := p.EnterLockMode(0); err != nil {
+		p.mu.Lock()
+		p.shieldOnly = false
+		p.mu.Unlock()
+		return err
+	}
+	return nil
+}
+
+// ExitLockShield tears the shield down (and the lock loop with it).
+func (p *windowsProvider) ExitLockShield() error {
+	return p.ExitLockMode()
+}
+
+// SetLockEscapeHandler registers the callback fired by the emergency hotkey.
+func (p *windowsProvider) SetLockEscapeHandler(fn func()) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.lockEscape = fn
 }
 
 func (p *windowsProvider) ExitLockMode() error {
@@ -586,6 +621,14 @@ func (p *windowsProvider) lockKeyboardProc(nCode int, wParam, lParam uintptr) ui
 		ctrl, _, _ := procGetAsyncKeyState.Call(uintptr(VK_CONTROL))
 		shift, _, _ := procGetAsyncKeyState.Call(uintptr(VK_SHIFT))
 		if vk == VK_Q && ctrl&0x8000 != 0 && shift&0x8000 != 0 {
+			p.mu.Lock()
+			escape := p.lockEscape
+			p.mu.Unlock()
+			if escape != nil {
+				// Release the server-side lock too, otherwise the shell would
+				// immediately re-arm the shield.
+				go escape()
+			}
 			p.emergencyEscape()
 		}
 	}
@@ -620,14 +663,28 @@ func (p *windowsProvider) lockMessageLoop(done chan struct{}) {
 
 	procRegisterClassEx.Call(uintptr(unsafe.Pointer(&wc)))
 
+	p.mu.Lock()
+	shield := p.shieldOnly
+	p.mu.Unlock()
+
 	cx, _, _ := procGetSystemMetrics.Call(uintptr(SM_CXSCREEN))
 	cy, _, _ := procGetSystemMetrics.Call(uintptr(SM_CYSCREEN))
+	exStyle := uintptr(WS_EX_TOPMOST | WS_EX_TOOLWINDOW)
+	style := uintptr(WS_VISIBLE)
+	if shield {
+		// No window on screen: the shell draws the lock UI. The message-only
+		// window exists so the loop has a thread to own the hooks and a target
+		// for WM_APP_LOCK_EXIT.
+		exStyle = uintptr(WS_EX_TOOLWINDOW)
+		style = 0
+		cx, cy = 1, 1
+	}
 
 	hwnd, _, _ := procCreateWindowEx.Call(
-		uintptr(WS_EX_TOPMOST|WS_EX_TOOLWINDOW),
+		exStyle,
 		uintptr(unsafe.Pointer(className)),
 		uintptr(unsafe.Pointer(windowName)),
-		uintptr(WS_VISIBLE),
+		style,
 		0, 0, cx, cy,
 		0, 0, 0, 0,
 	)
@@ -647,8 +704,10 @@ func (p *windowsProvider) lockMessageLoop(done chan struct{}) {
 	p.lockHwnd = windows.HWND(hwnd)
 	p.mu.Unlock()
 
-	procShowWindow.Call(hwnd, SW_SHOW)
-	procSetForeground.Call(hwnd)
+	if !shield {
+		procShowWindow.Call(hwnd, SW_SHOW)
+		procSetForeground.Call(hwnd)
+	}
 
 	if err := p.installLockHooks(); err != nil {
 		log.Warn("system", "lock hooks: %v", err)
@@ -675,6 +734,9 @@ func (p *windowsProvider) lockMessageLoop(done chan struct{}) {
 
 	// Cleanup. Hooks must be removed on the thread that installed them.
 	p.uninstallLockHooks()
+	p.mu.Lock()
+	p.shieldOnly = false
+	p.mu.Unlock()
 	p.mu.Lock()
 	if p.hotkeyRegistered {
 		procUnregisterHotKey.Call(hwnd, uintptr(p.hotkeyID))
@@ -822,6 +884,13 @@ func (p *windowsProvider) lockHealthTick() {
 	}
 
 	if !healthOK || !flutterAlive {
+		if p.shieldOnly && p.deadCount >= 2 {
+			// The shield has no window to show an exit button on. If the
+			// service is gone, release the keyboard rather than trapping the
+			// user behind hooks with no UI.
+			go p.ExitLockShield()
+			return
+		}
 		p.deadCount++
 	} else {
 		p.deadCount = 0

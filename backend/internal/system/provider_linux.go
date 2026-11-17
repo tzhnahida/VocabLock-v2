@@ -49,3 +49,7 @@ func (p *linuxProvider) RestoreFlutterWindow() error {
 func (p *linuxProvider) SetPassiveInterval(minutes int) {}
 func (p *linuxProvider) StartPassiveQuiz()              {}
 func (p *linuxProvider) StopPassiveQuiz()               {}
+
+func (p *linuxProvider) EnterLockShield() error         { return fmt.Errorf("not implemented") }
+func (p *linuxProvider) ExitLockShield() error          { return fmt.Errorf("not implemented") }
+func (p *linuxProvider) SetLockEscapeHandler(fn func()) {}

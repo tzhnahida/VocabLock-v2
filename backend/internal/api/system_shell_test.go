@@ -10,6 +10,8 @@ import (
 
 type recordingSystem struct {
 	enter, exit, fullscreen, restore, find int
+	shieldIn, shieldOut                    int
+	escape                                 func()
 }
 
 func (r *recordingSystem) EnterLockMode(uintptr) error { r.enter++; return nil }
@@ -25,7 +27,10 @@ func (r *recordingSystem) FindFlutterWindow() (uintptr, error) {
 	r.find++
 	return 0, nil
 }
-func (r *recordingSystem) SetServerInfo(string, int) {}
+func (r *recordingSystem) SetServerInfo(string, int)      {}
+func (r *recordingSystem) EnterLockShield() error         { r.shieldIn++; return nil }
+func (r *recordingSystem) ExitLockShield() error          { r.shieldOut++; return nil }
+func (r *recordingSystem) SetLockEscapeHandler(fn func()) { r.escape = fn }
 func (r *recordingSystem) FullscreenFlutterWindow() error {
 	r.fullscreen++
 	return nil
@@ -59,11 +64,19 @@ func TestSystemLockSkipsWindowCallsWithoutNativeShell(t *testing.T) {
 	if sys.enter != 0 || sys.fullscreen != 0 || sys.find != 0 {
 		t.Errorf("native window calls used without a native shell: %+v", sys)
 	}
+	// The Electron shell draws the lock UI; the server arms the keyboard
+	// shield instead of touching window handles.
+	if sys.shieldIn != 1 {
+		t.Errorf("keyboard shield not armed: %+v", sys)
+	}
 
 	rec = httptest.NewRecorder()
 	s.handleSystemUnlock(rec, httptest.NewRequest("POST", "/api/v1/system/unlock", nil))
 	if sys.exit != 0 || sys.restore != 0 {
 		t.Errorf("native unlock ran without a native shell: %+v", sys)
+	}
+	if sys.shieldOut != 1 {
+		t.Errorf("keyboard shield not released: %+v", sys)
 	}
 }
 
@@ -75,6 +88,9 @@ func TestSystemLockDrivesNativeWindowWithFlutterShell(t *testing.T) {
 	s.handleSystemLock(rec, httptest.NewRequest("POST", "/api/v1/system/lock", nil))
 	if sys.fullscreen != 1 || sys.find != 1 || sys.enter != 1 {
 		t.Errorf("native lock not driven: %+v", sys)
+	}
+	if sys.shieldIn != 0 {
+		t.Errorf("shield armed for the Flutter shell: %+v", sys)
 	}
 
 	rec = httptest.NewRecorder()

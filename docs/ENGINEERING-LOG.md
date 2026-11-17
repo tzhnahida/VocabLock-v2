@@ -549,3 +549,19 @@
 ### 注意
 - release 目录里的 exe 仍是 **6 月 20 日的 Flutter 版**。现在自启指向它：下次登录会启动老 UI，且按老逻辑可能锁屏。要自启新 Electron 版，需要先打包安装（M4）。
 - kiosk 窗口挡不住 Alt+Tab/Win 键（Electron 无低层键盘钩子）；真正的键位封锁仍在 Go 的 Win32 钩子里，且只对 Flutter 锁窗口生效。Electron 下目前是 alwaysOnTop + kiosk + skipTaskbar 的“强遮罩”，不是不可绕过的锁。
+## M4 起步：Electron 安装目录 + 键位屏蔽 + 自启切换（2026-11-18 凌晨）
+
+### 做了什么
+- **键位屏蔽（Electron 锁）**：SystemProvider 新增 `EnterLockShield/ExitLockShield/SetLockEscapeHandler`。Windows 实现复用原有低层钩子（WH_KEYBOARD_LL / WH_MOUSE_LL，吞掉 Alt+Tab / Win / Alt+F4 / Ctrl+Esc），但**不创建可见窗口**（隐藏消息窗口 + 不抢前台）。服务端按 shell 选路：Flutter → 原生锁窗口；Electron → 仅键位屏蔽，锁 UI 由渲染层画。
+- 紧急逃生：Ctrl+Shift+Q 由钩子触发回调 → 服务端 `ReleaseLock()` 解锁 → Electron 轮询到 `locked=false` 关掉 kiosk 窗口。若服务端健康状况连续两次失败，屏蔽会自动解除（避免无 UI 时把人锁死）。
+- **安装目录**：新建 `release/VocabLock-ja-electron/`：新 Go 服务 + `win-unpacked`（asar）+ configs；`dict/pronounce-test/tts`（约 690MB）用目录联接（junction）复用旧 release，不复制。
+- **自启切换**：注册表 `VocabLock` 改指新安装的 `vocablock.exe`（带引号），配置 `auto_start: true`。旧 `release/VocabLock-ja`（Flutter 版）保留作回滚。
+
+### 验证
+- 新安装启动日志：`ai: configured` → `electron pid=…` → `startup: no items — skip lock` → `VocabLock v2 — first run`；CDP 侧 `.app` 已挂载。
+- Go：`TestSystemLockSkipsWindowCallsWithoutNativeShell` 现在断言“没有原生窗口但装了键位屏蔽”，Flutter 分支断言“不装屏蔽”；`go test ./...` 全绿。
+- 未做真人键位回归：屏蔽一旦生效会吞掉本机键盘，验证必须在闲置机/虚拟机做；本次只验证了接线与状态机。
+
+### 注意
+- 首次登录若“有会话但未达标”，新版本会**直接上屏蔽**（Alt+Tab/Win 失效），只能用 Ctrl+Shift+Q 或 Ctrl+Alt+Del 退出；这与 Flutter 版行为一致，但风险更高，发布前要做一次真人回归。
+- 自启现在指向新目录；旧目录仍可手动启动回滚。

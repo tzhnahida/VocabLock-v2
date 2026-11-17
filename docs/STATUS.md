@@ -108,7 +108,8 @@
 | P2 | Electron M4 启动切换 + electron-builder 打包 | 已完成并实跑（2026-11-17）：Go 起打包的 vocablock-desktop.exe，asar 内页面挂载、6 个导航、随服务退出 |
 | P2 | Electron M3：系统级锁屏（现在是应用内覆盖层） | 未开始 |
 | P2 | Electron 托盘 / 单实例 / 开机自启 | 已完成（2026-11-18；自启已指向 release 安装并写入注册表） |
-| P2 | Electron 系统级锁屏（kiosk 窗口 + 服务端锁状态） | 已完成（2026-11-18）；键位封锁仍缺（Electron 无低层钩子） |
+| P2 | Electron 系统级锁屏（kiosk 窗口 + Go 低层键位屏蔽） | 已完成（2026-11-18）；待真人键位回归 |
+| P2 | Electron 安装目录（Go + asar + junction 资源）与自启切换 | 已完成（2026-11-18；旧 Flutter 目录保留回滚） |
 | 可选 | 移除 Flutter 前端（55 个 dart 文件） | 等 Electron 功能对齐 |
 | P2 | Electron 听力屏（单词朗读 + 任意文本朗读） | 已完成（2026-11-17，真机出声） |
 | P2 | Electron AI 对话屏（/ai/chat；/ai/profile 未接） | 已完成（2026-11-17，真 key 实跑：日语回答 + 中文讲解） |
