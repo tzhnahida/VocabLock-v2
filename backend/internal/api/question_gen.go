@@ -10,6 +10,7 @@ import (
 	"github.com/tzhnahida/VocabLock/internal/ai"
 	"github.com/tzhnahida/VocabLock/internal/db"
 	"github.com/tzhnahida/VocabLock/internal/engine"
+	"github.com/tzhnahida/VocabLock/internal/log"
 )
 
 // aiGenerateQuestion calls the AI to generate a question of the given type for the word.
@@ -232,11 +233,20 @@ func (s *Server) findUnknownWords(sentence, targetWord, lang string) []string {
 		if w == "" || w == targetWord {
 			continue
 		}
-		exists, _ := s.DB.WordExists(lang, w)
+		exists, err := s.DB.WordExists(lang, w)
+		if err != nil {
+			// Treat a failed lookup as "unknown" but never silently: a swallowed
+			// error here used to make the vocabulary check lie.
+			log.Warn("quiz", "word existence check %q: %v", w, err)
+		}
 		if !exists {
 			// Try stripping common conjugations (Japanese)
 			if base := tryBaseForm(w); base != "" {
-				exists, _ = s.DB.WordExists(lang, base)
+				baseExists, baseErr := s.DB.WordExists(lang, base)
+				if baseErr != nil {
+					log.Warn("quiz", "word existence check %q: %v", base, baseErr)
+				}
+				exists = baseExists
 			}
 		}
 		if !exists {

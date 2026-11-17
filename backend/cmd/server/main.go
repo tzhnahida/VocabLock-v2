@@ -71,6 +71,9 @@ func main() {
 
 	srv := api.NewServer(cfg.App.MockMode, cfg, database)
 	srv.ConfigDir = configDir
+	// Only the Flutter shell owns an OS-level lock window; the Electron shell
+	// draws its own overlay and manages locking from the renderer.
+	srv.NativeShell = *shell == "flutter"
 
 	// ——— System-level features (P4: lock screen, tray, single instance) ———
 	systemProvider := system.Default

@@ -295,7 +295,7 @@ func updateAssignmentConfig(cfg *config.AssignmentConfig, m map[string]interface
 }
 
 func (s *Server) tryLoadLanguageTemplate(code string) *config.LanguageConfig {
-	return config.TryLoadTemplate(s.ConfigDir, code)
+	return config.InstallTemplate(s.ConfigDir, code)
 }
 
 func (s *Server) handleConfigPassword(w http.ResponseWriter, r *http.Request) {

@@ -288,10 +288,7 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 			"daily_target":     s.Config.App.DailyTarget,
 			"daily_target_met": true,
 		})
-		if s.System != nil {
-			s.System.ExitLockMode()
-			s.System.RestoreFlutterWindow()
-		}
+		s.exitNativeLock()
 		return
 	} else if s.sessionBudget.hitSoftCap(s.Config.App.DailyTarget) && !s.sessionBudget.isForceContinue() {
 		// Soft cap (simulation §九 ②): stop FORCING questions when the day
@@ -729,8 +726,7 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 	if s.System != nil && result.Correct {
 		if s.DailyTargetMet(s.Config.App.ActiveLang) {
 			log.Info("quiz", "daily target met — auto-unlocking")
-			s.System.ExitLockMode()
-			s.System.RestoreFlutterWindow()
+			s.exitNativeLock()
 		}
 	}
 
@@ -961,8 +957,7 @@ func (s *Server) writeDialogueResult(w http.ResponseWriter, word *db.Word, qtype
 	if s.System != nil && result.Correct {
 		if s.DailyTargetMet(s.Config.App.ActiveLang) {
 			log.Info("quiz", "daily target met (dialogue) — auto-unlocking")
-			s.System.ExitLockMode()
-			s.System.RestoreFlutterWindow()
+			s.exitNativeLock()
 		}
 	}
 
@@ -1068,8 +1063,7 @@ func (s *Server) handleQuizComplete(w http.ResponseWriter, r *http.Request) {
 		s.sessionBudget.markSessionDone()
 		if s.System != nil {
 			log.Info("quiz", "complete: target met — unlocking")
-			s.System.ExitLockMode()
-			s.System.RestoreFlutterWindow()
+			s.exitNativeLock()
 		}
 	}
 
@@ -1361,8 +1355,7 @@ func (s *Server) writeReadAloudResult(w http.ResponseWriter, stype string, sid i
 	if s.System != nil && correct {
 		if s.DailyTargetMet(s.Config.App.ActiveLang) {
 			log.Info("quiz", "daily target met (read-aloud) — auto-unlocking")
-			s.System.ExitLockMode()
-			s.System.RestoreFlutterWindow()
+			s.exitNativeLock()
 		}
 	}
 

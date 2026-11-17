@@ -223,11 +223,17 @@ func Load(configDir string) (*Config, error) {
 	}
 	cfg.App.Server.Host = "127.0.0.1"
 
-	// app.yaml (optional — defaults above are sufficient for auto-test mode)
-	_ = loadYAML(filepath.Join(configDir, "app.yaml"), &cfg.App)
+	// app.yaml (optional — defaults above are sufficient for auto-test mode).
+	// A file that exists but does not parse is a real error: silently running
+	// on defaults would hide a typo behind "why did my settings disappear".
+	if err := loadYAML(filepath.Join(configDir, "app.yaml"), &cfg.App); err != nil {
+		return nil, fmt.Errorf("app.yaml: %w", err)
+	}
 
 	// asr.yaml (optional — local ASR stays disabled when absent)
-	_ = loadYAML(filepath.Join(configDir, "asr.yaml"), &cfg.ASR)
+	if err := loadYAML(filepath.Join(configDir, "asr.yaml"), &cfg.ASR); err != nil {
+		return nil, fmt.Errorf("asr.yaml: %w", err)
+	}
 	legacyAPIKey := cfg.App.AI.APIKey
 
 	// secrets.yaml (optional — takes precedence over a legacy key in app.yaml)
@@ -259,13 +265,19 @@ func Load(configDir string) (*Config, error) {
 	}
 
 	// tts.yaml (optional — community-provided TTS binary)
-	_ = loadYAML(filepath.Join(configDir, "tts.yaml"), &cfg.TTS)
+	if err := loadYAML(filepath.Join(configDir, "tts.yaml"), &cfg.TTS); err != nil {
+		return nil, fmt.Errorf("tts.yaml: %w", err)
+	}
 
 	// dict.yaml (optional — community-provided dictionary binary)
-	_ = loadYAML(filepath.Join(configDir, "dict.yaml"), &cfg.Dict)
+	if err := loadYAML(filepath.Join(configDir, "dict.yaml"), &cfg.Dict); err != nil {
+		return nil, fmt.Errorf("dict.yaml: %w", err)
+	}
 
 	// pronounce.yaml (optional — nil provider means not configured)
-	_ = loadYAML(filepath.Join(configDir, "pronounce.yaml"), &cfg.Pronounce)
+	if err := loadYAML(filepath.Join(configDir, "pronounce.yaml"), &cfg.Pronounce); err != nil {
+		return nil, fmt.Errorf("pronounce.yaml: %w", err)
+	}
 
 	// languages/*.yaml
 	langDir := filepath.Join(configDir, "languages")
@@ -290,7 +302,7 @@ func Load(configDir string) (*Config, error) {
 	// Recover missing active language from _languages template (skip on first run)
 	if cfg.App.ActiveLang != "" && len(cfg.Languages) > 0 {
 		if _, ok := cfg.Languages[cfg.App.ActiveLang]; !ok {
-			if lc := TryLoadTemplate(configDir, cfg.App.ActiveLang); lc != nil {
+			if lc := InstallTemplate(configDir, cfg.App.ActiveLang); lc != nil {
 				cfg.Languages[cfg.App.ActiveLang] = lc
 				log.Warn("config", "recovered active language %q from template", cfg.App.ActiveLang)
 			}
@@ -323,7 +335,10 @@ func ReadTemplate(configDir, code string) *LanguageConfig {
 	return &lc
 }
 
-func TryLoadTemplate(configDir, code string) *LanguageConfig {
+// InstallTemplate copies configs/_languages/<code>.yaml into languages/<code>.yaml
+// and returns the parsed copy. The write is intentional (first use of a new
+// course) but the old name hid it, so the name says so now.
+func InstallTemplate(configDir, code string) *LanguageConfig {
 	// Try file first
 	templatePath := filepath.Join(configDir, "_languages", code+".yaml")
 	if data, err := os.ReadFile(templatePath); err == nil {

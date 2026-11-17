@@ -275,7 +275,11 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 func (s *Server) collectExistingWords(lang string) (existingWords string, total int) {
 	words, total, err := s.DB.ListWords(lang, 100, 0)
 	if err != nil {
-		words, total, _ = s.DB.ListWords(lang, 5, 0)
+		log.Warn("expand", "list words (100): %v — retrying with 5", err)
+		words, total, err = s.DB.ListWords(lang, 5, 0)
+		if err != nil {
+			log.Warn("expand", "list words (5): %v", err)
+		}
 	}
 	parts := make([]string, 0, len(words))
 	for _, w := range words {
@@ -551,11 +555,18 @@ func (s *Server) expandGrammar(ctx context.Context, lang string, count int) (ins
 		if len(checkReq.CheckWords) > 0 && len(checkReq.Points) == 0 {
 			var results []string
 			for _, word := range checkReq.CheckWords {
-				exists, _ := s.DB.WordExists(lang, word)
+				exists, err := s.DB.WordExists(lang, word)
+				if err != nil {
+					log.Warn("expand", "word existence check %q: %v", word, err)
+				}
 				if !exists {
 					// Try stripping common conjugation endings (Japanese)
 					if base := tryBaseForm(word); base != "" {
-						exists, _ = s.DB.WordExists(lang, base)
+						baseExists, baseErr := s.DB.WordExists(lang, base)
+						if baseErr != nil {
+							log.Warn("expand", "word existence check %q: %v", base, baseErr)
+						}
+						exists = baseExists
 					}
 				}
 				if exists {

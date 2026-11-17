@@ -13,7 +13,7 @@ import (
 // (question types, a display name, a teacher role), otherwise switching to
 // that language silently produces a half-configured course.
 //
-// This parses the files directly: config.TryLoadTemplate also copies the
+// This parses the files directly: config.InstallTemplate also copies the
 // template into configs/languages, which a test must not do.
 func TestShippedLanguageTemplatesParse(t *testing.T) {
 	dir := filepath.Join("..", "..", "configs", "_languages")

@@ -74,6 +74,10 @@ type Server struct {
 
 	// System-level features (lock screen, tray, passive quiz)
 	System system.SystemProvider
+	// NativeShell is true when the spawned UI owns an OS-level lock window
+	// (the Flutter shell). The Electron shell draws its own overlay, so the
+	// server must not manipulate (or try to find) a Flutter window.
+	NativeShell bool
 
 	// Escape tracking (daily limits)
 	escapeMu           sync.Mutex
@@ -377,6 +381,28 @@ func (s *Server) isExpanding() bool {
 	s.expandingMu.Lock()
 	defer s.expandingMu.Unlock()
 	return s.expanding
+}
+
+// hasNativeLock reports whether server-side lock calls can do anything.
+func (s *Server) hasNativeLock() bool { return s.NativeShell && s.System != nil }
+
+// enterNativeLock blocks the desktop through the Flutter shell's topmost window.
+func (s *Server) enterNativeLock() error {
+	if !s.hasNativeLock() {
+		return nil
+	}
+	_ = s.System.FullscreenFlutterWindow()
+	hwnd, _ := s.System.FindFlutterWindow()
+	return s.System.EnterLockMode(hwnd)
+}
+
+// exitNativeLock releases the native lock, if the shell has one.
+func (s *Server) exitNativeLock() {
+	if !s.hasNativeLock() {
+		return
+	}
+	_ = s.System.ExitLockMode()
+	_ = s.System.RestoreFlutterWindow()
 }
 
 func NewServer(mock bool, cfg *config.Config, database *db.Database) *Server {

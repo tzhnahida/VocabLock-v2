@@ -26,19 +26,16 @@ func (s *Server) handleSystemLock(w http.ResponseWriter, r *http.Request) {
 		mock.HandleSystemLock(w, r)
 		return
 	}
-	if s.System != nil {
-		s.System.FullscreenFlutterWindow()
-		hwnd, _ := s.System.FindFlutterWindow()
-		if err := s.System.EnterLockMode(hwnd); err != nil {
-			writeJSON(w, map[string]interface{}{
-				"locked": false,
-				"error":  err.Error(),
-			})
-			return
-		}
+	if err := s.enterNativeLock(); err != nil {
+		writeJSON(w, map[string]interface{}{
+			"locked": false,
+			"error":  err.Error(),
+		})
+		return
 	}
 	writeJSON(w, map[string]interface{}{
 		"locked": true,
+		"native": s.hasNativeLock(),
 	})
 }
 
@@ -48,12 +45,10 @@ func (s *Server) handleSystemUnlock(w http.ResponseWriter, r *http.Request) {
 		mock.HandleSystemUnlock(w, r)
 		return
 	}
-	if s.System != nil {
-		s.System.ExitLockMode()
-		s.System.RestoreFlutterWindow()
-	}
+	s.exitNativeLock()
 	writeJSON(w, map[string]interface{}{
 		"locked": false,
+		"native": s.hasNativeLock(),
 	})
 }
 
@@ -137,10 +132,7 @@ func (s *Server) handleSystemEscape(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) performEscape(w http.ResponseWriter) {
-	if s.System != nil {
-		s.System.ExitLockMode()
-		s.System.RestoreFlutterWindow()
-	}
+	s.exitNativeLock()
 	writeJSON(w, map[string]interface{}{
 		"allowed":  true,
 		"unlocked": true,
