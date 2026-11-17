@@ -62,8 +62,15 @@
 - 验证（CDP + 真服务）：点播放后 audio.readyState=4、currentTime 0.07→0.78→1.49→1.56 自然结束，状态从「播放中」自动清空；词表 14 行、原文一开始为 `— — —`，点「原文を表示」后显示 泳ぐ / およぐ / 游泳。
 - 剩余：AI 对话屏需要 AI key；打包（electron-builder）未做。
 
+### 补记 — 四项一起（同日，21:5x）
+1. **录音答题**（P0）：`audio/wav.ts` 自写 WAV 编码（16kHz mono 16bit，含降采样），`useRecorder` 用 getUserMedia + ScriptProcessor 采集；read_word / read_sentence / dialogue_speak 走同一个 /quiz/submit，音频以 base64 放进 `audio` 字段。实测：提交体 344,828 字符、以 `UklGR` 开头，服务端回判分与 next_review_at。踩坑：服务端要求 WAV（`looksLikeWAV`），直接丢 webm/opus 会被判 bad_audio。
+2. **打包 + 启动切换**：electron-builder 出 `dist/win-unpacked/vocablock-desktop.exe`（asar，executableName 与 resolveElectron 对齐）；Go 侧加 `VOCABLOCK_SHELL_ARGS` 调试钩子。实测 Go 起打包 exe：日志 `electron pid=…`，CDP 里 `.app` 已挂载、screen=home、6 个导航、无 boot；杀服务后子进程归零。
+3. **作业 / 待审 / 被动**：首页作业卡（无 key 时显示 ai_required 提示）、统计页被动回忆卡（左 → ひだり·左边 → 轻松 → 前，计数 1）、词库待审面板（7 个词，采纳需读音+词性+释义）。
+4. **AI 对话**：nav 第 6 项启用，/ai/chat 带历史；无 key 时把服务端 "AI chat requires API key" 显示为提示条而不是报错。
+- ⚠️ 教训：直接跑真实服务会**触发桌面锁屏**（DailyTargetMet 含准确率门槛，读了但准确率不达标也算未达标）。冒烟测试必须用副本配置 + `daily_target` 已达标 + `min_accuracy: 0`，或干脆别跑真服务。
+
 ### 剩余
-- AI 对话屏需要 AI key。
+- listening 题型的音频播放（AI 开启后才会派到）；/ai/profile、每日报告、语法点、词库 import/export/tags 未接。
 - 听力、设置、AI 三屏未做。
 - 音频（TTS 播放）、朗读评分、被动提醒未接。
 
