@@ -21,7 +21,10 @@ const zh = {
     recordReady: '录音已就绪',
     recordPermission: '需要麦克风权限：请在系统设置里允许本应用使用麦克风',
     recordFailed: (e: string) => '录音失败：' + e,
-    recordSeconds: (n: number) => '录音中 ' + n + 's'
+    recordSeconds: (n: number) => '录音中 ' + n + 's',
+    replayAudio: '重听',
+    listenFirst: '先听音频，再选答案',
+    ttsUnavailable: 'TTS 未配置，无法播放音频'
   },
   settings: {
     title: '设置',
@@ -119,7 +122,10 @@ const en: typeof zh = {
     recordReady: 'Recording ready',
     recordPermission: 'Microphone permission is required - allow this app to use the microphone',
     recordFailed: (e: string) => 'Recording failed: ' + e,
-    recordSeconds: (n: number) => 'Recording ' + n + 's'
+    recordSeconds: (n: number) => 'Recording ' + n + 's',
+    replayAudio: 'Replay',
+    listenFirst: 'Listen first, then choose',
+    ttsUnavailable: 'TTS is not configured, so the audio cannot play'
   },
   settings: {
     title: 'Settings',
@@ -217,7 +223,10 @@ const ja: typeof zh = {
     recordReady: '録音の準備完了',
     recordPermission: 'マイクの許可が必要です',
     recordFailed: (e: string) => '録音に失敗: ' + e,
-    recordSeconds: (n: number) => '録音中 ' + n + '秒'
+    recordSeconds: (n: number) => '録音中 ' + n + '秒',
+    replayAudio: 'もう一度',
+    listenFirst: '音声を聴いてから選んでください',
+    ttsUnavailable: 'TTS 未設定のため再生できません'
   },
   settings: {
     title: '設定',

@@ -114,7 +114,7 @@
 | P1 | AI 对话改为课程内对话（不再反问"想学哪门语言"） | 已完成（2026-11-17，prompt v2.4） |
 | P1 | 解耦：讲解语言独立于界面语言；提示词无硬编码语言；UI 文案统一 strings.ts | 已完成（2026-11-17，见 DESIGN.md「解耦约束」） |
 | P0 | Electron 录音答题（read_word / read_sentence / dialogue_speak） | 已完成（2026-11-17，真机麦克风→WAV→判分） |
-| P1 | Electron listening 题型的音频播放 | 未开始（需 AI 开启才会派到） |
+| P1 | Electron listening 题型的音频播放 | 已完成（2026-11-17）：自动播放 + 重听 + 隐藏词形 + TTS 缺失提示 |
 | P2 | Electron 作业（首页卡片）/ 待审词（词库面板）/ 被动回忆（统计卡片） | 已完成（2026-11-17） |
 | P2 | Electron 每日报告、语法点 CRUD、词库 import/export/tags | 未开始 |
 | P2 | Electron 词库高级：import / export / expand / tags；语法点 CRUD | 未开始（后端接口齐全） |

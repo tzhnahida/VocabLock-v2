@@ -11,6 +11,7 @@ import {
   type SubmitResult
 } from '../quizApi'
 import { useRecorder } from '../audio/useRecorder'
+import { audioObjectUrl, wordAudio } from '../ttsApi'
 import { st } from '../strings'
 
 type Props = { dash: Dashboard; lang: Lang; onExit: () => void; onAnswered: () => void }
@@ -36,6 +37,9 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const recorder = useRecorder()
   const copy = st(lang, 'quiz')
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const audioUrlRef = useRef<string | null>(null)
+  const [audioState, setAudioState] = useState<'idle' | 'loading' | 'playing' | 'unavailable' | 'error'>('idle')
 
   const language = dash.activeLang
 
@@ -110,6 +114,46 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
     [question, phase, language, onAnswered]
   )
 
+  /** Listening questions are answered by ear: fetch the word's TTS and play it. */
+  const playQuestionAudio = useCallback(
+    async (target: Question | null) => {
+      const audio = audioRef.current
+      if (!target || !audio || target.subject_type !== 'word') return
+      setAudioState('loading')
+      try {
+        const res = await wordAudio(target.subject_id)
+        if (res.status !== 'ok' || !res.url) {
+          setAudioState(res.status === 'not_configured' ? 'unavailable' : 'error')
+          return
+        }
+        if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current)
+        audioUrlRef.current = await audioObjectUrl(res.url)
+        audio.src = audioUrlRef.current
+        await audio.play()
+        setAudioState('playing')
+      } catch {
+        setAudioState('error')
+      }
+    },
+    []
+  )
+
+  // Auto-play on question change: listening exists only to be heard, and the
+  // reference Flutter app also plays choice questions as a study aid.
+  useEffect(() => {
+    if (!question) return
+    if (question.subject_type !== 'word') return
+    if (question.type !== 'listening' && question.type !== 'choice') return
+    void playQuestionAudio(question)
+  }, [question, playQuestionAudio])
+
+  useEffect(() => {
+    return () => {
+      audioRef.current?.pause()
+      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current)
+    }
+  }, [])
+
   useEffect(() => {
     function onKey(e: KeyboardEvent): void {
       if (phase === 'question') {
@@ -165,14 +209,38 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
 
     const options = question.options ?? []
     const needsAudio = AUDIO_TYPES.includes(question.type)
+    // The word itself is the answer for a listening question: never print it.
+    const hideWord = question.type === 'listening'
     return (
       <section className="card qcard">
+        <audio ref={audioRef} preload="auto" />
         <div className="qhead">
           <span className="tag">{typeName(question.type, lang)}</span>
           <span className="hint">{options.length > 0 ? dyn[lang].quizHint : dyn[lang].inputHint}</span>
         </div>
-        {question.subject_word ? <h1 className="word">{question.subject_word}</h1> : null}
-        {question.subject_reading ? (
+        {question.type === 'listening' ? (
+          <div className="listen-prompt">
+            <button
+              className="playbig sm"
+              onClick={() => void playQuestionAudio(question)}
+              disabled={audioState === 'loading'}
+              title={copy.replayAudio}
+            >
+              <svg viewBox="0 0 24 24">
+                <path d="M6 4l10 8-10 8z" fill="currentColor" />
+              </svg>
+            </button>
+            <div className="note">
+              {audioState === 'unavailable'
+                ? copy.ttsUnavailable
+                : audioState === 'error'
+                  ? copy.ttsUnavailable
+                  : copy.listenFirst}
+            </div>
+          </div>
+        ) : null}
+        {question.subject_word && !hideWord ? <h1 className="word">{question.subject_word}</h1> : null}
+        {question.subject_reading && !hideWord ? (
           <div className="phon">
             <span className="play">
               <svg viewBox="0 0 24 24">

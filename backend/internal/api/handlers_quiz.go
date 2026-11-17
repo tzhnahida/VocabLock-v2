@@ -463,6 +463,13 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	writeJSON(w, questionPayload(q, currentWord))
+}
+
+// questionPayload builds the client view of a question. Word data is attached
+// for the preview card, except for listening: there the word itself is the
+// answer, so sending it would print the answer on screen.
+func questionPayload(q *engine.Question, word *db.Word) map[string]interface{} {
 	resp := map[string]interface{}{
 		"id":           q.ID,
 		"type":         q.Type,
@@ -473,13 +480,12 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	if len(q.Options) > 0 {
 		resp["options"] = q.Options
 	}
-	// Attach word data for preview card (choice/pronounce questions)
-	if q.SubjectType == "word" && currentWord != nil {
-		resp["subject_word"] = currentWord.Word
-		resp["subject_reading"] = currentWord.Reading
-		resp["subject_meaning"] = currentWord.Meaning
+	if q.SubjectType == "word" && word != nil && q.Type != engine.TypeListening {
+		resp["subject_word"] = word.Word
+		resp["subject_reading"] = word.Reading
+		resp["subject_meaning"] = word.Meaning
 	}
-	writeJSON(w, resp)
+	return resp
 }
 
 // compareWordGrammarPriority returns true if the word should come before the grammar point.

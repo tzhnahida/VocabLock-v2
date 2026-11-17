@@ -75,8 +75,14 @@
 - 验证（真 key）：`ai: configured`；/ai/chat 正常回复；UI 里作业卡显示真实题目并批改「得分 100%」；对话屏用日语回答 + 中文解释。
 - 顺手修：chat 提示词原来是「你不知道学生想学什么语言，先问」——这在已经选了课程的 App 里是错的（问完还是问）。改成课程内对话（{{.TeacherRole}} + {{.Language}} + {{.Level}}），实测直接日语作答，不再反问。
 
+### 补记 — listening 音频与泄题（同日）
+- 原因：Electron 的 Quiz 屏完全没有音频代码；Flutter 版有 onPlayWordAudio + 自动播放 + 重听按钮。接口也不返回 audio_url，需要客户端用 subject_id 调 /tts/word/{id}。
+- 顺带修的真 bug：/quiz/next 对所有词题都附带 subject_word/reading/meaning，听力题等于把答案印在屏幕上。后端改为 listening 不下发词形（questionPayload + 单测），前端也不再渲染。
+- 实现：听力题加载后自动取 TTS → Blob → 播放（复用听力屏的 audioObjectUrl），带 64px 重听按钮和「先听音频」提示；TTS 未配置时显示提示而不是静默。
+- 验证（CDP + 真 TTS）：听力题 .listen-prompt 出现、词形隐藏、audio.currentTime 1.02→1.49 播完；选择题仍显示词形且自动播放（t=1.49）；把 TTS 打成 not_configured 时提示「TTS 未配置，无法播放音频」。
+
 ### 剩余
-- listening 题型的音频播放（AI 开启后才会派到）；/ai/profile、每日报告、语法点、词库 import/export/tags 未接。
+- /ai/profile、每日报告、语法点、词库 import/export/tags 未接。
 - 听力、设置、AI 三屏未做。
 - 音频（TTS 播放）、朗读评分、被动提醒未接。
 
