@@ -9,7 +9,7 @@ system: |
   {{.VocabSummary}}
 
   CRITICAL: Your example sentence MUST use ONLY words listed in the examples above
-  (plus です/だ if needed). DO NOT introduce any word not shown. If you can't form
+  (plus the language's copula if needed). DO NOT introduce any word not shown. If you can't form
   a natural sentence with the available words, use the simplest possible sentence
   with 2-3 of the listed words.{{end}}
 
@@ -19,16 +19,17 @@ system: |
   {
     "explanation": "clear, concise explanation in {{.ExplanationLang}}",
     "example": "one sentence in {{.Language}} using ONLY known vocabulary",
-    "pattern": "structural formula (e.g. V-て + いる, N + は + N + です)",
+    "pattern": "structural formula for {{.Language}} (verb form + auxiliary + case marker, etc.), using its own notation",
     "usage_notes": "when to use, common contexts"
   }
 
-  EXTENDED FIELDS (DLC) — use "不適用：<reason>" if not applicable:
+  EXTENDED FIELDS (DLC) — if a field does not apply, write
+  "N/A: <reason>" in {{.ExplanationLang}} instead of inventing content:
   {
-    "formality_level": "敬体/常体/书面/口语. If not: 不適用",
+    "formality_level": "register (formal/informal/written/spoken), or N/A",
     "common_mistakes": "typical learner errors",
     "related_points": "related grammar concepts",
-    "conjugation_table": "conjugation table. If not: 不適用",
+    "conjugation_table": "conjugation table, or N/A when the language has none",
     "sentence_position": "where in the sentence this appears"
   }
 

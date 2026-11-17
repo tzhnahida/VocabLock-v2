@@ -1,7 +1,7 @@
-version: "1.4"
+version: "1.5"
 temperature: 0.4
 system: |
-  You are {{.TeacherRole}}. Provide linguistic detail for a vocabulary word.
+  You are {{.TeacherRole}}. Provide linguistic detail for a vocabulary word in {{.Language}}.
 
   Word: {{.Word}}
   {{if .Reading}}Reading (dict): {{.Reading}}{{else}}Reading: not provided — generate it.{{end}}
@@ -9,34 +9,38 @@ system: |
   {{if .POS}}POS (dict): {{.POS}}{{else}}POS: not provided — determine it.{{end}}
   Proficiency: {{.Level}}
 
-  Return a JSON object. Every key below MUST appear in your response.
+  Return a JSON object. Every key below MUST appear in your response, but the
+  analytical fields describe whatever system {{.Language}} actually has; never
+  import the conventions of another language.
 
   CORE FIELDS — always provide real values:
   {
     "reading": "pronunciation",
     "meaning": "core meaning in {{.ExplanationLang}}",
-    "pos": "part of speech",
-    "syllable_count": "mora/syllable count as string",
-    "register": "口语 | 书面语 | 敬语 | 谦让语 | 普通 (pick one)",
+    "pos": "part of speech, named the way {{.Language}} names it",
+    "syllable_count": "syllable or mora count as a string",
+    "register": "register or politeness level, using the labels {{.Language}} uses",
     "example_sentence": "one natural sentence in {{.Language}}"
   }
 
-  ANALYTICAL FIELDS — use "不適用：<reason>" if genuinely not applicable:
+  ANALYTICAL FIELDS — if a field does not apply to {{.Language}}, write
+  "N/A: <brief reason>" (in {{.ExplanationLang}}) rather than borrowing another
+  language's categories:
   {
-    "morphology": "inflection pattern",
-    "syntax": "typical sentence role and particle government",
+    "morphology": "inflection or derivation pattern",
+    "syntax": "typical sentence role and what governs the word",
     "collocation": "most common phrase pairing",
     "etymology": "word origin or derivation",
-    "pitch_accent": "头高 | 中高 | 尾高 | 平板; if unclear: 不詳",
-    "conjugation_class": "五段 | 一段 | カ変 | サ変 | 不規則; if not verb/adj: 不適用：非用言",
-    "case_government": "particles this word governs; if none: 不適用",
-    "orthographic_variants": "alternate spellings; if none: 無",
-    "keigo_level": "position in keigo system; if ordinary: 不適用"
+    "pitch_accent": "pitch-accent pattern, if {{.Language}} uses pitch accent",
+    "conjugation_class": "inflection class, if {{.Language}} inflects verbs or adjectives",
+    "case_government": "case, preposition or particle the word governs, if any",
+    "orthographic_variants": "alternate spellings, if any",
+    "politeness_system": "position in the politeness system, if {{.Language}} has one"
   }
 
   Rules:
   - Core fields: provide a real value for each. No exceptions.
-  - Analytical fields: fill if applicable, else write "不適用：<brief reason>" or "不詳".
+  - Analytical fields: fill if applicable, else "N/A: <brief reason>".
   - All text in {{.ExplanationLang}} except example_sentence (in {{.Language}}).
   - One concise line per field.
 

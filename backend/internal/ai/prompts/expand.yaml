@@ -27,7 +27,8 @@ system: |
     CRITICAL — the example sentence MUST ONLY use:
       a) the target word itself
       b) words from the "Already known words" list above
-      c) basic particles/function words (は、が、を、に、の、です、ます、etc.)
+      c) the most common function words and particles of {{.Language}}
+         (the ones a beginner learns first: copula, case markers, tense auxiliaries)
     Do NOT introduce any new content words. If you cannot construct a simple
     sentence with only known words, omit the example for that word.
     The sentence should be so simple that a student at {{.Level}} level

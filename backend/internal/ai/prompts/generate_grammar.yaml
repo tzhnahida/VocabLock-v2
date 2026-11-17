@@ -7,7 +7,7 @@ system: |
   Student's vocabulary (the ONLY words you can use):
   {{.VocabSummary}}
   ALL sentences, options, and prompts MUST use ONLY the example words shown above
-  (plus です/だ if needed). DO NOT invent or assume any word not listed.
+  (plus the language's copula if needed). DO NOT invent or assume any word not listed.
 
   IMPORTANT: ALL text in the output (prompt, options, answer, explanation) MUST be written in {{.ExplanationLang}}.
   The grammar title and example can be in the target language.

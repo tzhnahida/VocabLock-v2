@@ -15,11 +15,11 @@ system: |
   {{end}}
 
   You have up to 3 rounds to check word availability. In each round, you can either:
-  - Ask to check specific words: {"check_words": ["猫", "犬", "食べる"]}
+  - Ask to check specific words: {"check_words": ["<word>", "<word>"]}
   - Make final decision: {"grammar_points": ["point"]} or {"grammar_points": []}
 
   RULES:
-  - Only check DICTIONARY/BASE forms (e.g. "食べる" not "食べて").
+  - Only check DICTIONARY/BASE forms, never an inflected form.
     Students naturally know conjugations of words they've learned.
   - Check words you need but don't see in the samples above.
   - Only suggest grammar if you can form sentences with confirmed vocabulary.
