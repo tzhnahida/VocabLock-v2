@@ -532,3 +532,20 @@
 ### 结论
 - 类型层面的『死代码』不多，真正的风险在**两份实现/两份配置各说各话**：题时估计有两套、慢题集合有三份、ja 模板与 ja 配置漂了一年。
 - 这类问题不会报错，只会在换语言/换前端时突然失效，所以都补了守卫（模板解析测试、shell 分支测试、严格配置测试）。
+## M3 起步：托盘 / 单实例 / 系统级锁屏 / 自启（2026-11-18 凌晨）
+
+### 做了什么
+- **托盘**：`scripts/make-icon.mjs` 生成 `resources/icon.png` 并把 base64 内嵌成 data URL（开发/打包同一份资源）；菜单「显示 / 锁屏专注 / 退出」，左键切换显隐，关窗口改为隐藏到托盘。
+- **单实例**：Electron `requestSingleInstanceLock`，第二次启动打印 `single-instance: another VocabLock is already running` 并退出；`second-instance` 事件把已有窗口拉到前台。Go 侧的 named mutex 仍在，双保险。
+- **系统级锁屏**：服务端新增锁状态（启动达标判定、/system/lock、/system/unlock、紧急逃生都会更新），`/system/status` 返回 `locked`；Electron 每 2s 轮询，锁定时开一个无边框全屏 kiosk 窗口（alwaysOnTop screen-saver、skipTaskbar）加载现有锁屏界面，Esc 经 bridge 调 /system/unlock 关闭。Win32 锁窗口只保留给 Flutter 壳。
+- **开机自启**：设置页加「启动 → 开机自启」；注册表值改为**带引号**的路径（原来未加引号，路径含空格会启动成 `C:\Program`）；启动时按配置同步（关掉会删除遗留项）；`SetAutoStart` 拆出 `setRunValue/deleteRunValue` 并加了注册表单测（用临时值名，不碰真实项）。
+
+### 验证
+- CDP：`appInfo = {singleInstance:true, tray:true, windows:2, lockWindow:true, kiosk:true, alwaysOnTop:true}`；锁窗口 `runtime().screen === 'lock'` 且渲染出锁屏；`dismissLock()` 后窗口销毁、`locked:false`。
+- 第二个实例：直接退出并打印 single-instance 提示。
+- Go：`TestSystemStatusReportsLockState`（状态随 lock/unlock 变化）、shell 分支两条、注册表 set/delete 一条；`go test ./...` 全绿；typecheck/build 通过。
+- 自启落地：`release/VocabLock-ja/configs/app.yaml` 设 `auto_start: true`，注册表 `VocabLock = "...\release\VocabLock-ja\vocablock.exe"`（读回已确认）。
+
+### 注意
+- release 目录里的 exe 仍是 **6 月 20 日的 Flutter 版**。现在自启指向它：下次登录会启动老 UI，且按老逻辑可能锁屏。要自启新 Electron 版，需要先打包安装（M4）。
+- kiosk 窗口挡不住 Alt+Tab/Win 键（Electron 无低层键盘钩子）；真正的键位封锁仍在 Go 的 Win32 钩子里，且只对 Flutter 锁窗口生效。Electron 下目前是 alwaysOnTop + kiosk + skipTaskbar 的“强遮罩”，不是不可绕过的锁。
