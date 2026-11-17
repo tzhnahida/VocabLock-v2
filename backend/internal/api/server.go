@@ -303,8 +303,17 @@ func (s *Server) WirePronounce() {
 	if !ok {
 		return
 	}
+	// Providers are language-specific (the julius kit scores Japanese with a
+	// JNAS acoustic model). Wiring a ja provider into an English course would
+	// grade English audio against Japanese phonemes and return meaningless
+	// zeros, so a declared mismatch disables read-aloud instead.
+	if provCfg.Lang != "" && baseLanguage(provCfg.Lang) != baseLanguage(lang) {
+		log.Warn("server", "pronounce: provider %q scores %s, not %s — disabled",
+			lc.Pronounce.Provider, provCfg.Lang, lang)
+		return
+	}
 	s.PronounceProvider = pronounce.NewProvider(lc.Pronounce.Provider, provCfg)
-	log.Info("server", "pronounce: %s", lc.Pronounce.Provider)
+	log.Info("server", "pronounce: %s (%s)", lc.Pronounce.Provider, provCfg.Lang)
 }
 
 // WireASR initializes (or re-initializes) the local speech-to-text provider.
@@ -336,6 +345,15 @@ func (s *Server) WireASR() {
 	}
 	s.ASRProvider = provider
 	log.Info("server", "asr: %s", name)
+}
+
+// baseLanguage trims a region suffix so ja-JP and ja compare equal.
+func baseLanguage(code string) string {
+	code = strings.TrimSpace(strings.ToLower(code))
+	if i := strings.IndexAny(code, "-_"); i > 0 {
+		return code[:i]
+	}
+	return code
 }
 
 // resolveASRLanguage picks the whisper language code for the active course.
