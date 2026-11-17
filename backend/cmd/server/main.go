@@ -333,6 +333,11 @@ func spawnElectron(port int, token string) int {
 		args = append(args, target.AppDir)
 	}
 	args = append(args, "--api-port", fmt.Sprintf("%d", port))
+	// Debug/smoke hook: lets a test run the packaged shell headless
+	// (VOCABLOCK_SHELL_ARGS="--nowindow --remote-debugging-port=9223").
+	if extra := os.Getenv("VOCABLOCK_SHELL_ARGS"); extra != "" {
+		args = append(args, strings.Fields(extra)...)
+	}
 
 	cmd := exec.Command(target.Bin, args...)
 	cmd.Env = append(os.Environ(), "VOCABLOCK_AUTH_TOKEN="+token)
