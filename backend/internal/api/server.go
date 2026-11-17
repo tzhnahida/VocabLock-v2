@@ -140,15 +140,17 @@ func (s *Server) consumeActivityElapsed() int {
 // aiExplLang returns the language the AI should use when speaking to the
 // student (explanations, chat, judging feedback, assignments, summaries).
 //
-// Priority: user interface language (InterfaceLang) > per-language
+// Priority: explicit ai_explanation_lang setting > per-language
 // explanation-language config > "en".
 // FIX: the UI language was never propagated into the AI prompt layer —
 // users with an English UI studying Japanese got AI replies in the
 // language config's explanation language (e.g. Chinese) or the hardcoded
 // zh-CN default in chat.
 func (s *Server) aiExplLang(lang string) string {
-	if ui := strings.TrimSpace(s.Config.App.InterfaceLang); ui != "" {
-		return ui
+	// Explanations are decoupled from the interface language on purpose: the
+	// UI translation must not decide which language the model explains in.
+	if expl := strings.TrimSpace(s.Config.App.AIExplanationLang); expl != "" {
+		return expl
 	}
 	if lc, ok := s.Config.Languages[lang]; ok && lc.PromptContext.ExplanationLang != "" {
 		return lc.PromptContext.ExplanationLang

@@ -1,60 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { dyn, typeName, type Lang } from '../i18n'
+import { st } from '../strings'
 import type { Dashboard } from '../api'
 import { audioObjectUrl, textAudio, wordAudio } from '../ttsApi'
 
 type Props = { dash: Dashboard; lang: Lang }
 
-const COPY = {
-  zh: {
-    title: '听力',
-    hint: '先听，再决定要不要看原文',
-    play: '播放',
-    replay: '重听',
-    reveal: '显示原文',
-    hide: '隐藏原文',
-    next: '下一个',
-    freeText: '朗读任意文本',
-    speak: '朗读',
-    provider: 'TTS',
-    notConfigured: 'TTS 未配置：请在 configs/tts.yaml 配好提供者',
-    failed: '播放失败：',
-    playing: '播放中'
-  },
-  en: {
-    title: 'Listening',
-    hint: 'Listen first, reveal only if you need to',
-    play: 'Play',
-    replay: 'Replay',
-    reveal: 'Show text',
-    hide: 'Hide text',
-    next: 'Next',
-    freeText: 'Read any text',
-    speak: 'Speak',
-    provider: 'TTS',
-    notConfigured: 'TTS is not configured — set a provider in configs/tts.yaml',
-    failed: 'Playback failed: ',
-    playing: 'Playing'
-  },
-  ja: {
-    title: 'リスニング',
-    hint: 'まず聴いて、必要なら原文を表示',
-    play: '再生',
-    replay: 'もう一度',
-    reveal: '原文を表示',
-    hide: '原文を隠す',
-    next: '次へ',
-    freeText: '任意のテキストを読み上げ',
-    speak: '読み上げ',
-    provider: 'TTS',
-    notConfigured: 'TTS 未設定 — configs/tts.yaml でプロバイダを設定してください',
-    failed: '再生に失敗：',
-    playing: '再生中'
-  }
-} as const
 
 export default function Listening({ dash, lang }: Props) {
-  const copy = COPY[lang]
+  const copy = st(lang, 'listen')
   const words = useMemo(() => dash.words.filter((w) => w.word), [dash.words])
   const [index, setIndex] = useState(0)
   const [revealed, setRevealed] = useState(false)

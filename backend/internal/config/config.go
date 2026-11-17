@@ -15,8 +15,13 @@ import (
 type AppConfig struct {
 	ActiveLang    string `yaml:"active_lang"`
 	InterfaceLang string `yaml:"interface_lang"`
-	MockMode      bool   `yaml:"mock_mode"`
-	Server        struct {
+	// AIExplanationLang is the language the model writes explanations in. It is
+	// deliberately independent from InterfaceLang: a Japanese UI can study
+	// Chinese and still want Chinese explanations, or the other way round.
+	// Empty means "use the course language's prompt_context.explanation_lang".
+	AIExplanationLang string `yaml:"ai_explanation_lang"`
+	MockMode          bool   `yaml:"mock_mode"`
+	Server            struct {
 		Host string `yaml:"host"`
 	} `yaml:"server"`
 	DailyTarget         int     `yaml:"daily_target"`

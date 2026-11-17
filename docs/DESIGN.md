@@ -7,6 +7,29 @@
 - 原型是静态 mock，不连后端；真实数据/交互在 Electron M0–M2 落地。
 - 双主题 + 中/英/日三语是默认真实能力，不再询问用户选浅色还是深色（m00190 用户纠正）。
 
+## 解耦约束（2026-11-17）
+
+四条硬约束，改代码时别破坏（破坏会被下面的守卫或检查抓到）：
+
+1. **学习语言与提示词解耦**
+   - `internal/ai/prompts/*.yaml` 不允许出现具体语言名（日本語/中文/English…），只能用变量 `{{.TeacherRole}}`、`{{.Language}}`、`{{.Level}}`、`{{.ExplanationLang}}`。
+   - 检查：`grep -P '[\x{4e00}-\x{9fff}]' internal/ai/prompts/*.yaml` 应为空。
+   - 反例（已修）：chat.yaml 曾写死「先问学生想学哪门外语」+ 中文培养方案标题。
+
+2. **提示词与界面语言解耦**
+   - 讲解语言由 `app.yaml: ai_explanation_lang` 决定，空值才回落到课程配置 `prompt_context.explanation_lang`，最后 `en`。
+   - `Server.aiExplLang()` **不再读 `interface_lang`**：界面切日语 ≠ AI 用日语讲解。
+   - 设置页「讲解语言」（跟随课程 / 中文 / English / 日本語）。实测 ja 课程：=en 回英文、=ja 回日文、空=中文。
+
+3. **工具与框架解耦**
+   - 渲染层组件只 import hooks 与 `*Api` 模块（纯 fetch），不 import `electron`；窗口能力只经 preload 的 `window.vocablock`。
+   - 服务端 TTS / ASR / 词典 / 发音评分全部配置驱动（tts/asr/dict/pronounce.yaml），换实现不动 Go。
+
+4. **UI 必须 i18n**
+   - 设计稿文案在 `i18n.json`（由 docs/design/app.html 抽取，不手改）；新增文案统一进 `electron/src/renderer/src/strings.ts`，zh/en/ja 共用同一 key 类型（缺翻译 = 类型错误）。
+   - 组件内不内联文案：`grep -P '[\x{4e00}-\x{9fff}]' --include='*.tsx'` 只允许注释。
+   - 每个屏幕必须有 `body[data-screen="x"] .s-x` 规则，`scripts/check-screens.mjs` 在 `npm run typecheck` 时检查（漏写会导致整屏空白，真实发生过）。
+
 ## 文件
 
 | 文件 | 说明 |

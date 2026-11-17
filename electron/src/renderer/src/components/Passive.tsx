@@ -1,41 +1,13 @@
 import { useEffect, useState } from 'react'
 import { dyn, type Lang } from '../i18n'
+import { st } from '../strings'
 import { passiveCard, passiveSubmit, type PassiveCard } from '../studyApi'
 
 type Props = { lang: Lang }
 
-const COPY = {
-  zh: {
-    title: '被动回忆',
-    easy: '轻松',
-    hard: '困难',
-    forgot: '忘了',
-    empty: '还没有可回忆的词',
-    show: '显示答案',
-    recalled: (n: number) => `已回忆 ${n}`
-  },
-  en: {
-    title: 'Passive recall',
-    easy: 'Easy',
-    hard: 'Hard',
-    forgot: 'Forgot',
-    empty: 'No words to recall yet',
-    show: 'Show answer',
-    recalled: (n: number) => `${n} recalled`
-  },
-  ja: {
-    title: '受動的な想起',
-    easy: '余裕',
-    hard: '難しい',
-    forgot: '忘れた',
-    empty: '想起できる単語がありません',
-    show: '答えを見る',
-    recalled: (n: number) => `${n} 件`
-  }
-} as const
 
 export default function PassiveCard({ lang }: Props) {
-  const copy = COPY[lang]
+  const copy = st(lang, 'passive')
   const [card, setCard] = useState<PassiveCard | null>(null)
   const [revealed, setRevealed] = useState(false)
   const [busy, setBusy] = useState(false)

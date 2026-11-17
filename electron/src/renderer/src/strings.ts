@@ -1,0 +1,313 @@
+/**
+ * Every string the shell adds on top of the prototype lives here, once, in all
+ * three languages. Components never inline copy: they pull a namespace with
+ * st(lang, 'settings'), so a missing translation is a type error rather than a
+ * Chinese sentence showing up in the Japanese UI.
+ */
+import type { Lang } from './i18n'
+
+type Fn = (...args: never[]) => string
+type Entry = string | Fn
+type Dict = Record<string, Entry>
+
+const zh = {
+  quiz: {
+    record: '录音',
+    recordStop: '停止录音',
+    recordAgain: '重录',
+    recordSubmit: '提交录音',
+    recordSkip: '不会读，跳过',
+    recordHint: '点一下开始，点一下结束',
+    recordReady: '录音已就绪',
+    recordPermission: '需要麦克风权限：请在系统设置里允许本应用使用麦克风',
+    recordFailed: (e: string) => '录音失败：' + e,
+    recordSeconds: (n: number) => '录音中 ' + n + 's'
+  },
+  settings: {
+    title: '设置',
+    learning: '学习',
+    ui: '界面',
+    ai: 'AI',
+    course: '课程语言',
+    dailyTarget: '每日目标题数',
+    minAccuracy: '达标准确率',
+    autoExpand: '允许 AI 自动扩词',
+    interfaceLang: '界面语言',
+    explanationLang: '讲解语言',
+    explanationLangHint: 'AI 用哪种语言讲解；与界面语言分开设置',
+    explanationFollow: '跟随课程',
+    theme: '主题',
+    light: '浅色',
+    dark: '深色',
+    baseUrl: '接口地址',
+    model: '模型',
+    apiKey: 'API Key',
+    apiKeyHint: '留空表示不修改；写入后保存于服务端 secrets.yaml',
+    configured: '已配置',
+    notConfigured: '未配置',
+    save: '保存',
+    saved: '已保存',
+    failed: '保存失败：'
+  },
+  listen: {
+    title: '听力',
+    hint: '先听，再决定要不要看原文',
+    play: '播放',
+    replay: '重听',
+    reveal: '显示原文',
+    hide: '隐藏原文',
+    next: '下一个',
+    freeText: '朗读任意文本',
+    speak: '朗读',
+    provider: 'TTS',
+    notConfigured: 'TTS 未配置：请在 configs/tts.yaml 配好提供者',
+    failed: '播放失败：',
+    playing: '播放中'
+  },
+  chat: {
+    title: 'AI 对话',
+    hint: '用当前课程语言练习对话',
+    placeholder: '说点什么…',
+    send: '发送',
+    thinking: '思考中…',
+    me: '我',
+    ai: 'AI',
+    needKey: 'AI 未配置：在设置里填 API Key 后重试',
+    failed: '发送失败：',
+    empty: '还没有对话。试着问一个语法问题，或者让它解释一个词。'
+  },
+  assignment: {
+    title: '今日作业',
+    needAI: '作业由 AI 出题：配置 API Key 后可用',
+    noDue: '今天没有到期作业',
+    placeholder: '用目标语言写下你的回答…',
+    submit: '提交',
+    submitting: '批改中…',
+    score: (n: number) => '得分 ' + Math.round(n * 100) + '%',
+    corrected: '批改后',
+    close: '知道了'
+  },
+  passive: {
+    title: '被动回忆',
+    easy: '轻松',
+    hard: '困难',
+    forgot: '忘了',
+    empty: '还没有可回忆的词',
+    show: '显示答案',
+    recalled: (n: number) => '已回忆 ' + n
+  },
+  pending: {
+    title: '待审词',
+    empty: '没有待审的词',
+    hint: '补全读音、词性、释义后采纳；AI 会补齐其余字段',
+    accept: '采纳',
+    reject: '驳回',
+    reading: '读音',
+    meaning: '释义',
+    pos: '词性',
+    required: '读音、词性、释义都不能为空'
+  }
+}
+const en: typeof zh = {
+  quiz: {
+    record: 'Record',
+    recordStop: 'Stop',
+    recordAgain: 'Re-record',
+    recordSubmit: 'Submit recording',
+    recordSkip: 'Skip - I cannot read it',
+    recordHint: 'Tap to start, tap again to stop',
+    recordReady: 'Recording ready',
+    recordPermission: 'Microphone permission is required - allow this app to use the microphone',
+    recordFailed: (e: string) => 'Recording failed: ' + e,
+    recordSeconds: (n: number) => 'Recording ' + n + 's'
+  },
+  settings: {
+    title: 'Settings',
+    learning: 'Learning',
+    ui: 'Interface',
+    ai: 'AI',
+    course: 'Course language',
+    dailyTarget: 'Daily target (questions)',
+    minAccuracy: 'Required accuracy',
+    autoExpand: 'Allow AI word expansion',
+    interfaceLang: 'Interface language',
+    explanationLang: 'Explanation language',
+    explanationLangHint: 'Language the AI explains in - independent of the interface',
+    explanationFollow: 'Follow the course',
+    theme: 'Theme',
+    light: 'Light',
+    dark: 'Dark',
+    baseUrl: 'Base URL',
+    model: 'Model',
+    apiKey: 'API key',
+    apiKeyHint: 'Leave empty to keep the current key; stored server-side in secrets.yaml',
+    configured: 'configured',
+    notConfigured: 'not configured',
+    save: 'Save',
+    saved: 'Saved',
+    failed: 'Save failed: '
+  },
+  listen: {
+    title: 'Listening',
+    hint: 'Listen first, reveal only if you need to',
+    play: 'Play',
+    replay: 'Replay',
+    reveal: 'Show text',
+    hide: 'Hide text',
+    next: 'Next',
+    freeText: 'Read any text',
+    speak: 'Speak',
+    provider: 'TTS',
+    notConfigured: 'TTS is not configured - set a provider in configs/tts.yaml',
+    failed: 'Playback failed: ',
+    playing: 'Playing'
+  },
+  chat: {
+    title: 'AI chat',
+    hint: 'Practise in the active course language',
+    placeholder: 'Say something...',
+    send: 'Send',
+    thinking: 'Thinking...',
+    me: 'You',
+    ai: 'AI',
+    needKey: 'AI is not configured - set an API key in Settings',
+    failed: 'Send failed: ',
+    empty: 'No messages yet. Ask about grammar, or have it explain a word.'
+  },
+  assignment: {
+    title: 'Today assignment',
+    needAI: 'Assignments are AI-generated - set an API key to enable them',
+    noDue: 'Nothing due today',
+    placeholder: 'Write your answer in the target language...',
+    submit: 'Submit',
+    submitting: 'Grading...',
+    score: (n: number) => 'Score ' + Math.round(n * 100) + '%',
+    corrected: 'Corrected',
+    close: 'Got it'
+  },
+  passive: {
+    title: 'Passive recall',
+    easy: 'Easy',
+    hard: 'Hard',
+    forgot: 'Forgot',
+    empty: 'No words to recall yet',
+    show: 'Show answer',
+    recalled: (n: number) => n + ' recalled'
+  },
+  pending: {
+    title: 'Pending review',
+    empty: 'Nothing pending',
+    hint: 'Fill reading, part of speech and meaning, then accept - AI fills the rest',
+    accept: 'Accept',
+    reject: 'Reject',
+    reading: 'Reading',
+    meaning: 'Meaning',
+    pos: 'POS',
+    required: 'Reading, POS and meaning are required'
+  }
+}
+const ja: typeof zh = {
+  quiz: {
+    record: '録音',
+    recordStop: '停止',
+    recordAgain: '録り直す',
+    recordSubmit: '録音を送信',
+    recordSkip: '読めないのでスキップ',
+    recordHint: 'タップで開始、もう一度タップで停止',
+    recordReady: '録音の準備完了',
+    recordPermission: 'マイクの許可が必要です',
+    recordFailed: (e: string) => '録音に失敗: ' + e,
+    recordSeconds: (n: number) => '録音中 ' + n + '秒'
+  },
+  settings: {
+    title: '設定',
+    learning: '学習',
+    ui: 'インターフェース',
+    ai: 'AI',
+    course: '学習言語',
+    dailyTarget: '1日の目標問題数',
+    minAccuracy: '必要正答率',
+    autoExpand: 'AI による単語追加を許可',
+    interfaceLang: '表示言語',
+    explanationLang: '解説の言語',
+    explanationLangHint: 'AI が解説を書く言語。表示言語とは別に設定します',
+    explanationFollow: 'コースに従う',
+    theme: 'テーマ',
+    light: 'ライト',
+    dark: 'ダーク',
+    baseUrl: 'エンドポイント',
+    model: 'モデル',
+    apiKey: 'API キー',
+    apiKeyHint: '空欄なら変更しません。サーバーの secrets.yaml に保存されます',
+    configured: '設定済み',
+    notConfigured: '未設定',
+    save: '保存',
+    saved: '保存しました',
+    failed: '保存に失敗：'
+  },
+  listen: {
+    title: 'リスニング',
+    hint: 'まず聴いて、必要なら原文を表示',
+    play: '再生',
+    replay: 'もう一度',
+    reveal: '原文を表示',
+    hide: '原文を隠す',
+    next: '次へ',
+    freeText: '任意のテキストを読み上げ',
+    speak: '読み上げ',
+    provider: 'TTS',
+    notConfigured: 'TTS 未設定 — configs/tts.yaml でプロバイダを設定してください',
+    failed: '再生に失敗：',
+    playing: '再生中'
+  },
+  chat: {
+    title: 'AI チャット',
+    hint: '学習中の言語で会話を練習',
+    placeholder: 'メッセージを入力…',
+    send: '送信',
+    thinking: '考え中…',
+    me: 'あなた',
+    ai: 'AI',
+    needKey: 'AI 未設定 — 設定で API キーを入力してください',
+    failed: '送信に失敗：',
+    empty: 'まだ会話がありません。文法の質問や単語の説明を試してください。'
+  },
+  assignment: {
+    title: '今日の課題',
+    needAI: '課題は AI 生成です — API キーを設定してください',
+    noDue: '今日の課題はありません',
+    placeholder: '学習言語で回答を書いてください…',
+    submit: '提出',
+    submitting: '採点中…',
+    score: (n: number) => 'スコア ' + Math.round(n * 100) + '%',
+    corrected: '添削後',
+    close: 'OK'
+  },
+  passive: {
+    title: '受動的な想起',
+    easy: '余裕',
+    hard: '難しい',
+    forgot: '忘れた',
+    empty: '想起できる単語がありません',
+    show: '答えを見る',
+    recalled: (n: number) => n + ' 件'
+  },
+  pending: {
+    title: '承認待ち',
+    empty: '承認待ちの単語はありません',
+    hint: '読み・品詞・意味を入れて承認すると、AI が残りを補完します',
+    accept: '承認',
+    reject: '却下',
+    reading: '読み',
+    meaning: '意味',
+    pos: '品詞',
+    required: '読み・品詞・意味は必須です'
+  }
+}
+
+const TABLES: Record<Lang, typeof zh> = { zh, en, ja }
+
+/** Returns one namespace with its strings bound to lang. */
+export function st<K extends keyof typeof zh>(lang: Lang, ns: K): (typeof zh)[K] {
+  return TABLES[lang][ns] ?? TABLES.zh[ns]
+}

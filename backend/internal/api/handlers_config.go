@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/tzhnahida/VocabLock/internal/api/mock"
 	"github.com/tzhnahida/VocabLock/internal/config"
@@ -34,6 +35,7 @@ func (s *Server) handleConfigGet(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]interface{}{
 		"active_lang":           s.Config.App.ActiveLang,
 		"interface_lang":        s.Config.App.InterfaceLang,
+		"ai_explanation_lang":   s.Config.App.AIExplanationLang,
 		"mock_mode":             s.Config.App.MockMode,
 		"daily_target":          s.Config.App.DailyTarget,
 		"min_accuracy":          s.Config.App.MinAccuracy,
@@ -115,6 +117,12 @@ func (s *Server) handleConfigUpdate(w http.ResponseWriter, r *http.Request) {
 	if v, ok := req["interface_lang"]; ok {
 		if lang, ok := v.(string); ok && lang != "" {
 			s.Config.App.InterfaceLang = lang
+		}
+	}
+
+	if v, ok := req["ai_explanation_lang"]; ok {
+		if lang, ok := v.(string); ok {
+			s.Config.App.AIExplanationLang = strings.TrimSpace(lang)
 		}
 	}
 

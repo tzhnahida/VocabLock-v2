@@ -413,3 +413,59 @@ body[data-screen="listening"] .s-listening {
   display: flex;
   gap: 6px;
 }
+/* AI chat */
+body[data-screen="chat"] .s-chat {
+  display: block;
+  overflow: auto;
+}
+.chat-card {
+  display: flex;
+  flex-direction: column;
+  height: 560px;
+  gap: 10px;
+}
+.chat-list {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 6px 4px 2px;
+}
+.chat-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 78%;
+}
+.chat-row.user {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+.chat-row .who {
+  font-size: 11px;
+  color: var(--faint);
+}
+.chat-row .bubble {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--panel2);
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.chat-row.user .bubble {
+  background: var(--accent);
+  color: #fff;
+}
+.chat-note {
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--panel2);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.chat-note.err {
+  color: #d25b5b;
+}

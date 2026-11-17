@@ -248,6 +248,7 @@ export function resetWord(id: number): Promise<unknown> {
 export type Settings = {
   activeLang: string
   interfaceLang: string
+  explanationLang: string
   dailyTarget: number
   minAccuracy: number
   autoExpand: boolean
@@ -263,6 +264,7 @@ export async function loadSettings(): Promise<Settings> {
   return {
     activeLang: String(cfg['active_lang'] ?? 'en'),
     interfaceLang: normaliseLang(String(cfg['interface_lang'] ?? 'zh')),
+    explanationLang: String(cfg['ai_explanation_lang'] ?? ''),
     dailyTarget: num(cfg['daily_target'], 20),
     minAccuracy: typeof cfg['min_accuracy'] === 'number' ? cfg['min_accuracy'] : 0.8,
     autoExpand: cfg['auto_expand_words'] === true,

@@ -1,50 +1,13 @@
 import { useRef, useState } from 'react'
 import { dyn, type Lang } from '../i18n'
+import { st } from '../strings'
 import { sendChat, type ChatMessage } from '../aiApi'
 
 type Props = { lang: Lang; online: boolean }
 
-const COPY = {
-  zh: {
-    title: 'AI 对话',
-    hint: '用当前课程语言练习对话',
-    placeholder: '说点什么…',
-    send: '发送',
-    thinking: '思考中…',
-    me: '我',
-    ai: 'AI',
-    needKey: 'AI 未配置：在设置里填 API Key 后重试',
-    failed: '发送失败：',
-    empty: '还没有对话。试着问一个语法问题，或者让它解释一个词。'
-  },
-  en: {
-    title: 'AI chat',
-    hint: 'Practise in the active course language',
-    placeholder: 'Say something…',
-    send: 'Send',
-    thinking: 'Thinking…',
-    me: 'You',
-    ai: 'AI',
-    needKey: 'AI is not configured — set an API key in Settings',
-    failed: 'Send failed: ',
-    empty: 'No messages yet. Ask about grammar, or have it explain a word.'
-  },
-  ja: {
-    title: 'AI チャット',
-    hint: '学習中の言語で会話を練習',
-    placeholder: 'メッセージを入力…',
-    send: '送信',
-    thinking: '考え中…',
-    me: 'あなた',
-    ai: 'AI',
-    needKey: 'AI 未設定 — 設定で API キーを入力してください',
-    failed: '送信に失敗：',
-    empty: 'まだ会話がありません。文法の質問や単語の説明を試してください。'
-  }
-} as const
 
 export default function Chat({ lang, online }: Props) {
-  const copy = COPY[lang]
+  const copy = st(lang, 'chat')
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)

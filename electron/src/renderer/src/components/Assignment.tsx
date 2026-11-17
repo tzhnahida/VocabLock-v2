@@ -1,47 +1,13 @@
 import { useEffect, useState } from 'react'
 import { dyn, type Lang } from '../i18n'
+import { st } from '../strings'
 import { listAssignments, submitAssignment, type Assignment, type AssignmentList, type AssignmentResult } from '../studyApi'
 
 type Props = { lang: Lang; language: string }
 
-const COPY = {
-  zh: {
-    title: '今日作业',
-    needAI: '作业由 AI 出题：配置 API Key 后可用',
-    noDue: '今天没有到期作业',
-    placeholder: '用目标语言写下你的回答…',
-    submit: '提交',
-    submitting: '批改中…',
-    score: (n: number) => `得分 ${Math.round(n * 100)}%`,
-    corrected: '批改后',
-    close: '知道了'
-  },
-  en: {
-    title: "Today's assignment",
-    needAI: 'Assignments are AI-generated — set an API key to enable them',
-    noDue: 'Nothing due today',
-    placeholder: 'Write your answer in the target language…',
-    submit: 'Submit',
-    submitting: 'Grading…',
-    score: (n: number) => `Score ${Math.round(n * 100)}%`,
-    corrected: 'Corrected',
-    close: 'Got it'
-  },
-  ja: {
-    title: '今日の課題',
-    needAI: '課題は AI 生成です — API キーを設定してください',
-    noDue: '今日の課題はありません',
-    placeholder: '学習言語で回答を書いてください…',
-    submit: '提出',
-    submitting: '採点中…',
-    score: (n: number) => `スコア ${Math.round(n * 100)}%`,
-    corrected: '添削後',
-    close: 'OK'
-  }
-} as const
 
 export default function AssignmentCard({ lang, language }: Props) {
-  const copy = COPY[lang]
+  const copy = st(lang, 'assignment')
   const [data, setData] = useState<AssignmentList | null>(null)
   const [answer, setAnswer] = useState('')
   const [busy, setBusy] = useState(false)

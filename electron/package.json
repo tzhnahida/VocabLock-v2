@@ -8,7 +8,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite preview",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && node scripts/check-screens.mjs",
     "pack": "electron-vite build && electron-builder --win dir",
     "dist": "electron-vite build && electron-builder --win nsis"
   },

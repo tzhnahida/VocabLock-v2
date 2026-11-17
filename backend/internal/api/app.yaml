@@ -1,5 +1,6 @@
 active_lang: en
 interface_lang: ""
+ai_explanation_lang: ""
 mock_mode: false
 server:
     host: 127.0.0.1

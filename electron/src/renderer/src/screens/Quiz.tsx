@@ -11,6 +11,7 @@ import {
   type SubmitResult
 } from '../quizApi'
 import { useRecorder } from '../audio/useRecorder'
+import { st } from '../strings'
 
 type Props = { dash: Dashboard; lang: Lang; onExit: () => void; onAnswered: () => void }
 
@@ -34,6 +35,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   const [disputed, setDisputed] = useState(false)
   const inputRef = useRef<HTMLInputElement | null>(null)
   const recorder = useRecorder()
+  const copy = st(lang, 'quiz')
 
   const language = dash.activeLang
 
@@ -186,39 +188,39 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
           <div className="recorder">
             <div className={`rec-state st-${recorder.state}`}>
               {recorder.state === 'recording'
-                ? dyn[lang].recordSeconds(recorder.seconds)
+                ? copy.recordSeconds(recorder.seconds)
                 : recorder.state === 'ready'
-                  ? dyn[lang].recordReady
+                  ? copy.recordReady
                   : recorder.state === 'error'
                     ? recorder.error === 'permission'
-                      ? dyn[lang].recordPermission
-                      : dyn[lang].recordFailed(recorder.error)
+                      ? copy.recordPermission
+                      : copy.recordFailed(recorder.error)
                     : recorder.state === 'requesting'
                       ? dyn[lang].loading
-                      : dyn[lang].recordHint}
+                      : copy.recordHint}
             </div>
             <div className="rec-actions">
               {recorder.state === 'recording' ? (
                 <button className="btn" onClick={recorder.stop}>
-                  {dyn[lang].recordStop}
+                  {copy.recordStop}
                 </button>
               ) : recorder.state === 'ready' ? (
                 <>
                   <button className="btn" disabled={phase === 'feedback'} onClick={() => void submit('', recorder.audio)}>
-                    {dyn[lang].recordSubmit}
+                    {copy.recordSubmit}
                   </button>
                   <button className="btn ghost" onClick={recorder.reset}>
-                    {dyn[lang].recordAgain}
+                    {copy.recordAgain}
                   </button>
                 </>
               ) : (
                 <button className="btn" disabled={recorder.state === 'requesting'} onClick={() => void recorder.start()}>
-                  {dyn[lang].record}
+                  {copy.record}
                 </button>
               )}
               {question.type === 'read_word' || question.type === 'read_sentence' ? (
                 <button className="btn ghost" disabled={phase === 'feedback'} onClick={() => void submit('', '')}>
-                  {dyn[lang].recordSkip}
+                  {copy.recordSkip}
                 </button>
               ) : null}
             </div>

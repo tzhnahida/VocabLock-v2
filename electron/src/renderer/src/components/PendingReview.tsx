@@ -1,49 +1,15 @@
 import { useEffect, useState } from 'react'
 import { dyn, type Lang } from '../i18n'
+import { st } from '../strings'
 import { acceptPendingWord, listPendingWords, rejectPendingWord, type PendingWord } from '../studyApi'
 
 type Props = { lang: Lang; language: string; onAccepted: () => void }
 
-const COPY = {
-  zh: {
-    title: '待审词',
-    empty: '没有待审的词',
-    hint: '补全读音、词性、释义后采纳；AI 会补齐其余字段',
-    accept: '采纳',
-    reject: '驳回',
-    reading: '读音',
-    meaning: '释义',
-    pos: '词性',
-    required: '读音、词性、释义都不能为空'
-  },
-  en: {
-    title: 'Pending review',
-    empty: 'Nothing pending',
-    hint: 'Fill reading, part of speech and meaning, then accept — AI fills the rest',
-    accept: 'Accept',
-    reject: 'Reject',
-    reading: 'Reading',
-    meaning: 'Meaning',
-    pos: 'POS',
-    required: 'Reading, POS and meaning are required'
-  },
-  ja: {
-    title: '承認待ち',
-    empty: '承認待ちの単語はありません',
-    hint: '読み・品詞・意味を入れて承認すると、AI が残りを補完します',
-    accept: '承認',
-    reject: '却下',
-    reading: '読み',
-    meaning: '意味',
-    pos: '品詞',
-    required: '読み・品詞・意味は必須です'
-  }
-} as const
 
 type Draft = { reading: string; meaning: string; pos: string }
 
 export default function PendingReview({ lang, language, onAccepted }: Props) {
-  const copy = COPY[lang]
+  const copy = st(lang, 'pending')
   const [words, setWords] = useState<PendingWord[] | null>(null)
   const [drafts, setDrafts] = useState<Record<number, Draft>>({})
   const [error, setError] = useState('')
