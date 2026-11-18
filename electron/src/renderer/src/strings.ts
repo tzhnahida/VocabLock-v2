@@ -64,6 +64,7 @@ const zh = {
   },
   listen: {
     title: '听力',
+    tag: '听音辨词',
     hint: '先听，再决定要不要看原文',
     play: '播放',
     replay: '重听',
@@ -175,6 +176,7 @@ const en: typeof zh = {
   },
   listen: {
     title: 'Listening',
+    tag: 'Listen & recall',
     hint: 'Listen first, reveal only if you need to',
     play: 'Play',
     replay: 'Replay',
@@ -286,6 +288,7 @@ const ja: typeof zh = {
   },
   listen: {
     title: 'リスニング',
+    tag: '聴き取り',
     hint: 'まず聴いて、必要なら原文を表示',
     play: '再生',
     replay: 'もう一度',

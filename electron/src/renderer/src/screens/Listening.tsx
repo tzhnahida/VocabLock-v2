@@ -96,7 +96,7 @@ export default function Listening({ dash, lang }: Props) {
         <div className="col">
           <section className="card listen-card">
             <div className="qhead">
-              <span className="tag">{dyn[lang].quizTag}</span>
+              <span className="tag">{copy.tag}</span>
               <span className="hint">{`${index + 1} / ${words.length}`}</span>
             </div>
 
@@ -167,20 +167,26 @@ export default function Listening({ dash, lang }: Props) {
               <span>{dash.activeLang.toUpperCase()}</span>
             </div>
             <div className="listen-list">
-              {words.slice(0, 14).map((w, i) => (
-                <div
-                  key={w.id}
-                  className={`listen-row${i === index % Math.max(1, words.length) ? ' sel' : ''}`}
-                  onClick={() => {
-                    setIndex(i)
-                    setRevealed(false)
-                    setStatus('')
-                  }}
-                >
-                  <span className="w">{w.word}</span>
-                  <span className="m">{w.meaning ?? ''}</span>
-                </div>
-              ))}
+              {words.slice(0, 14).map((w, i) => {
+                // The highlighted row is the word being played: printing it in
+                // the list next to the hidden player card gives the answer away.
+                const isCurrent = i === index % Math.max(1, words.length)
+                const masked = isCurrent && !revealed
+                return (
+                  <div
+                    key={w.id}
+                    className={`listen-row${isCurrent ? ' sel' : ''}`}
+                    onClick={() => {
+                      setIndex(i)
+                      setRevealed(false)
+                      setStatus('')
+                    }}
+                  >
+                    <span className="w">{masked ? '· · ·' : w.word}</span>
+                    <span className="m">{masked ? '· · ·' : (w.meaning ?? '')}</span>
+                  </div>
+                )
+              })}
             </div>
           </section>
         </div>
