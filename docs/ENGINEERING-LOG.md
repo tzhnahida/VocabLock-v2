@@ -568,9 +568,17 @@
 
 ### 做了什么
 
-### 同日晚：托盘 / 单实例 / 自启 实跑（干净 Win11 虚机）
+## 用户视角全流程实跑（2026-11-18 傍晚，干净 Win11 虚机）
 
-- **单实例（原来根本没生效）**：第二次启动会留下一个“孤儿” Go 服务——Electron 的 `requestSingleInstanceLock` 只挡住 shell，服务端的 `AcquireLock` 从没成功过。三处根因：① 检查排在 config/SQLite 打开之后；② 互斥体用了 `Global\\` 命名空间，需要 SeCreateGlobalPrivilege，非提权管理员建不出来（报错后只 warn 就继续跑）；③ 用单独的 `GetLastError` 判断“已存在”，与 Go runtime 的其它 syscall 有竞态。修法：改用 `Local\\`、直接用 `CreateMutex` 调用返回的 errno、把检查提到 chdir 之后最前；未抢到时 `FindWindow("VocabLock")` 把已有窗口调到前台再退出。实测：第二个进程 0.08s 退出、进程数保持 1、stderr `another instance is already running — focused it`。
-- **托盘**：图标在通知区溢出面板里（V 图标）；点击可隐藏主窗口、再点恢复（两次截图验证）。右键菜单项没单独验（一次右键打偏到了任务栏按钮）。
-- **自启**：配置 `auto_start: true` 在启动时同步注册表，值为带引号的 `"C:\Users\tzh\VocabLock\VocabLock\vocablock.exe"`；真实重启（还赶上了 Windows Update）后自动登录并自动拉起应用，截图确认首页。
-- 注意：注入鼠标点击（SetCursorPos + mouse_event）对原生下拉菜单不可靠——先移动光标会把菜单关掉；设置页里的“开机自启”下拉因此没点中，走的是“配置 → 启动同步注册表 → 重启”的同一条产品路径。
+### 走通的链路
+回滚 `pre-vocablock` → 解压安装包（全新空库）→ 首次启动 → 设置页（课程/目标/AI Key 已配）→ AI 自动扩词（首次空库 20 词）→ 答题（词义选择答对、发音题键盘输入答对、朗读题“不会读，跳过”）→ 进度 23/20 → 今日作业（AI 出题 + 提交 + 批改 90% 并给改进建议）→ 关机 → 开机自启（注册表 Run）→ 启动即锁屏（未达标）→ 解锁 → 继续答题（进度保留 22/20）。
+
+### 发现并修掉
+- **首次安装直接锁屏**：空库在 bootstrap 阶段先用 AI 生成单词，随后“有内容但未达标”触发了启动锁，新用户还没看到界面就被锁。改为在 bootstrap 之前记录 `firstRun`（SessionCounts 全 0），首启跳过锁。
+- **打包缺字典 → AI 扩词永远 pending**：没有 `dict/`（jmdict）时 `expandWords` 只能得到 “0 verified + 20 pending”，会话无限停在“AI 正在准备今天的题目…”。这不是代码 bug，但**安装包必须带字典**，否则 AI 扩词等于不可用；同时会话状态应提示“字典缺失”，而不是一直转圈。
+- 设置页“开机自启”下拉是原生 select，注入点击会先把光标移开导致菜单关闭，脚本点不中；改用“配置 → 启动同步注册表”的同一条产品路径验证。
+
+### 仍未闭环
+- **AI 培养方案**（`session/complete` → AI plan → 自动调 daily_target）没有触发：UI 只有在 `nextQuestion` 返回空（题库耗尽）时才调 complete，没有“结束本轮”按钮；录屏类题目在没有麦克风的机器上只能逐个“跳过”。建议加一个显式的“结束本轮”入口。
+- 录音题（read_word/read_sentence/dialogue_speak）在无麦克风环境无法验证录音上传与评分，只验证了跳过分支。
+- TTS 仍因缺 Python 不可用（日志明确），与代码无关。

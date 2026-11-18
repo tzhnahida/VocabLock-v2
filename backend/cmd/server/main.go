@@ -81,6 +81,16 @@ func main() {
 		defer database.Close()
 	}
 
+	// A brand-new install must not open on the focus lock: there is nothing to
+	// review yet, and the lock UI cannot start a session. Remember whether the
+	// vault was empty before bootstrap seeds/expands any words.
+	firstRun := true
+	if database != nil && lang != nil {
+		if nw, ng, rw, rg, err := database.SessionCounts(cfg.App.ActiveLang); err == nil {
+			firstRun = nw+ng+rw+rg == 0
+		}
+	}
+
 	srv := api.NewServer(cfg.App.MockMode, cfg, database)
 	srv.ConfigDir = configDir
 	// Only the Flutter shell owns an OS-level lock window; the Electron shell
@@ -189,7 +199,7 @@ func main() {
 		spent, _ := database.GetTodayTimeSpent(cfg.App.ActiveLang)
 		log.Info("system", "startup check: reviewed=%d time_min=%d target=%d time_target=%d lang=%s",
 			reviewed, spent, cfg.App.DailyTarget, cfg.App.DailyTimeTarget, cfg.App.ActiveLang)
-		if !srv.DailyTargetMet(cfg.App.ActiveLang) {
+		if !srv.DailyTargetMet(cfg.App.ActiveLang) && !firstRun {
 			nw, ng, rw, rg, _ := database.SessionCounts(cfg.App.ActiveLang)
 			if nw+ng+rw+rg > 0 && srv.NativeShell {
 				log.Info("system", "auto-lock: fullscreen + lock")
@@ -205,6 +215,8 @@ func main() {
 			} else {
 				log.Info("system", "startup: no items — skip lock (reviewed=%d target=%d)", reviewed, cfg.App.DailyTarget)
 			}
+		} else if firstRun {
+			log.Info("system", "first run — skip lock")
 		} else {
 			log.Info("system", "daily target met — skip lock")
 		}
