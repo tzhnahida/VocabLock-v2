@@ -4,15 +4,36 @@ import type { Dashboard } from '../api'
 
 type Props = { dash: Dashboard; lang: Lang; onExit: () => void; onStudy: () => void }
 
+/**
+ * The lock screen is a glance-at-a-word screen, not a quiz: the option row is
+ * just a self-check. Options come from the real vault (never demo text), and
+ * only words that actually have a meaning are used — a blank correct option
+ * was possible when the first word's meaning was empty.
+ */
+function buildOptions(words: Dashboard['words'], word: Dashboard['words'][number] | undefined) {
+  const correct = (word?.meaning ?? '').trim()
+  const seen = new Set<string>(correct ? [correct] : [])
+  const distractors: string[] = []
+  for (const w of words) {
+    const m = (w.meaning ?? '').trim()
+    if (!m || w.id === word?.id || seen.has(m)) continue
+    seen.add(m)
+    distractors.push(m)
+    if (distractors.length === 3) break
+  }
+  const list = [...(correct ? [{ label: correct, correct: true }] : []), ...distractors.map((m) => ({ label: m, correct: false }))]
+  for (let i = list.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[list[i], list[j]] = [list[j], list[i]]
+  }
+  return list
+}
+
 export default function Lock({ dash, lang, onExit, onStudy }: Props) {
-  const word = dash.words[0] ?? { word: 'ubiquitous', meaning: '无处不在的', reading: '/juːˈbɪk.wɪ.təs/' }
+  const studyable = dash.words.filter((w) => (w.meaning ?? '').trim() !== '')
+  const word = studyable[0] ?? dash.words[0] ?? { word: 'ubiquitous', meaning: '无处不在的', reading: '/juːˈbɪk.wɪ.təs/' }
   const [picked, setPicked] = useState<number | null>(null)
-  const options = [
-    { label: word.meaning ?? '—', correct: true },
-    { label: '转瞬即逝的', correct: false },
-    { label: '难以捉摸的', correct: false },
-    { label: '必不可少的', correct: false }
-  ]
+  const [options] = useState(() => buildOptions(studyable, word))
 
   return (
     <div className="lock">
@@ -39,6 +60,7 @@ export default function Lock({ dash, lang, onExit, onStudy }: Props) {
             </span>
             {word.reading ?? ''}
           </div>
+          {options.length >= 2 ? (
           <div className="opts">
             {options.map((opt, i) => (
               <div
@@ -52,6 +74,7 @@ export default function Lock({ dash, lang, onExit, onStudy }: Props) {
               </div>
             ))}
           </div>
+          ) : null}
           <div className="lockstudy">
             <button className="btn" id="lock-study" onClick={onStudy}>
               {t(lang, 'lock.study')}
