@@ -1,15 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { dyn, typeName, type Lang } from '../i18n'
+import { dyn, type Lang } from '../i18n'
 import { st } from '../strings'
 import type { Dashboard } from '../api'
 import { audioObjectUrl, textAudio, wordAudio } from '../ttsApi'
 
 type Props = { dash: Dashboard; lang: Lang }
 
-
+/**
+ * Two screens: an index that shows the words with their meanings (the user
+ * picks what to drill), and the drill itself, where every answer is hidden —
+ * no side list, no word text, no meaning until "show text" is pressed.
+ */
 export default function Listening({ dash, lang }: Props) {
   const copy = st(lang, 'listen')
   const words = useMemo(() => dash.words.filter((w) => w.word), [dash.words])
+  const [mode, setMode] = useState<'index' | 'drill'>('index')
   const [index, setIndex] = useState(0)
   const [revealed, setRevealed] = useState(false)
   const [status, setStatus] = useState('')
@@ -78,8 +83,85 @@ export default function Listening({ dash, lang }: Props) {
     }
   }
 
+  function startDrill(i: number): void {
+    setIndex(i)
+    setRevealed(false)
+    setStatus('')
+    setMode('drill')
+    // The click is a user gesture, so the first play is allowed to start.
+    setTimeout(() => void playWord(), 80)
+  }
+
+  function backToIndex(): void {
+    audioRef.current?.pause()
+    setRevealed(false)
+    setStatus('')
+    setMode('index')
+  }
+
   if (!current) {
-    return <div className="home listening"><div className="emptystate">{dyn[lang].emptyVault}</div></div>
+    return (
+      <div className="home listening">
+        <div className="emptystate">{dyn[lang].emptyVault}</div>
+      </div>
+    )
+  }
+
+  if (mode === 'index') {
+    return (
+      <div className="home listening">
+        <audio ref={audioRef} preload="auto" />
+        <div className="topline">
+          <span>
+            <b className="pagetitle">{copy.title}</b> <span className="muted">{copy.indexHint}</span>
+          </span>
+          <span>
+            {copy.provider} · {dash.online ? dyn[lang].online : dyn[lang].offline}
+          </span>
+        </div>
+
+        <div className="hgrid">
+          <div className="col">
+            <section className="card">
+              <div className="rh">
+                <span>{copy.indexTitle}</span>
+                <span>{words.length}</span>
+              </div>
+              <div className="listen-list index">
+                {words.map((w, i) => (
+                  <div key={w.id} className="listen-row" onClick={() => startDrill(i)}>
+                    <span className="w">{w.word}</span>
+                    <span className="m">{w.meaning ?? ''}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          <div className="col">
+            <section className="card">
+              <div className="rh">
+                <span>{copy.freeText}</span>
+              </div>
+              <div className="answerbox">
+                <input
+                  value={freeText}
+                  onChange={(e) => setFreeText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') void playText()
+                  }}
+                  placeholder={dyn[lang].inputHint}
+                />
+                <button className="btn" onClick={() => void playText()} disabled={busy || freeText.trim() === ''}>
+                  {copy.speak}
+                </button>
+              </div>
+              {status ? <div className="note listen-status">{status}</div> : null}
+            </section>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -87,9 +169,13 @@ export default function Listening({ dash, lang }: Props) {
       <audio ref={audioRef} preload="auto" />
       <div className="topline">
         <span>
-          <b className="pagetitle">{copy.title}</b> <span className="muted">{copy.hint}</span>
+          <b className="pagetitle">{copy.title}</b> <span className="muted">{copy.drillHint}</span>
         </span>
-        <span>{copy.provider} · {dash.online ? dyn[lang].online : dyn[lang].offline}</span>
+        <span>
+          <button className="btn ghost" id="listen-back" onClick={backToIndex}>
+            {copy.back}
+          </button>
+        </span>
       </div>
 
       <div className="hgrid">
@@ -138,56 +224,6 @@ export default function Listening({ dash, lang }: Props) {
               </button>
             </div>
             {status ? <div className="note listen-status">{status}</div> : null}
-          </section>
-
-          <section className="card">
-            <div className="rh">
-              <span>{copy.freeText}</span>
-            </div>
-            <div className="answerbox">
-              <input
-                value={freeText}
-                onChange={(e) => setFreeText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') void playText()
-                }}
-                placeholder={dyn[lang].inputHint}
-              />
-              <button className="btn" onClick={() => void playText()} disabled={busy || freeText.trim() === ''}>
-                {copy.speak}
-              </button>
-            </div>
-          </section>
-        </div>
-
-        <div className="col">
-          <section className="card">
-            <div className="rh">
-              <span>{copy.title}</span>
-              <span>{dash.activeLang.toUpperCase()}</span>
-            </div>
-            <div className="listen-list">
-              {words.slice(0, 14).map((w, i) => {
-                // The highlighted row is the word being played: printing it in
-                // the list next to the hidden player card gives the answer away.
-                const isCurrent = i === index % Math.max(1, words.length)
-                const masked = isCurrent && !revealed
-                return (
-                  <div
-                    key={w.id}
-                    className={`listen-row${isCurrent ? ' sel' : ''}`}
-                    onClick={() => {
-                      setIndex(i)
-                      setRevealed(false)
-                      setStatus('')
-                    }}
-                  >
-                    <span className="w">{masked ? '· · ·' : w.word}</span>
-                    <span className="m">{masked ? '· · ·' : (w.meaning ?? '')}</span>
-                  </div>
-                )
-              })}
-            </div>
           </section>
         </div>
       </div>
