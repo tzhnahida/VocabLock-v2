@@ -245,11 +245,17 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
         {question.subject_word && !hideWord ? <h1 className="word">{question.subject_word}</h1> : null}
         {question.subject_reading && !hideReading ? (
           <div className="phon">
-            <span className="play">
+            <button
+              type="button"
+              className="play"
+              onClick={() => void playQuestionAudio(question)}
+              disabled={audioState === 'loading'}
+              title={copy.replayAudio}
+            >
               <svg viewBox="0 0 24 24">
                 <path d="M6 4l10 8-10 8z" fill="currentColor" />
               </svg>
-            </span>
+            </button>
             {question.subject_reading}
           </div>
         ) : null}

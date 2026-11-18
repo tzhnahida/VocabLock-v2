@@ -294,6 +294,28 @@ body[data-screen="listening"] .s-listening {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* The pronunciation speaker in the question header is a real button now
+   (it used to be a decorative span). */
+.phon .play {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--soft);
+  color: var(--muted);
+  cursor: pointer;
+}
+.phon .play:hover {
+  color: var(--text);
+}
+.phon .play:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* Lock screen: explicit way into the real study session. */
 .lockstudy {
   display: flex;

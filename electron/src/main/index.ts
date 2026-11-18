@@ -100,10 +100,17 @@ function loadInto(target: BrowserWindow): void {
 }
 
 function createWindow(): void {
+  // A fixed 1280x800 looked tiny on a 1440p/1080p desktop; size the window to
+  // most of the work area while staying above the layout's minimum.
+  const { width: areaW, height: areaH } = screen.getPrimaryDisplay().workAreaSize
+  const width = Math.min(1440, Math.max(1040, Math.round(areaW * 0.9)))
+  const height = Math.min(920, Math.max(680, Math.round(areaH * 0.9)))
   // Scripted captures need a painting window; park it far off-screen and show
   // it without activation so the user keeps focus on whatever they are doing.
   win = new BrowserWindow({
     ...baseWindowOptions(),
+    width,
+    height,
     x: captureMode ? -32000 : undefined,
     y: captureMode ? -32000 : undefined,
     show: !captureMode && !hidden
