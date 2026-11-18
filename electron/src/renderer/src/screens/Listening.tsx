@@ -4,14 +4,14 @@ import { st } from '../strings'
 import type { Dashboard } from '../api'
 import { audioObjectUrl, textAudio, wordAudio } from '../ttsApi'
 
-type Props = { dash: Dashboard; lang: Lang }
+type Props = { dash: Dashboard; lang: Lang; onStudy: () => void }
 
 /**
  * Two screens: an index that shows the words with their meanings (the user
  * picks what to drill), and the drill itself, where every answer is hidden —
  * no side list, no word text, no meaning until "show text" is pressed.
  */
-export default function Listening({ dash, lang }: Props) {
+export default function Listening({ dash, lang, onStudy }: Props) {
   const copy = st(lang, 'listen')
   const words = useMemo(() => dash.words.filter((w) => w.word), [dash.words])
   const [mode, setMode] = useState<'index' | 'drill'>('index')
@@ -116,7 +116,10 @@ export default function Listening({ dash, lang }: Props) {
             <b className="pagetitle">{copy.title}</b> <span className="muted">{copy.indexHint}</span>
           </span>
           <span>
-            {copy.provider} · {dash.online ? dyn[lang].online : dyn[lang].offline}
+            {copy.provider} · {dash.online ? dyn[lang].online : dyn[lang].offline}{' '}
+            <button className="btn" id="listen-to-quiz" onClick={onStudy}>
+              {copy.toQuiz}
+            </button>
           </span>
         </div>
 
@@ -174,6 +177,9 @@ export default function Listening({ dash, lang }: Props) {
         <span>
           <button className="btn ghost" id="listen-back" onClick={backToIndex}>
             {copy.back}
+          </button>{' '}
+          <button className="btn" id="listen-to-quiz" onClick={onStudy}>
+            {copy.toQuiz}
           </button>
         </span>
       </div>

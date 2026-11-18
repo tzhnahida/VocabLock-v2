@@ -167,7 +167,7 @@ export default function App() {
             <Chat lang={lang} online={dash.online} />
           </section>
           <section className="screen s-listening">
-            <Listening dash={dash} lang={lang} />
+            <Listening dash={dash} lang={lang} onStudy={() => go('quiz')} />
           </section>
           <section className="screen s-settings">
             <Settings
