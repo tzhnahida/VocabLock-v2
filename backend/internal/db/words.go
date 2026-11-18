@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/tzhnahida/VocabLock/internal/clock"
 )
@@ -109,6 +110,24 @@ func (d *Database) WordExists(language, word string) (bool, error) {
 
 // WordActive checks if an active (learnable) word exists. Pending/archived words
 // are NOT counted — the student hasn't learned them yet.
+// WordExistsFold treats case and surrounding whitespace as irrelevant. AI
+// suggestions drift ("Hello" vs "hello") and exact matching let duplicates in.
+func (d *Database) WordExistsFold(language, word string) (bool, error) {
+	norm := strings.ToLower(strings.TrimSpace(word))
+	if norm == "" {
+		return false, nil
+	}
+	var count int
+	err := d.DB.QueryRow(
+		`SELECT COUNT(*) FROM words WHERE language = ? AND lower(trim(word)) = ?`,
+		language, norm,
+	).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("word exists fold: %w", err)
+	}
+	return count > 0, nil
+}
+
 func (d *Database) WordActive(language, word string) (bool, error) {
 	var count int
 	err := d.DB.QueryRow(`SELECT COUNT(*) FROM words WHERE language = ? AND word = ? AND status = 'active'`, language, word).Scan(&count)

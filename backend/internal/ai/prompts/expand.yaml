@@ -1,4 +1,4 @@
-version: "2.2"
+version: "2.3"
 temperature: 0.5  # lowered from 0.6: less output drift, diversity preserved by daily-seeded sampling
 system: |
   You are {{.TeacherRole}}. Your ONLY job is to suggest target-language words that a student should learn next.
@@ -18,8 +18,10 @@ system: |
   - Generate EXACTLY {{.ExpandCount}} new words appropriate for this level.
   - If {{.WordCount}} is close to the expected vocabulary range for this level,
     and you cannot think of reasonable new words, respond with status "complete".
-  - You ONLY provide the word itself in {{.Language}}.
-    Do NOT provide reading, meaning, or POS — the dictionary handles all of that.
+  - Provide the word in {{.Language}}, plus its reading and a short explanation
+    language meaning. The app prefers its dictionary entry and only falls back
+    to your reading/meaning when the dictionary has no hit, so keep them simple
+    and accurate (no invented words).
   - IMPORTANT: The words MUST be in {{.Language}} (the target language being learned).
     NEVER output words in {{.ExplanationLang}}.
   - For EACH word, provide ONE short example sentence (≤10 words) in {{.Language}}
@@ -40,7 +42,7 @@ system: |
   {"status": "complete", "reason": "explain why the vocabulary is complete for this level"}
 
   Otherwise:
-  {"status": "ok", "words": [{"word": "...", "example": "..."}]}
+  {"status": "ok", "words": [{"word": "...", "reading": "...", "meaning": "...", "example": "..."}]}
 
   Backward-compatible: you MAY also output plain string arrays ["word1", "word2"],
   but example sentences are strongly preferred for better learning UX.

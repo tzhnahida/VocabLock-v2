@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/tzhnahida/VocabLock/internal/db"
@@ -73,5 +74,27 @@ func TestQuestionPayloadHidesTheAnswer(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// Parse the optional AI reading/meaning used when no dictionary entry exists.
+func TestParseExpandWordsKeepsFallbackFields(t *testing.T) {
+	raw := []json.RawMessage{
+		json.RawMessage(`{"word":"忙しい","reading":"いそがしい","meaning":"忙碌的","example":"忙しいです"}`),
+		json.RawMessage(`{"word":"hello","example":"hello there"}`),
+		json.RawMessage(`"plain"`),
+	}
+	entries := parseExpandWords(raw)
+	if len(entries) != 3 {
+		t.Fatalf("entries = %d, want 3", len(entries))
+	}
+	if entries[0].Reading != "いそがしい" || entries[0].Meaning != "忙碌的" {
+		t.Errorf("fallback fields lost: %+v", entries[0])
+	}
+	if entries[1].Meaning != "" {
+		t.Errorf("unexpected meaning on entry 1: %+v", entries[1])
+	}
+	if entries[2].Word != "plain" {
+		t.Errorf("legacy string form lost: %+v", entries[2])
 	}
 }

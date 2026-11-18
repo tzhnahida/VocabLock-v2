@@ -20,6 +20,11 @@ const maxExpandRounds = 3
 type expandWordEntry struct {
 	Word    string `json:"word"`
 	Example string `json:"example"`
+	// Optional fallbacks, used only when no dictionary entry exists. A missing
+	// dictionary used to leave every suggested word in pending_review with no
+	// reading or meaning, which made the vault unusable.
+	Reading string `json:"reading"`
+	Meaning string `json:"meaning"`
 }
 
 type expandResponse struct {
@@ -175,7 +180,9 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 			if e.Word == "" {
 				continue
 			}
-			exists, _ := s.DB.WordExists(lang, e.Word)
+			// Case/punctuation-insensitive lookup: "Hello" and "hello" are the
+			// same lemma for a learner, and AI output drifts in case.
+			exists, _ := s.DB.WordExistsFold(lang, e.Word)
 			if exists {
 				dupList = append(dupList, e.Word)
 			}
@@ -192,11 +199,19 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 		for _, d := range dupList {
 			dupSet[d] = true
 		}
+		// The same response can repeat a word; the DB check above runs before
+		// any insert, so batch duplicates need their own set.
+		seen := make(map[string]bool, len(entries))
 
 		for _, e := range entries {
 			if e.Word == "" || dupSet[e.Word] {
 				continue
 			}
+			key := strings.ToLower(strings.TrimSpace(e.Word))
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
 
 			// Dictionary provides reading, meaning, POS — not AI
 			dictEntry := s.lookupDict(ctx, e.Word)
@@ -246,8 +261,30 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 					verified++
 					s.preWarmTTS(newWord)
 				}
+			} else if e.Meaning != "" || e.Reading != "" {
+				// No dictionary available (or no entry): keep the AI's own
+				// reading/meaning so the word is studyable, but mark it medium
+				// confidence so the review UI can still flag it.
+				detail := "{}"
+				if e.Example != "" {
+					detail = `{"example":"` + jsonEscape(e.Example) + `"}`
+				}
+				_, insertErr := s.DB.InsertWord(&db.Word{
+					Word:       e.Word,
+					Reading:    e.Reading,
+					Meaning:    e.Meaning,
+					Language:   lang,
+					Source:     "ai_expansion_ai",
+					Confidence: "medium",
+					Status:     "active",
+					Detail:     detail,
+				})
+				if insertErr == nil {
+					verified++
+					s.preWarmTTS(&db.Word{Word: e.Word, Language: lang})
+				}
 			} else {
-				// Dictionary miss — might be AI-fabricated. Quarantine for user review.
+				// AI gave neither a dictionary hit nor a meaning — quarantine.
 				detail := "{}"
 				if e.Example != "" {
 					detail = `{"example":"` + jsonEscape(e.Example) + `"}`

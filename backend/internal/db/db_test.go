@@ -526,3 +526,24 @@ func TestInsertWordDefaultConfidence(t *testing.T) {
 		t.Errorf("source = %q, want empty", w.Source)
 	}
 }
+
+// AI suggestions drift in case; the folded check keeps "Hello" from being
+// inserted next to "hello".
+func TestWordExistsFold(t *testing.T) {
+	d := openTestDB(t)
+	if _, err := d.InsertWord(&Word{Word: "Hello", Language: "en", Meaning: "你好", Status: "active"}); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+	for _, probe := range []string{"hello", "HELLO", " hello "} {
+		found, err := d.WordExistsFold("en", probe)
+		if err != nil {
+			t.Fatalf("fold %q: %v", probe, err)
+		}
+		if !found {
+			t.Errorf("WordExistsFold(%q) = false, want true", probe)
+		}
+	}
+	if found, _ := d.WordExistsFold("en", "goodbye"); found {
+		t.Error("WordExistsFold(goodbye) = true, want false")
+	}
+}
