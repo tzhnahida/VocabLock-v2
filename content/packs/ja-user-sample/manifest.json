@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "id": "ja-user-sample",
+  "name": "我的日语词表（样例）",
+  "language": "ja",
+  "gloss_lang": "zh",
+  "version": "1.0.0",
+  "license": "sample",
+  "attribution": "手写样例内容，用于演示内容包与词库合并",
+  "priority": 20
+}

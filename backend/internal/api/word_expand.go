@@ -10,6 +10,7 @@ import (
 
 	"github.com/tzhnahida/VocabLock/internal/ai"
 	"github.com/tzhnahida/VocabLock/internal/clock"
+	"github.com/tzhnahida/VocabLock/internal/content"
 	"github.com/tzhnahida/VocabLock/internal/db"
 	"github.com/tzhnahida/VocabLock/internal/dict"
 	"github.com/tzhnahida/VocabLock/internal/log"
@@ -356,7 +357,42 @@ func (s *Server) expandLangContext(lang string) (teacherRole, level, explLang, t
 }
 
 // lookupDict returns the dictionary entry for a word, or nil if not found.
+// contentDetail carries the merged pack entry (senses, provenance) into the
+// word's detail JSON, so nothing is lost when a pack supplies the entry.
+func contentDetail(e *content.Entry) string {
+	raw, err := json.Marshal(e)
+	if err != nil {
+		return "{}"
+	}
+	return string(raw)
+}
+
+// currentLang returns the active course language without racing a config PUT.
+func (s *Server) currentLang() string {
+	s.configMu.RLock()
+	defer s.configMu.RUnlock()
+	return s.Config.App.ActiveLang
+}
+
 func (s *Server) lookupDict(ctx context.Context, word string) *dict.LookupResult {
+	// Content packs come first: they are local, offline, and already merged
+	// across installed packs (higher priority wins display fields).
+	if s.Content != nil {
+		if e := s.Content.Lookup(s.currentLang(), word); e != nil {
+			meaning := ""
+			if len(e.Senses) > 0 {
+				meaning = strings.Join(e.Senses[0].Glosses, "; ")
+			}
+			return &dict.LookupResult{
+				Found:   true,
+				Word:    e.Word,
+				Reading: e.Reading,
+				Meaning: meaning,
+				POS:     strings.Join(e.POS, ","),
+				Detail:  contentDetail(e),
+			}
+		}
+	}
 	if s.DictProvider == nil {
 		return nil
 	}

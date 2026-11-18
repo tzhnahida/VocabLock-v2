@@ -18,6 +18,7 @@ import (
 	"github.com/tzhnahida/VocabLock/internal/asr"
 	"github.com/tzhnahida/VocabLock/internal/clock"
 	"github.com/tzhnahida/VocabLock/internal/config"
+	"github.com/tzhnahida/VocabLock/internal/content"
 	"github.com/tzhnahida/VocabLock/internal/db"
 	"github.com/tzhnahida/VocabLock/internal/dict"
 	"github.com/tzhnahida/VocabLock/internal/engine"
@@ -45,6 +46,7 @@ type Server struct {
 	aiValue           atomic.Value // *ai.Client, safe for concurrent access
 	TTSProvider       *tts.Provider
 	DictProvider      *dict.Provider
+	Content           *content.Library
 	PronounceProvider *pronounce.Provider
 	ASRProvider       asr.Provider
 

@@ -15,6 +15,7 @@ import (
 
 	"github.com/tzhnahida/VocabLock/internal/api"
 	"github.com/tzhnahida/VocabLock/internal/config"
+	"github.com/tzhnahida/VocabLock/internal/content"
 	"github.com/tzhnahida/VocabLock/internal/db"
 	"github.com/tzhnahida/VocabLock/internal/dict"
 	"github.com/tzhnahida/VocabLock/internal/pronounce"
@@ -93,6 +94,15 @@ func main() {
 
 	srv := api.NewServer(cfg.App.MockMode, cfg, database)
 	srv.ConfigDir = configDir
+
+	// Content packs (dictionaries, personal word lists) live outside the
+	// binary; a missing directory just means "no packs installed".
+	if lib, err := content.Load(cfg.App.ContentDir); err != nil {
+		log.Warn("content", "load packs from %s: %v", cfg.App.ContentDir, err)
+	} else {
+		srv.Content = lib
+		log.Info("content", "loaded %d pack(s) from %s", len(lib.Packs()), cfg.App.ContentDir)
+	}
 	// Only the Flutter shell owns an OS-level lock window; the Electron shell
 	// draws its own overlay and manages locking from the renderer.
 	srv.NativeShell = *shell == "flutter"

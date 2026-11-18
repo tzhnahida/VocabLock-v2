@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "id": "ja-jmdict-sample",
+  "name": "JMdict common words (sample)",
+  "language": "ja",
+  "gloss_lang": "en",
+  "version": "1.0.0",
+  "license": "CC BY-SA 4.0",
+  "attribution": "JMdict © Electronic Dictionary Research and Development Group (EDRDG), via jmdict-simplified 3.6.2",
+  "priority": 10
+}

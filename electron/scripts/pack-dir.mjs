@@ -50,4 +50,11 @@ writeFileSync(join(stage, 'package.json'), JSON.stringify(pkg, null, 2))
 await createPackage(stage, join(target, 'resources', 'app.asar'))
 rmSync(stage, { recursive: true, force: true })
 
+// Content packs live next to the app (content/packs/*), not inside the asar:
+// users and third parties install dictionaries by dropping a folder in.
+const contentSrc = join(root, '..', 'content')
+if (existsSync(contentSrc)) {
+  cpSync(contentSrc, join(target, 'content'), { recursive: true })
+}
+
 console.log('pack-dir: wrote', target)

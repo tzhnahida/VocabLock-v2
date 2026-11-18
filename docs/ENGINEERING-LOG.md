@@ -568,6 +568,15 @@
 
 ### 做了什么
 
-### 锁屏选项不再是假数据（2026-11-18 夜）
-- 锁屏的四个选项里，正确项取 `word.meaning`，词没有释义时就是空白（用户截图里的“选项 1 无字”）；另外三个干扰项是写死的演示数据（转瞬即逝的/难以捉摸的/必不可少的），和真实课程毫无关系。
-- 现在：只从**有释义的真实词**里取题，正确项 + 最多 3 个真实干扰项并打乱；有效选项不足 2 个就不显示选项区，只留“开始学习”。
+## 内容包与词库合并（2026-11-18 深夜）
+
+框架与内容分离落地：内容以 **content pack** 形式放在 `content/packs/<id>/`，不编进二进制。
+
+- 格式：`manifest.json`（id/language/gloss_lang/license/attribution/**priority**）+ `entries.jsonl`（word 必填，reading/pos/senses/examples/source/license/frequency 可选）。
+- 合并：按 **lemma（trim + 小写）** 聚合所有包；priority 高的包提供展示用 word/reading/POS 与首义项，其余包贡献义项（按 gloss 去重），每条义项保留来源与许可证。
+- 查询：先查内容包（离线、可合并），再退回外部词典 provider，最后才是 AI 兜底（confidence=medium）。
+- 接口：`GET /api/v1/content/packs`、`POST /api/v1/content/reload`、`GET /api/v1/dictionary/lookup?word=`。
+- 样例包（随仓库、不编进 exe）：
+  - `ja-jmdict-sample`：108 个常用词，JMdict common 子集（CC BY-SA 4.0，附 NOTICE）；
+  - `ja-user-sample`：同 108 词的中文词表（priority 20）。
+- 虚机实测：`泳ぐ = 游泳[user-sample] + to swim[jmdict] + to struggle through (a crowd)[jmdict]`，展示中文优先、义项合并、来源保留。

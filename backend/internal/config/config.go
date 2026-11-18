@@ -48,6 +48,9 @@ type AppConfig struct {
 	MaxSlowTypeRatio   float64  `yaml:"max_slow_type_ratio"`   // 0.0–1.0
 	Sm2MaxIntervalDays int      `yaml:"sm2_max_interval_days"` // default 180
 	AI                 AIConfig `yaml:"ai"`
+	// ContentDir is the root of installable content packs (dictionaries, word
+	// lists). Relative paths resolve against the working directory.
+	ContentDir string `yaml:"content_dir"`
 }
 
 // ——— AI config ———
@@ -218,6 +221,7 @@ func Load(configDir string) (*Config, error) {
 			ExpandBatchSize:     10,
 			Sm2MaxIntervalDays:  180,
 			Theme:               "vs-dark",
+			ContentDir:          "content",
 			AI: AIConfig{
 				BaseURL: "https://api.deepseek.com",
 				Model:   "deepseek-chat",
