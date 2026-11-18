@@ -568,15 +568,7 @@
 
 ### 做了什么
 
-## 内容包与词库合并（2026-11-18 深夜）
-
-框架与内容分离落地：内容以 **content pack** 形式放在 `content/packs/<id>/`，不编进二进制。
-
-- 格式：`manifest.json`（id/language/gloss_lang/license/attribution/**priority**）+ `entries.jsonl`（word 必填，reading/pos/senses/examples/source/license/frequency 可选）。
-- 合并：按 **lemma（trim + 小写）** 聚合所有包；priority 高的包提供展示用 word/reading/POS 与首义项，其余包贡献义项（按 gloss 去重），每条义项保留来源与许可证。
-- 查询：先查内容包（离线、可合并），再退回外部词典 provider，最后才是 AI 兜底（confidence=medium）。
-- 接口：`GET /api/v1/content/packs`、`POST /api/v1/content/reload`、`GET /api/v1/dictionary/lookup?word=`。
-- 样例包（随仓库、不编进 exe）：
-  - `ja-jmdict-sample`：108 个常用词，JMdict common 子集（CC BY-SA 4.0，附 NOTICE）；
-  - `ja-user-sample`：同 108 词的中文词表（priority 20）。
-- 虚机实测：`泳ぐ = 游泳[user-sample] + to swim[jmdict] + to struggle through (a crowd)[jmdict]`，展示中文优先、义项合并、来源保留。
+### 有基础学习者：known 词入库（2026-11-18）
+- 导入接口支持 `status`（active/known/archived）与 `level`；`known` 词保留用于去重和例句 i+1 过滤，但 `SessionCounts` 只统计 `status='active'`，所以不会被排进学习队列。
+- 导入计数改为按 `InsertWord` 的真实结果（重复词 id=0 记 skipped，不再虚报 imported）。
+- 虚机实测：导入 `{"word":"経済","status":"known","level":"N3"}` → `imported:1`，词条状态为 known。

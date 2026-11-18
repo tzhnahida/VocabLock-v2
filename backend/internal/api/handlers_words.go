@@ -325,6 +325,10 @@ func (s *Server) handleWordsImport(w http.ResponseWriter, r *http.Request) {
 		Meaning  string `json:"meaning"`
 		POS      string `json:"pos"`
 		Language string `json:"language"`
+		// A learner who already knows a word can import it as "known": it is
+		// kept for dedup and for i+1 example filtering but never scheduled.
+		Status string `json:"status"`
+		Level  string `json:"level"`
 	}
 	if err := readJSON(r, &words); err != nil {
 		writeError(w, 400, "invalid import data: "+err.Error())
@@ -352,10 +356,21 @@ func (s *Server) handleWordsImport(w http.ResponseWriter, r *http.Request) {
 		if iw.Language == "" {
 			iw.Language = lang
 		}
-		s.DB.InsertWord(&db.Word{
+		status := iw.Status
+		switch status {
+		case "active", "known", "archived":
+		default:
+			status = "active"
+		}
+		id, err := s.DB.InsertWord(&db.Word{
 			Word: iw.Word, Reading: iw.Reading, Meaning: iw.Meaning,
 			POS: iw.POS, Language: iw.Language, Source: "import",
+			Status: status, Level: iw.Level,
 		})
+		if err != nil || id == 0 {
+			skipped++
+			continue
+		}
 		imported++
 	}
 
