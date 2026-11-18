@@ -166,6 +166,9 @@ html[data-theme="light"] .btn.ghost{color:var(--muted)}
 .fb .ic{width:16px;height:16px;border-radius:50%;background:var(--green);color:var(--bg);
   display:grid;place-items:center;font-size:10px;flex:none;margin-top:1px}
 .fb .l1{font-size:12px;font-weight:600;color:var(--green);line-height:1.4}
+.fb.bad{background:rgba(220,80,80,.08);border-color:rgba(220,80,80,.3)}
+.fb.bad .ic{background:#D45C5C}
+.fb.bad .l1{color:#D45C5C}
 .fb .l2{font-size:11.5px;color:var(--muted);margin-top:2px}
 .qfoot{display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding-top:14px;border-top:1px solid var(--border)}
 .keys{font-size:10.5px;color:var(--faint);display:flex;gap:10px}

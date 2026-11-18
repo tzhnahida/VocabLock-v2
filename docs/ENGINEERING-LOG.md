@@ -568,8 +568,7 @@
 
 ### 做了什么
 
-### 题干泄题修复（2026-11-18 晚）
-- 题目卡原来把 `subject_word`/`subject_reading` 全量回传并显示，导致：发音题直接显示假名答案（忙しい → いそがしい）、拼写/填空显示答案单词、释义题把释义也带上。
-- 服务端 `questionPayload` 按题型裁剪：listening/spelling/fill 不发 word，pronounce 不发 reading，meaning 不发 meaning；UI 同样按题型兜底过滤（老服务端也不泄）。
-- 新增 `TestQuestionPayloadHidesTheAnswer`（4 个子用例）并把 listening 旧断言纳入同一策略；`go test ./internal/api/` 全绿。
-- 虚机实测：`/quiz/next` 的 pronounce 载荷只剩 `+word+meaning`，页面截图里 忙しい 的读音不再显示。
+### 错题反馈配色 + 判错申诉门槛（2026-11-18 晚）
+- 反馈条原来不论对错都用绿色（`--green-soft`），答错也绿油油像答对。现在按结果加 `fb ok` / `fb bad`：答错用红色背景、红色图标和红字。
+- “我觉得判错了”只在 **AI 判分 + 有 log_id + 得分 > 0 + 输入至少 2 个字符** 时出现；输入“1”这种一眼错的答案不再出现申诉按钮。
+- 虚机实测：发音题输入“1”提交 → 红色反馈条、无申诉按钮。

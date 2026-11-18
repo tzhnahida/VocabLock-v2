@@ -335,7 +335,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
         )}
 
         {phase === 'feedback' && result ? (
-          <div className="fb">
+          <div className={`fb ${result.correct ? 'ok' : 'bad'}`}>
             <span className="ic">{result.correct ? '✓' : '×'}</span>
             <div>
               <div className="l1">
@@ -346,7 +346,14 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
               {!result.correct && result.expected_answer ? (
                 <div className="l2">{dyn[lang].correctAnswer(result.expected_answer)}</div>
               ) : null}
-              {!result.correct && result.source === 'ai' && (result.log_id ?? 0) > 0 ? (
+              {!result.correct &&
+              result.source === 'ai' &&
+              (result.log_id ?? 0) > 0 &&
+              // A clearly wrong answer (zero score) or a one-character stub is
+              // not worth a "the judge got it wrong" button — it only invites
+              // noise on questions that were plain wrong.
+              (result.score ?? 0) > 0 &&
+              answer.trim().length >= 2 ? (
                 <button
                   className="link"
                   disabled={disputed}
