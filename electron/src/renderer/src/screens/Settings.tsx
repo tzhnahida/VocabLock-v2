@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { courseLabel, langNative, normaliseLang, type Lang } from '../i18n'
 import { st } from '../strings'
-import { loadSettings, saveAIConfig, saveAppConfig, type Settings as SettingsData } from '../api'
+import { initCourseLanguage, loadSettings, saveAIConfig, saveAppConfig, type Settings as SettingsData } from '../api'
 
 type Props = {
   lang: Lang
@@ -19,6 +19,9 @@ export default function Settings({ lang, theme, onTheme, onLang, onSaved }: Prop
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [failed, setFailed] = useState(false)
+  const [switchOpen, setSwitchOpen] = useState(false)
+  const [switchLang, setSwitchLang] = useState('')
+  const [switching, setSwitching] = useState(false)
 
   useEffect(() => {
     void loadSettings()
@@ -82,13 +85,33 @@ export default function Settings({ lang, theme, onTheme, onLang, onSaved }: Prop
             <div className="grid2">
               <div className="field">
                 <label>{copy.course}</label>
-                <select id="set-course" value={data.activeLang} onChange={(e) => setData({ ...data, activeLang: e.target.value })}>
+                <select
+                  id="set-course"
+                  value={data.activeLang}
+                  disabled={data.languageLocked}
+                  onChange={(e) => setData({ ...data, activeLang: e.target.value })}
+                >
                   {data.languages.map((code) => (
                     <option key={code} value={code}>
                       {courseLabel(code, lang)}
                     </option>
                   ))}
                 </select>
+                {data.languageLocked ? (
+                  <div className="hintline">
+                    {copy.courseLocked}{' '}
+                    <button
+                      className="btn ghost"
+                      id="set-switch-language"
+                      onClick={() => {
+                        setSwitchLang(data.activeLang)
+                        setSwitchOpen(true)
+                      }}
+                    >
+                      {copy.switchCourse}
+                    </button>
+                  </div>
+                ) : null}
               </div>
               <div className="field">
                 <label>{copy.dailyTarget}</label>
@@ -220,6 +243,48 @@ export default function Settings({ lang, theme, onTheme, onLang, onSaved }: Prop
           </div>
         </div>
       </div>
+
+      {switchOpen && data ? (
+        <div className="backdrop" onClick={() => !switching && setSwitchOpen(false)}>
+          <div className="dialog" onClick={(e) => e.stopPropagation()}>
+            <h3>{copy.switchTitle}</h3>
+            <p className="hintline">{copy.switchWarn}</p>
+            <div className="field">
+              <label>{copy.course}</label>
+              <select id="switch-language" value={switchLang} onChange={(e) => setSwitchLang(e.target.value)}>
+                {data.languages.map((code) => (
+                  <option key={code} value={code}>
+                    {courseLabel(code, lang)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="row">
+              <button className="btn ghost" onClick={() => setSwitchOpen(false)} disabled={switching}>
+                {copy.switchCancel}
+              </button>
+              <button
+                className="btn"
+                id="switch-language-confirm"
+                disabled={switching}
+                onClick={() => {
+                  setSwitching(true)
+                  setMessage(copy.switchDone)
+                  void initCourseLanguage(switchLang)
+                    .then(() => window.location.reload())
+                    .catch((e) => {
+                      setSwitching(false)
+                      setFailed(true)
+                      setMessage(copy.failed + (e instanceof Error ? e.message : String(e)))
+                    })
+                }}
+              >
+                {copy.switchConfirm}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

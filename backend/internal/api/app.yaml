@@ -13,6 +13,7 @@ passive_max_interval: 0
 escape_password: ""
 escape_password_limit: 0
 escape_click_limit: 0
+language_locked: false
 auto_start: false
 auto_expand_words: false
 expand_batch_size: 0

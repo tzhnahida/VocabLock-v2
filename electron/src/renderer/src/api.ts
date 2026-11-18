@@ -255,6 +255,7 @@ export type Settings = {
   autoStart: boolean
   theme: string
   languages: string[]
+  languageLocked: boolean
   aiBaseUrl: string
   aiModel: string
   aiConfigured: boolean
@@ -272,10 +273,16 @@ export async function loadSettings(): Promise<Settings> {
     autoStart: cfg['auto_start'] === true,
     theme: String(cfg['theme'] ?? 'vs-dark'),
     languages: (cfg['languages'] as string[]) ?? [],
+    languageLocked: cfg['language_locked'] === true,
     aiBaseUrl: String(ai['base_url'] ?? ''),
     aiModel: String(ai['model'] ?? ''),
     aiConfigured: ai['configured'] === true
   }
+}
+// The only way to change the course language once it is locked: the server
+// re-runs initialisation for the new language instead of mixing vaults.
+export function initCourseLanguage(language: string): Promise<unknown> {
+  return jsonCall('/api/v1/config/language/init', { method: 'POST', body: JSON.stringify({ language }) })
 }
 export function saveAppConfig(patch: Record<string, unknown>): Promise<unknown> {
   return jsonCall('/api/v1/config', { method: 'PUT', body: JSON.stringify(patch) })

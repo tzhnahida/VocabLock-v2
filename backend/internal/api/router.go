@@ -87,6 +87,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET "+prefix+"/config", s.handleConfigGet)
 	mux.HandleFunc("GET "+prefix+"/config/{key}", s.handleConfigGetKey)
 	mux.HandleFunc("PUT "+prefix+"/config", s.handleConfigUpdate)
+	mux.HandleFunc("POST "+prefix+"/config/language/init", s.handleConfigLanguageInit)
 	mux.HandleFunc("POST "+prefix+"/config/password", s.handleConfigPassword)
 
 	// Config — AI

@@ -33,10 +33,14 @@ type AppConfig struct {
 	EscapePassword      string  `yaml:"escape_password"`
 	EscapePasswordLimit int     `yaml:"escape_password_limit"`
 	EscapeClickLimit    int     `yaml:"escape_click_limit"`
-	AutoStart           bool    `yaml:"auto_start"`
-	AutoExpandWords     bool    `yaml:"auto_expand_words"`
-	ExpandBatchSize     int     `yaml:"expand_batch_size"`
-	Theme               string  `yaml:"theme"`
+	// LanguageLocked freezes the course language once it has been initialised.
+	// Switching it is only allowed through POST /config/language/init, which
+	// re-runs the setup for the new language instead of silently mixing vaults.
+	LanguageLocked  bool   `yaml:"language_locked"`
+	AutoStart       bool   `yaml:"auto_start"`
+	AutoExpandWords bool   `yaml:"auto_expand_words"`
+	ExpandBatchSize int    `yaml:"expand_batch_size"`
+	Theme           string `yaml:"theme"`
 	// Assignment cadence
 	Assignment AssignmentConfig `yaml:"assignment"`
 	// Time budget

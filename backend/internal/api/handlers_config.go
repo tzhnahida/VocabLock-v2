@@ -34,6 +34,7 @@ func (s *Server) handleConfigGet(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, map[string]interface{}{
 		"active_lang":           s.Config.App.ActiveLang,
+		"language_locked":       s.Config.App.LanguageLocked,
 		"interface_lang":        s.Config.App.InterfaceLang,
 		"ai_explanation_lang":   s.Config.App.AIExplanationLang,
 		"mock_mode":             s.Config.App.MockMode,
@@ -128,6 +129,13 @@ func (s *Server) handleConfigUpdate(w http.ResponseWriter, r *http.Request) {
 
 	if v, ok := req["active_lang"]; ok {
 		if lang, ok := v.(string); ok {
+			// The course language is frozen once initialised: switching it has
+			// to go through the init flow, which resets the study setup instead
+			// of silently pointing the app at a half-built vault.
+			if lang != s.Config.App.ActiveLang && s.Config.App.LanguageLocked {
+				writeError(w, 409, "language_locked: change the course language through the init flow")
+				return
+			}
 			// Initialize from _languages template on first run if needed
 			if _, exists := s.Config.Languages[lang]; !exists {
 				if lc := s.tryLoadLanguageTemplate(lang); lc != nil {
@@ -231,6 +239,14 @@ func (s *Server) handleConfigUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Once the vault holds words for the active course, freeze the course
+	// language: further switches must go through the init flow.
+	if s.DB != nil {
+		if nw, ng, rw, rg, err := s.DB.SessionCounts(s.Config.App.ActiveLang); err == nil && nw+ng+rw+rg > 0 {
+			s.Config.App.LanguageLocked = true
+		}
+	}
+
 	// Persist changes to app.yaml (skip in mock mode to avoid touching real config)
 	if !s.Mock {
 		if err := s.Config.SaveAppConfig(s.ConfigDir); err != nil {
@@ -260,6 +276,47 @@ func (s *Server) handleConfigUpdate(w http.ResponseWriter, r *http.Request) {
 			"ai_recommend":    s.Config.App.Assignment.AIRecommend,
 		},
 	})
+}
+
+// handleConfigLanguageInit is the only way to change the course language once
+// it is locked. It re-runs the setup for the new language instead of silently
+// pointing the app at a half-built vault.
+func (s *Server) handleConfigLanguageInit(w http.ResponseWriter, r *http.Request) {
+	s.configMu.Lock()
+	defer s.configMu.Unlock()
+
+	var req struct {
+		Language string `json:"language"`
+	}
+	if err := readJSON(r, &req); err != nil || strings.TrimSpace(req.Language) == "" {
+		writeError(w, 400, "language required")
+		return
+	}
+	lang := strings.TrimSpace(req.Language)
+	if _, ok := s.Config.Languages[lang]; !ok {
+		lc := s.tryLoadLanguageTemplate(lang)
+		if lc == nil {
+			writeError(w, 400, "unknown language: "+lang)
+			return
+		}
+		s.Config.Languages[lang] = lc
+	}
+	s.Config.App.ActiveLang = lang
+	s.Config.App.LanguageLocked = true
+	if !s.Mock {
+		if err := s.Config.SaveAppConfig(s.ConfigDir); err != nil {
+			log.Error("config", "save after language init: %v", err)
+		}
+	}
+	s.WireTTS()
+	s.WireDict()
+	s.WirePronounce()
+	s.WireASR()
+	s.sessionBudget.reset()
+	s.markBootstrapNotDone()
+	go s.EnsureBootstrap(lang)
+	log.Info("config", "language initialised: %s", lang)
+	writeJSON(w, map[string]interface{}{"active_lang": lang, "language_locked": true})
 }
 
 func updateAssignmentConfig(cfg *config.AssignmentConfig, m map[string]interface{}) {
