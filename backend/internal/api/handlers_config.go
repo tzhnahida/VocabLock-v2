@@ -39,6 +39,7 @@ func (s *Server) handleConfigGet(w http.ResponseWriter, r *http.Request) {
 		"ai_explanation_lang":   s.Config.App.AIExplanationLang,
 		"mock_mode":             s.Config.App.MockMode,
 		"daily_target":          s.Config.App.DailyTarget,
+		"daily_time_target":     s.Config.App.DailyTimeTarget,
 		"min_accuracy":          s.Config.App.MinAccuracy,
 		"passive_enabled":       s.Config.App.PassiveEnabled,
 		"passive_min_interval":  s.Config.App.PassiveMinInterval,
@@ -172,6 +173,37 @@ func (s *Server) handleConfigUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Passive recall and the escape-click limits used to be config-file only.
+	passiveChanged := false
+	if v, ok := req["passive_enabled"]; ok {
+		if b, ok := v.(bool); ok && b != s.Config.App.PassiveEnabled {
+			s.Config.App.PassiveEnabled = b
+			passiveChanged = true
+		}
+	}
+	if v, ok := req["passive_min_interval"]; ok {
+		if n, ok := v.(float64); ok && n >= 5 && n <= 240 {
+			s.Config.App.PassiveMinInterval = int(n)
+			passiveChanged = true
+		}
+	}
+	if v, ok := req["passive_max_interval"]; ok {
+		if n, ok := v.(float64); ok && n >= 5 && n <= 480 {
+			s.Config.App.PassiveMaxInterval = int(n)
+			passiveChanged = true
+		}
+	}
+	if v, ok := req["escape_click_limit"]; ok {
+		if n, ok := v.(float64); ok && n >= 1 && n <= 20 {
+			s.Config.App.EscapeClickLimit = int(n)
+		}
+	}
+	if v, ok := req["escape_password_limit"]; ok {
+		if n, ok := v.(float64); ok && n >= 1 && n <= 20 {
+			s.Config.App.EscapePasswordLimit = int(n)
+		}
+	}
+
 	if v, ok := req["theme"]; ok {
 		if theme, ok := v.(string); ok && theme != "" {
 			s.Config.App.Theme = theme
@@ -251,6 +283,16 @@ func (s *Server) handleConfigUpdate(w http.ResponseWriter, r *http.Request) {
 	if !s.Mock {
 		if err := s.Config.SaveAppConfig(s.ConfigDir); err != nil {
 			log.Error("config", "save: %v", err)
+		}
+	}
+
+	// Passive quiz scheduling follows the config immediately.
+	if passiveChanged && s.System != nil {
+		if s.Config.App.PassiveEnabled {
+			s.System.SetPassiveInterval(s.Config.App.PassiveMinInterval)
+			s.System.StartPassiveQuiz()
+		} else {
+			s.System.StopPassiveQuiz()
 		}
 	}
 

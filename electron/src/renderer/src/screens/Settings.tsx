@@ -42,9 +42,25 @@ export default function Settings({ lang, theme, onTheme, onLang, onSaved }: Prop
         active_lang: data.activeLang,
         interface_lang: data.interfaceLang,
         daily_target: data.dailyTarget,
+        daily_time_target: data.dailyTimeTarget,
         min_accuracy: data.minAccuracy,
         ai_explanation_lang: data.explanationLang,
         auto_expand_words: data.autoExpand,
+        expand_batch_size: data.expandBatch,
+        sm2_max_interval_days: data.sm2MaxInterval,
+        session_time_budget: data.sessionBudget,
+        max_slow_type_ratio: data.maxSlowRatio,
+        passive_enabled: data.passiveEnabled,
+        passive_min_interval: data.passiveMin,
+        passive_max_interval: data.passiveMax,
+        assignment: {
+          cadence_days: data.cadenceDays,
+          cadence_count: data.cadenceCount,
+          max_per_session: data.maxPerSession,
+          ai_recommend: data.aiRecommend
+        },
+        escape_click_limit: data.escapeClicks,
+        escape_password_limit: data.escapePasswords,
         auto_start: data.autoStart,
         theme: theme === 'light' ? 'vscode-light' : 'vs-dark'
       })
@@ -122,6 +138,62 @@ export default function Settings({ lang, theme, onTheme, onLang, onSaved }: Prop
                   max={200}
                   value={data.dailyTarget}
                   onChange={(e) => setData({ ...data, dailyTarget: Number(e.target.value) })}
+                />
+              </div>
+              <div className="field">
+                <label>{copy.dailyTimeTarget}</label>
+                <input
+                  id="set-daily-time"
+                  type="number"
+                  min={0}
+                  max={600}
+                  value={data.dailyTimeTarget}
+                  onChange={(e) => setData({ ...data, dailyTimeTarget: Number(e.target.value) })}
+                />
+              </div>
+              <div className="field">
+                <label>{copy.expandBatch}</label>
+                <input
+                  id="set-expand-batch"
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={data.expandBatch}
+                  onChange={(e) => setData({ ...data, expandBatch: Number(e.target.value) })}
+                />
+              </div>
+              <div className="field">
+                <label>{copy.sm2MaxInterval}</label>
+                <input
+                  id="set-sm2-max"
+                  type="number"
+                  min={30}
+                  max={365}
+                  value={data.sm2MaxInterval}
+                  onChange={(e) => setData({ ...data, sm2MaxInterval: Number(e.target.value) })}
+                />
+              </div>
+              <div className="field">
+                <label>{copy.sessionBudget}</label>
+                <input
+                  id="set-session-budget"
+                  type="number"
+                  min={0}
+                  max={120}
+                  value={data.sessionBudget}
+                  onChange={(e) => setData({ ...data, sessionBudget: Number(e.target.value) })}
+                />
+              </div>
+              <div className="field">
+                <label>{copy.maxSlowRatio}</label>
+                <input
+                  id="set-max-slow"
+                  type="number"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={data.maxSlowRatio}
+                  onChange={(e) => setData({ ...data, maxSlowRatio: Number(e.target.value) })}
                 />
               </div>
               <div className="field">
@@ -233,6 +305,123 @@ export default function Settings({ lang, theme, onTheme, onLang, onSaved }: Prop
               />
             </div>
             <div className="hintline">{copy.apiKeyHint}</div>
+          </section>
+
+          <section className="card sect">
+            <h3>{copy.passive}</h3>
+            <div className="grid2">
+              <div className="field">
+                <label>{copy.passiveEnabled}</label>
+                <select
+                  id="set-passive"
+                  value={data.passiveEnabled ? 'on' : 'off'}
+                  onChange={(e) => setData({ ...data, passiveEnabled: e.target.value === 'on' })}
+                >
+                  <option value="on">on</option>
+                  <option value="off">off</option>
+                </select>
+              </div>
+              <div className="field">
+                <label>{copy.passiveMin}</label>
+                <input
+                  id="set-passive-min"
+                  type="number"
+                  min={5}
+                  max={240}
+                  value={data.passiveMin}
+                  onChange={(e) => setData({ ...data, passiveMin: Number(e.target.value) })}
+                />
+              </div>
+              <div className="field">
+                <label>{copy.passiveMax}</label>
+                <input
+                  id="set-passive-max"
+                  type="number"
+                  min={5}
+                  max={480}
+                  value={data.passiveMax}
+                  onChange={(e) => setData({ ...data, passiveMax: Number(e.target.value) })}
+                />
+              </div>
+            </div>
+          </section>
+
+          <section className="card sect">
+            <h3>{copy.assignment}</h3>
+            <div className="grid2">
+              <div className="field">
+                <label>{copy.cadenceDays}</label>
+                <input
+                  id="set-cadence-days"
+                  type="number"
+                  min={1}
+                  max={30}
+                  value={data.cadenceDays}
+                  onChange={(e) => setData({ ...data, cadenceDays: Number(e.target.value) })}
+                />
+              </div>
+              <div className="field">
+                <label>{copy.cadenceCount}</label>
+                <input
+                  id="set-cadence-count"
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={data.cadenceCount}
+                  onChange={(e) => setData({ ...data, cadenceCount: Number(e.target.value) })}
+                />
+              </div>
+              <div className="field">
+                <label>{copy.maxPerSession}</label>
+                <input
+                  id="set-max-per-session"
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={data.maxPerSession}
+                  onChange={(e) => setData({ ...data, maxPerSession: Number(e.target.value) })}
+                />
+              </div>
+              <div className="field">
+                <label>{copy.aiRecommend}</label>
+                <select
+                  id="set-ai-recommend"
+                  value={data.aiRecommend ? 'on' : 'off'}
+                  onChange={(e) => setData({ ...data, aiRecommend: e.target.value === 'on' })}
+                >
+                  <option value="on">on</option>
+                  <option value="off">off</option>
+                </select>
+              </div>
+            </div>
+          </section>
+
+          <section className="card sect">
+            <h3>{copy.security}</h3>
+            <div className="grid2">
+              <div className="field">
+                <label>{copy.escapeClicks}</label>
+                <input
+                  id="set-escape-clicks"
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={data.escapeClicks}
+                  onChange={(e) => setData({ ...data, escapeClicks: Number(e.target.value) })}
+                />
+              </div>
+              <div className="field">
+                <label>{copy.escapePasswords}</label>
+                <input
+                  id="set-escape-passwords"
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={data.escapePasswords}
+                  onChange={(e) => setData({ ...data, escapePasswords: Number(e.target.value) })}
+                />
+              </div>
+            </div>
           </section>
 
           <div className="savebar">

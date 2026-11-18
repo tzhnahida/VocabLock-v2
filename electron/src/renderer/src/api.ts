@@ -257,6 +257,20 @@ export type Settings = {
   interfaceLang: string
   explanationLang: string
   dailyTarget: number
+  dailyTimeTarget: number
+  expandBatch: number
+  sm2MaxInterval: number
+  sessionBudget: number
+  maxSlowRatio: number
+  passiveEnabled: boolean
+  passiveMin: number
+  passiveMax: number
+  cadenceDays: number
+  cadenceCount: number
+  maxPerSession: number
+  aiRecommend: boolean
+  escapeClicks: number
+  escapePasswords: number
   minAccuracy: number
   autoExpand: boolean
   autoStart: boolean
@@ -275,6 +289,22 @@ export async function loadSettings(): Promise<Settings> {
     interfaceLang: normaliseLang(String(cfg['interface_lang'] ?? 'zh')),
     explanationLang: String(cfg['ai_explanation_lang'] ?? ''),
     dailyTarget: num(cfg['daily_target'], 20),
+    dailyTimeTarget: num(cfg['daily_time_target'], 0),
+    expandBatch: num(cfg['expand_batch_size'], 10),
+    sm2MaxInterval: num(cfg['sm2_max_interval_days'], 180),
+    sessionBudget: num(cfg['session_time_budget'], 0),
+    maxSlowRatio: typeof cfg['max_slow_type_ratio'] === 'number' ? cfg['max_slow_type_ratio'] : 0.3,
+    passiveEnabled: cfg['passive_enabled'] === true,
+    passiveMin: num(cfg['passive_min_interval'], 25),
+    passiveMax: num(cfg['passive_max_interval'], 45) || 45,
+    // Older configs can carry an empty assignment block; fall back to the
+    // product defaults instead of showing 0 in the form.
+    cadenceDays: num((cfg['assignment'] as Record<string, unknown>)?.['cadence_days'], 7) || 7,
+    cadenceCount: num((cfg['assignment'] as Record<string, unknown>)?.['cadence_count'], 3) || 3,
+    maxPerSession: num((cfg['assignment'] as Record<string, unknown>)?.['max_per_session'], 1) || 1,
+    aiRecommend: (cfg['assignment'] as Record<string, unknown>)?.['ai_recommend'] === true,
+    escapeClicks: num(cfg['escape_click_limit'], 2),
+    escapePasswords: num(cfg['escape_password_limit'], 3),
     minAccuracy: typeof cfg['min_accuracy'] === 'number' ? cfg['min_accuracy'] : 0.8,
     autoExpand: cfg['auto_expand_words'] === true,
     autoStart: cfg['auto_start'] === true,
