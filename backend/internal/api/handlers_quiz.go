@@ -464,8 +464,10 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 }
 
 // questionPayload builds the client view of a question. Word data is attached
-// for the preview card, except for listening: there the word itself is the
-// answer, so sending it would print the answer on screen.
+// for the preview card, but any field that IS the expected answer is withheld
+// per type: listening (word), spelling (word), fill (word), pronounce
+// (reading) and meaning (meaning) would otherwise print the answer above the
+// input.
 func questionPayload(q *engine.Question, word *db.Word) map[string]interface{} {
 	resp := map[string]interface{}{
 		"id":           q.ID,
@@ -477,10 +479,19 @@ func questionPayload(q *engine.Question, word *db.Word) map[string]interface{} {
 	if len(q.Options) > 0 {
 		resp["options"] = q.Options
 	}
-	if q.SubjectType == "word" && word != nil && q.Type != engine.TypeListening {
-		resp["subject_word"] = word.Word
-		resp["subject_reading"] = word.Reading
-		resp["subject_meaning"] = word.Meaning
+	if q.SubjectType == "word" && word != nil {
+		hideWord := q.Type == engine.TypeListening || q.Type == engine.TypeSpelling || q.Type == engine.TypeFill
+		hideReading := hideWord || q.Type == engine.TypePronounce
+		hideMeaning := hideWord || q.Type == engine.TypeMeaning
+		if !hideWord {
+			resp["subject_word"] = word.Word
+		}
+		if !hideReading {
+			resp["subject_reading"] = word.Reading
+		}
+		if !hideMeaning {
+			resp["subject_meaning"] = word.Meaning
+		}
 	}
 	return resp
 }

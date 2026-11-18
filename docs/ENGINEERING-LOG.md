@@ -568,6 +568,8 @@
 
 ### 做了什么
 
-### 锁屏补「开始学习」出口 + 仪表盘语言修复（2026-11-18 晚）
-- 锁屏（专注模式）不是答题页：选项点了只会打勾，没有「下一题」。新增主按钮 **开始学习**：通过 `lock:study` IPC 解锁、关闭 kiosk、让主窗口 `navigate` 到学习页并直接开始本轮。
-- 顺带修掉一个语言串台：`loadDashboard` 原来用 `config/languages[0]` 当课程语言，配置了第二语言后锁屏会显示别的语言的词（实测显示 en 的 hello）。改为读 `config.active_lang`，实测锁屏恢复为日语词（泳ぐ）。
+### 题干泄题修复（2026-11-18 晚）
+- 题目卡原来把 `subject_word`/`subject_reading` 全量回传并显示，导致：发音题直接显示假名答案（忙しい → いそがしい）、拼写/填空显示答案单词、释义题把释义也带上。
+- 服务端 `questionPayload` 按题型裁剪：listening/spelling/fill 不发 word，pronounce 不发 reading，meaning 不发 meaning；UI 同样按题型兜底过滤（老服务端也不泄）。
+- 新增 `TestQuestionPayloadHidesTheAnswer`（4 个子用例）并把 listening 旧断言纳入同一策略；`go test ./internal/api/` 全绿。
+- 虚机实测：`/quiz/next` 的 pronounce 载荷只剩 `+word+meaning`，页面截图里 忙しい 的读音不再显示。

@@ -209,8 +209,11 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
 
     const options = question.options ?? []
     const needsAudio = AUDIO_TYPES.includes(question.type)
-    // The word itself is the answer for a listening question: never print it.
-    const hideWord = question.type === 'listening'
+    // Any field that is the expected answer must not be printed above the
+    // input: listening/spelling/fill answer with the word, pronounce with the
+    // reading. Older servers may still send them, so filter here too.
+    const hideWord = question.type === 'listening' || question.type === 'spelling' || question.type === 'fill'
+    const hideReading = hideWord || question.type === 'pronounce'
     return (
       <section className="card qcard">
         <audio ref={audioRef} preload="auto" />
@@ -240,7 +243,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
           </div>
         ) : null}
         {question.subject_word && !hideWord ? <h1 className="word">{question.subject_word}</h1> : null}
-        {question.subject_reading && !hideWord ? (
+        {question.subject_reading && !hideReading ? (
           <div className="phon">
             <span className="play">
               <svg viewBox="0 0 24 24">

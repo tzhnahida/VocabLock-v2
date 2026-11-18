@@ -39,3 +39,39 @@ func TestQuestionPayloadHidesWordForListening(t *testing.T) {
 		t.Errorf("choice payload lost the word preview: %v", choicePayload)
 	}
 }
+
+// The answer must never travel in the payload for the types where the word,
+// the reading or the meaning IS the answer — the client prints these fields
+// above the input, which used to show the answer outright.
+func TestQuestionPayloadHidesTheAnswer(t *testing.T) {
+	word := &db.Word{ID: 9, Word: "忙しい", Reading: "いそがしい", Meaning: "忙"}
+
+	cases := []struct {
+		name     string
+		qtype    engine.QuestionType
+		hidden   []string
+		expected []string
+	}{
+		{"pronounce hides the reading", engine.TypePronounce, []string{"subject_reading"}, []string{"subject_word"}},
+		{"spelling hides the word", engine.TypeSpelling, []string{"subject_word", "subject_reading"}, nil},
+		{"fill hides the word", engine.TypeFill, []string{"subject_word", "subject_reading"}, nil},
+		{"meaning hides the translation", engine.TypeMeaning, []string{"subject_meaning"}, []string{"subject_word", "subject_reading"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			payload := questionPayload(&engine.Question{
+				ID: "q", Type: tc.qtype, SubjectType: "word", SubjectID: 9, Prompt: "p",
+			}, word)
+			for _, key := range tc.hidden {
+				if _, ok := payload[key]; ok {
+					t.Errorf("%s: payload leaks %s", tc.qtype, key)
+				}
+			}
+			for _, key := range tc.expected {
+				if payload[key] == nil {
+					t.Errorf("%s: payload lost %s", tc.qtype, key)
+				}
+			}
+		})
+	}
+}
