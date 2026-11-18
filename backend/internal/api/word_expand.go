@@ -216,6 +216,12 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 
 			// Dictionary provides reading, meaning, POS — not AI
 			dictEntry := s.lookupDict(ctx, e.Word)
+			// Words below the learner's declared level are assumed known:
+			// don't spend a slot (or a review) on them.
+			if dictEntry != nil && belowLevel(dictEntry.Level, s.getStudentLevel(lang)) {
+				log.Debug("expand", "skip below-level word: %s (%s)", e.Word, dictEntry.Level)
+				continue
+			}
 			if dictEntry != nil {
 				// Word confirmed by dictionary. Dict provides what it has;
 				// AI fills any gaps in reading/meaning/POS/level + DLC fields.
@@ -389,6 +395,7 @@ func (s *Server) lookupDict(ctx context.Context, word string) *dict.LookupResult
 				Reading: e.Reading,
 				Meaning: meaning,
 				POS:     strings.Join(e.POS, ","),
+				Level:   e.Level,
 				Detail:  contentDetail(e),
 			}
 		}

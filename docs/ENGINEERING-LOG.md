@@ -568,7 +568,8 @@
 
 ### 做了什么
 
-### 有基础学习者：known 词入库（2026-11-18）
-- 导入接口支持 `status`（active/known/archived）与 `level`；`known` 词保留用于去重和例句 i+1 过滤，但 `SessionCounts` 只统计 `status='active'`，所以不会被排进学习队列。
-- 导入计数改为按 `InsertWord` 的真实结果（重复词 id=0 记 skipped，不再虚报 imported）。
-- 虚机实测：导入 `{"word":"経済","status":"known","level":"N3"}` → `imported:1`，词条状态为 known。
+### P0：水平设置 + 内容包 level 过滤（2026-11-18 夜）
+- 内容包 entry 支持 `level`（N5–N1 / HSK1–6 / beginner–advanced）；查包时把 level 带进 `LookupResult`。
+- 设置页新增 **我的水平**（日语 N5–N1、中文 HSK1–6、其它 beginner/intermediate/advanced，可选自动）；保存走 `PUT /config {student_level}`，写入 `student_state`，非法值 400。
+- 扩词时若包条目的 level 低于学习者水平，视为已会直接跳过（`belowLevel`），不占当天名额。
+- 虚机实测：`before=beginner → PUT N2 200 → after=n2`，`N6` 返回 400。

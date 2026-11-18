@@ -256,6 +256,7 @@ export type Settings = {
   activeLang: string
   interfaceLang: string
   explanationLang: string
+  studentLevel: string
   dailyTarget: number
   dailyTimeTarget: number
   expandBatch: number
@@ -288,6 +289,7 @@ export async function loadSettings(): Promise<Settings> {
     activeLang: String(cfg['active_lang'] ?? 'en'),
     interfaceLang: normaliseLang(String(cfg['interface_lang'] ?? 'zh')),
     explanationLang: String(cfg['ai_explanation_lang'] ?? ''),
+    studentLevel: typeof cfg['student_level'] === 'string' ? cfg['student_level'] : '',
     dailyTarget: num(cfg['daily_target'], 20),
     dailyTimeTarget: num(cfg['daily_time_target'], 0),
     expandBatch: num(cfg['expand_batch_size'], 10),

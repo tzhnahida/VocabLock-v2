@@ -36,6 +36,10 @@ type Entry struct {
 	Source    string   `json:"source,omitempty"`
 	License   string   `json:"license,omitempty"`
 	Frequency int      `json:"frequency,omitempty"`
+	// Level is an optional proficiency tag (N5..N1, HSK1..HSK6, beginner,
+	// intermediate, advanced). The expansion pipeline uses it to skip words
+	// below the learner's level.
+	Level string `json:"level,omitempty"`
 }
 
 type Manifest struct {

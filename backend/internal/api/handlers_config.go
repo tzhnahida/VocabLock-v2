@@ -52,6 +52,7 @@ func (s *Server) handleConfigGet(w http.ResponseWriter, r *http.Request) {
 		"sm2_max_interval_days": s.Config.App.Sm2MaxIntervalDays,
 		"session_time_budget":   s.Config.App.SessionTimeBudget,
 		"max_slow_type_ratio":   s.Config.App.MaxSlowTypeRatio,
+		"student_level":         s.getStudentLevel(s.Config.App.ActiveLang),
 		"theme":                 s.Config.App.Theme,
 		"model":                 s.Config.App.AI.Model,
 		"base_url":              s.Config.App.AI.BaseURL,
@@ -125,6 +126,21 @@ func (s *Server) handleConfigUpdate(w http.ResponseWriter, r *http.Request) {
 	if v, ok := req["ai_explanation_lang"]; ok {
 		if lang, ok := v.(string); ok {
 			s.Config.App.AIExplanationLang = strings.TrimSpace(lang)
+		}
+	}
+
+	// The learner's declared proficiency (auto/beginner/N5..N1/HSK1..6).
+	// Expansion uses it to skip words below that level.
+	if v, ok := req["student_level"]; ok {
+		str, _ := v.(string)
+		if !validStudentLevel(str) {
+			writeError(w, 400, "invalid student_level")
+			return
+		}
+		if s.DB != nil {
+			if err := s.DB.SetStudentLevel(s.Config.App.ActiveLang, strings.ToLower(strings.TrimSpace(str))); err != nil {
+				log.Warn("config", "save student level: %v", err)
+			}
 		}
 	}
 

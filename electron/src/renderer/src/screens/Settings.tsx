@@ -43,6 +43,7 @@ export default function Settings({ lang, theme, onTheme, onLang, onSaved }: Prop
         interface_lang: data.interfaceLang,
         daily_target: data.dailyTarget,
         daily_time_target: data.dailyTimeTarget,
+        student_level: data.studentLevel,
         min_accuracy: data.minAccuracy,
         ai_explanation_lang: data.explanationLang,
         auto_expand_words: data.autoExpand,
@@ -195,6 +196,26 @@ export default function Settings({ lang, theme, onTheme, onLang, onSaved }: Prop
                   value={data.maxSlowRatio}
                   onChange={(e) => setData({ ...data, maxSlowRatio: Number(e.target.value) })}
                 />
+              </div>
+              <div className="field">
+                <label>{copy.studentLevel}</label>
+                <select
+                  id="set-student-level"
+                  value={data.studentLevel}
+                  onChange={(e) => setData({ ...data, studentLevel: e.target.value })}
+                >
+                  <option value="">{copy.studentLevelAuto}</option>
+                  {(data.activeLang === 'ja'
+                    ? ['N5', 'N4', 'N3', 'N2', 'N1']
+                    : data.activeLang === 'zh'
+                      ? ['HSK1', 'HSK2', 'HSK3', 'HSK4', 'HSK5', 'HSK6']
+                      : ['beginner', 'intermediate', 'advanced']
+                  ).map((lv) => (
+                    <option key={lv} value={lv}>
+                      {lv}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="field">
                 <label>{copy.minAccuracy}</label>
