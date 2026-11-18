@@ -108,7 +108,8 @@
 | P2 | Electron M4 启动切换 + electron-builder 打包 | 已完成并实跑（2026-11-17）：Go 起打包的 vocablock-desktop.exe，asar 内页面挂载、6 个导航、随服务退出 |
 | P2 | Electron M3：系统级锁屏（现在是应用内覆盖层） | 未开始 |
 | P2 | Electron 托盘 / 单实例 / 开机自启 | 已完成（2026-11-18；自启已指向 release 安装并写入注册表） |
-| P2 | Electron 系统级锁屏（kiosk 窗口 + Go 低层键位屏蔽） | 已完成（2026-11-18）；待真人键位回归 |
+| P2 | Electron 系统级锁屏（kiosk 窗口 + Go 低层键位屏蔽） | 已完成（2026-11-18）；干净 Win11 虚机实跑：全屏覆盖、锁屏 UI 正常渲染；注入输入无法驱动 kiosk，键位/逃生仍需真人在控制台点一次 |
+| P2 | 干净 Win11 LTSC 虚拟机全流程实跑（打包→复制→启动→真实数据→锁屏） | 已完成（2026-11-18）；修掉 5 个只在实机暴露的缺陷（见 ENGINEERING-LOG） |
 | P2 | Electron 安装目录（Go + asar + junction 资源）与自启切换 | 已完成（2026-11-18；旧 Flutter 目录保留回滚） |
 | 可选 | 移除 Flutter 前端（55 个 dart 文件） | 等 Electron 功能对齐 |
 | P2 | Electron 听力屏（单词朗读 + 任意文本朗读） | 已完成（2026-11-17，真机出声） |

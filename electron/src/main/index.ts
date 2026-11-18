@@ -8,9 +8,18 @@ import { trayIconDataUrl } from './icon'
 // Extra flags exist for headless verification of the visual pass:
 //   --screenshot=<png> --screen=home|library|quiz|stats --theme=light|dark --lang=zh|en|ja
 //   --nowindow --lock-demo
+// Accepts both --name=value (our dev scripts) and --name value (the Go service
+// passes the port as a separate argv entry, which silently produced a null port
+// and a shell stuck on demo data).
 function readArg(name: string): string | undefined {
-  const hit = process.argv.find((a) => a.startsWith('--' + name + '='))
-  return hit ? hit.slice(name.length + 3) : undefined
+  const prefix = '--' + name + '='
+  const hit = process.argv.find((a) => a.startsWith(prefix))
+  if (hit) return hit.slice(prefix.length)
+  const idx = process.argv.indexOf('--' + name)
+  if (idx >= 0 && idx + 1 < process.argv.length && !process.argv[idx + 1].startsWith('--')) {
+    return process.argv[idx + 1]
+  }
+  return undefined
 }
 
 const apiPort = readArg('api-port')
@@ -101,6 +110,15 @@ function createWindow(): void {
   })
   loadInto(win)
 
+  // Renderer errors otherwise vanish in a packaged build (no devtools). Forward
+  // them to the service log so a blank screen can be diagnosed from stderr.
+  win.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    if (level >= 2) console.error('[renderer]', message, sourceId ? '(' + sourceId + ':' + line + ')' : '')
+  })
+  win.webContents.on('render-process-gone', (_event, details) => {
+    console.error('[renderer] process gone:', details.reason, details.exitCode)
+  })
+
   if (captureMode) win.showInactive()
 
   // Closing the window parks the app in the tray; quitting goes through the menu
@@ -148,6 +166,8 @@ function captureScreenshot(path: string): void {
 function createLockWindow(): void {
   if (lockWin) return
   const { width, height } = screen.getPrimaryDisplay().bounds
+  // kiosk+fullscreen together were clamped to the work area, leaving the
+  // taskbar clickable; a frameless window sized to the display covers it.
   lockWin = new BrowserWindow({
     ...baseWindowOptions(),
     x: 0,
@@ -155,8 +175,6 @@ function createLockWindow(): void {
     width,
     height,
     show: false,
-    kiosk: true,
-    fullscreen: true,
     alwaysOnTop: true,
     skipTaskbar: true,
     closable: false,
@@ -170,8 +188,11 @@ function createLockWindow(): void {
   loadInto(lockWin)
   lockWin.once('ready-to-show', () => {
     if (hidden || captureMode) return
+    lockWin?.setBounds({ x: 0, y: 0, width, height })
     lockWin?.show()
     lockWin?.focus()
+    lockWin?.setFullScreen(true)
+    lockWin?.setAlwaysOnTop(true, 'screen-saver')
   })
   lockWin.on('closed', () => {
     lockWin = null

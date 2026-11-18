@@ -349,7 +349,9 @@ func spawnElectron(port int, token string) int {
 	if target.AppDir != "" {
 		args = append(args, target.AppDir)
 	}
-	args = append(args, "--api-port", fmt.Sprintf("%d", port))
+	// --flag=value: the shell parses argv itself and the two-argument form was
+	// what produced a null api port in packaged builds.
+	args = append(args, fmt.Sprintf("--api-port=%d", port))
 	// Debug/smoke hook: lets a test run the packaged shell headless
 	// (VOCABLOCK_SHELL_ARGS="--nowindow --remote-debugging-port=9223").
 	if extra := os.Getenv("VOCABLOCK_SHELL_ARGS"); extra != "" {

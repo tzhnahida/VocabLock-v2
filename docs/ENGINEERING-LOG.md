@@ -563,5 +563,24 @@
 - 未做真人键位回归：屏蔽一旦生效会吞掉本机键盘，验证必须在闲置机/虚拟机做；本次只验证了接线与状态机。
 
 ### 注意
-- 首次登录若“有会话但未达标”，新版本会**直接上屏蔽**（Alt+Tab/Win 失效），只能用 Ctrl+Shift+Q 或 Ctrl+Alt+Del 退出；这与 Flutter 版行为一致，但风险更高，发布前要做一次真人回归。
-- 自启现在指向新目录；旧目录仍可手动启动回滚。
+
+## 实机验证：Windows 11 LTSC 虚拟机的全流程（2026-11-18 下午）
+
+### 做了什么
+- 在 `F:\vm\win11` 干净虚拟机（LTSC 2024 评估版，4C/4G，无 Python/Node）跑全流程：打包 → 传 zip → 解压 → 启动 → 真实数据首页 → 系统锁屏。
+- 修掉 5 个只在实机暴露的缺陷：
+  1. **`--api-port` 参数形式**：Go 传 `--api-port 54885`（两个 argv），shell 只认 `--api-port=…` → 端口为 null → 界面回落到 demo 数据（标题栏“英语 · demo”）。现在 shell 两种写法都收，Go 也改为 `=` 形式。
+  2. **安装包缺语言配置**：只复制了 `configs/*.yaml`，漏掉 `configs/languages/` 与 `_languages/` → `languages: []`，课程回落英语。打包必须带上这两个目录。
+  3. **锁屏 overlay 不显示**：`design.css` 用 `body.locked .lock` 控制显隐，App 只设了 `data-screen`，从未加 `locked` class → kiosk 里只有侧栏 + 黑屏。effect 里补 `classList.toggle('locked', locked)`。
+  4. **锁窗口被夹到工作区**：`kiosk:true` + `fullscreen:true` 同时给时窗口只有 870 高（任务栏露出、可点搜索）。改为创建后 `setBounds(整屏)` + `setFullScreen(true)`。
+  5. **锁屏吞掉全部鼠标**：锁屏自带的选项与“Esc 退出”点不动，等于只剩 Ctrl+Shift+Q。现在锁屏期间不再挂鼠标钩子（全屏置顶 kiosk 已挡住其它窗口），键盘仍全吞；Esc 只在 shell 锁窗口位于前台时放行。
+
+### 验证
+- 干净虚拟机解压即用：日志 `ai: configured` / `tts: edge-tts` / `dict: jmdict`，首页显示真实数据（日语 127 词、待复习 54、AI 今日作业），所有 API 200。
+- 锁屏：全屏“专注模式”，无任务栏，词卡与 0/20 进度正常渲染。
+- `go test ./...` 全绿、`tsc --noEmit` 干净、`npm run build` 通过。
+
+### 注意
+- 注入输入（`mouse_event`/`SendKeys`）驱动不了 kiosk（同一脚本点任务栏有效），所以“点选项 / Esc 退出 / Ctrl+Shift+Q 逃生”仍需真人在控制台验一次；Ctrl+Alt+Del 永远可用。
+- `vmcli MKS captureScreenshot` 在画面无重绘时返回同一帧，别把“截图没变”当成界面卡死。
+- 虚拟机缺 Python（TTS 报 `exec: "python": not found`）与 ASR 二进制/模型；这两类题型在该机不可用，属环境缺失而非代码缺陷。

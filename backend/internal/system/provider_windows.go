@@ -56,11 +56,14 @@ var (
 	procSetTimer         = user32.NewProc("SetTimer")
 	procKillTimer        = user32.NewProc("KillTimer")
 	procSetForeground    = user32.NewProc("SetForegroundWindow")
-	procGetCursorPos     = user32.NewProc("GetCursorPos")
-	procTrackPopupMenu   = user32.NewProc("TrackPopupMenu")
-	procCreatePopupMenu  = user32.NewProc("CreatePopupMenu")
-	procAppendMenu       = user32.NewProc("AppendMenuW")
-	procDestroyMenu      = user32.NewProc("DestroyMenu")
+	procGetForeground    = user32.NewProc("GetForegroundWindow")
+	procGetClassName     = user32.NewProc("GetClassNameW")
+
+	procGetCursorPos    = user32.NewProc("GetCursorPos")
+	procTrackPopupMenu  = user32.NewProc("TrackPopupMenu")
+	procCreatePopupMenu = user32.NewProc("CreatePopupMenu")
+	procAppendMenu      = user32.NewProc("AppendMenuW")
+	procDestroyMenu     = user32.NewProc("DestroyMenu")
 
 	// Hotkey / hooks
 	procRegisterHotKey    = user32.NewProc("RegisterHotKey")
@@ -158,6 +161,7 @@ const (
 	MOD_NOREPEAT   = 0x4000
 	VK_Q           = 0x51
 	VK_CONTROL     = 0x11
+	VK_ESCAPE      = 0x1B
 	VK_SHIFT       = 0x10
 	WH_KEYBOARD_LL = 13
 	WH_MOUSE_LL    = 14
@@ -608,8 +612,25 @@ func uptrToPtr(p uintptr) unsafe.Pointer {
 	return *(*unsafe.Pointer)(unsafe.Pointer(&p))
 }
 
+// shellWindowForeground reports whether the foreground window is the Electron
+// shell (class Chrome_WidgetWin_1). While locked the shell's kiosk window is
+// fullscreen and always on top, so it is the only surface the user sees.
+func shellWindowForeground() bool {
+	hwnd, _, _ := procGetForeground.Call()
+	if hwnd == 0 {
+		return false
+	}
+	buf := make([]uint16, 64)
+	n, _, _ := procGetClassName.Call(hwnd, uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)))
+	if n == 0 {
+		return false
+	}
+	return windows.UTF16ToString(buf[:n]) == "Chrome_WidgetWin_1"
+}
+
 // lockKeyboardProc swallows every key while the lock screen is active, so
 // Alt+Tab, Win, Alt+F4, Ctrl+Esc and Ctrl+Shift+Esc never reach the shell.
+// Esc still reaches the lock window itself (its documented exit), and
 // Ctrl+Shift+Q remains the deliberate emergency exit.
 func (p *windowsProvider) lockKeyboardProc(nCode int, wParam, lParam uintptr) uintptr {
 	if nCode < 0 {
@@ -620,6 +641,10 @@ func (p *windowsProvider) lockKeyboardProc(nCode int, wParam, lParam uintptr) ui
 		vk := *(*uint32)(uptrToPtr(lParam))
 		ctrl, _, _ := procGetAsyncKeyState.Call(uintptr(VK_CONTROL))
 		shift, _, _ := procGetAsyncKeyState.Call(uintptr(VK_SHIFT))
+		if vk == VK_ESCAPE && shellWindowForeground() {
+			ret, _, _ := procCallNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
+			return ret
+		}
 		if vk == VK_Q && ctrl&0x8000 != 0 && shift&0x8000 != 0 {
 			p.mu.Lock()
 			escape := p.lockEscape
@@ -635,12 +660,20 @@ func (p *windowsProvider) lockKeyboardProc(nCode int, wParam, lParam uintptr) ui
 	return 1
 }
 
+// lockMouseProc blocks the mouse everywhere except over the shell's lock
+// window: the kiosk covers the screen anyway, and swallowing clicks made the
+// lock UI (answer options, Esc link) impossible to use.
 func (p *windowsProvider) lockMouseProc(nCode int, wParam, lParam uintptr) uintptr {
 	if nCode < 0 {
 		ret, _, _ := procCallNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
 		return ret
 	}
-	return 1
+	// The mouse is left alone: the shell's kiosk window covers the display and
+	// is always on top, so there is nothing else to click. Swallowing mouse
+	// events made the lock screen's own controls unusable (verified on a clean
+	// Windows 11 VM). Keyboard swallowing is what actually matters here.
+	ret, _, _ := procCallNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
+	return ret
 }
 
 func (p *windowsProvider) lockMessageLoop(done chan struct{}) {

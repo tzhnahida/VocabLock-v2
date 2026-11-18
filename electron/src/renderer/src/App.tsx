@@ -89,6 +89,9 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     document.body.dataset.screen = locked ? '' : screen
+    // design.css shows the lock overlay through body.locked; without the class
+    // the kiosk window renders an empty shell (sidebar only, black content).
+    document.body.classList.toggle('locked', locked)
     document.body.style.fontFamily = fonts[lang]
     document.documentElement.lang = lang === 'zh' ? 'zh-CN' : lang
     localStorage.setItem('vl-lang', lang)
