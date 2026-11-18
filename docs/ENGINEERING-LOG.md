@@ -567,20 +567,10 @@
 ## 实机验证：Windows 11 LTSC 虚拟机的全流程（2026-11-18 下午）
 
 ### 做了什么
-- 在 `F:\vm\win11` 干净虚拟机（LTSC 2024 评估版，4C/4G，无 Python/Node）跑全流程：打包 → 传 zip → 解压 → 启动 → 真实数据首页 → 系统锁屏。
-- 修掉 5 个只在实机暴露的缺陷：
-  1. **`--api-port` 参数形式**：Go 传 `--api-port 54885`（两个 argv），shell 只认 `--api-port=…` → 端口为 null → 界面回落到 demo 数据（标题栏“英语 · demo”）。现在 shell 两种写法都收，Go 也改为 `=` 形式。
-  2. **安装包缺语言配置**：只复制了 `configs/*.yaml`，漏掉 `configs/languages/` 与 `_languages/` → `languages: []`，课程回落英语。打包必须带上这两个目录。
-  3. **锁屏 overlay 不显示**：`design.css` 用 `body.locked .lock` 控制显隐，App 只设了 `data-screen`，从未加 `locked` class → kiosk 里只有侧栏 + 黑屏。effect 里补 `classList.toggle('locked', locked)`。
-  4. **锁窗口被夹到工作区**：`kiosk:true` + `fullscreen:true` 同时给时窗口只有 870 高（任务栏露出、可点搜索）。改为创建后 `setBounds(整屏)` + `setFullScreen(true)`。
-  5. **锁屏吞掉全部鼠标**：锁屏自带的选项与“Esc 退出”点不动，等于只剩 Ctrl+Shift+Q。现在锁屏期间不再挂鼠标钩子（全屏置顶 kiosk 已挡住其它窗口），键盘仍全吞；Esc 只在 shell 锁窗口位于前台时放行。
 
-### 验证
-- 干净虚拟机解压即用：日志 `ai: configured` / `tts: edge-tts` / `dict: jmdict`，首页显示真实数据（日语 127 词、待复习 54、AI 今日作业），所有 API 200。
-- 锁屏：全屏“专注模式”，无任务栏，词卡与 0/20 进度正常渲染。
-- `go test ./...` 全绿、`tsc --noEmit` 干净、`npm run build` 通过。
+### 同日晚：托盘 / 单实例 / 自启 实跑（干净 Win11 虚机）
 
-### 注意
-- 注入输入（`mouse_event`/`SendKeys`）驱动不了 kiosk（同一脚本点任务栏有效），所以“点选项 / Esc 退出 / Ctrl+Shift+Q 逃生”仍需真人在控制台验一次；Ctrl+Alt+Del 永远可用。
-- `vmcli MKS captureScreenshot` 在画面无重绘时返回同一帧，别把“截图没变”当成界面卡死。
-- 虚拟机缺 Python（TTS 报 `exec: "python": not found`）与 ASR 二进制/模型；这两类题型在该机不可用，属环境缺失而非代码缺陷。
+- **单实例（原来根本没生效）**：第二次启动会留下一个“孤儿” Go 服务——Electron 的 `requestSingleInstanceLock` 只挡住 shell，服务端的 `AcquireLock` 从没成功过。三处根因：① 检查排在 config/SQLite 打开之后；② 互斥体用了 `Global\\` 命名空间，需要 SeCreateGlobalPrivilege，非提权管理员建不出来（报错后只 warn 就继续跑）；③ 用单独的 `GetLastError` 判断“已存在”，与 Go runtime 的其它 syscall 有竞态。修法：改用 `Local\\`、直接用 `CreateMutex` 调用返回的 errno、把检查提到 chdir 之后最前；未抢到时 `FindWindow("VocabLock")` 把已有窗口调到前台再退出。实测：第二个进程 0.08s 退出、进程数保持 1、stderr `another instance is already running — focused it`。
+- **托盘**：图标在通知区溢出面板里（V 图标）；点击可隐藏主窗口、再点恢复（两次截图验证）。右键菜单项没单独验（一次右键打偏到了任务栏按钮）。
+- **自启**：配置 `auto_start: true` 在启动时同步注册表，值为带引号的 `"C:\Users\tzh\VocabLock\VocabLock\vocablock.exe"`；真实重启（还赶上了 Windows Update）后自动登录并自动拉起应用，截图确认首页。
+- 注意：注入鼠标点击（SetCursorPos + mouse_event）对原生下拉菜单不可靠——先移动光标会把菜单关掉；设置页里的“开机自启”下拉因此没点中，走的是“配置 → 启动同步注册表 → 重启”的同一条产品路径。

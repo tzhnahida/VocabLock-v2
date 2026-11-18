@@ -37,6 +37,18 @@ func main() {
 		os.Chdir(filepath.Dir(exe))
 	}
 
+	// Single instance must be decided before config/DB work: a second launch
+	// would otherwise block on the SQLite file (or race the first one) and
+	// never reach the check, leaving an orphan service behind.
+	systemProvider := system.Default
+	if acquired, err := systemProvider.AcquireLock(); err != nil {
+		log.Warn("system", "single-instance lock error: %v", err)
+	} else if !acquired {
+		system.ActivateMainWindow()
+		log.Info("system", "another instance is already running — focused it")
+		return
+	}
+
 	configDir := "configs"
 	cfg, err := config.Load(configDir)
 	if err != nil {
@@ -75,17 +87,7 @@ func main() {
 	// draws its own overlay and manages locking from the renderer.
 	srv.NativeShell = *shell == "flutter"
 
-	// ——— System-level features (P4: lock screen, tray, single instance) ———
-	systemProvider := system.Default
-
-	// Single-instance lock
-	acquired, err := systemProvider.AcquireLock()
-	if err != nil {
-		log.Warn("system", "single-instance lock error: %v", err)
-	} else if !acquired {
-		log.Error("system", "another instance is already running")
-		os.Exit(1)
-	}
+	// ——— System-level features (P4: lock screen, tray) ———
 	srv.System = systemProvider
 	// Ctrl+Shift+Q while the shield is up releases the lock (and the shell
 	// window follows through /system/status).

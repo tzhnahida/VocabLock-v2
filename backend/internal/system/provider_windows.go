@@ -251,14 +251,20 @@ func newProvider() SystemProvider {
 // ——— SystemProvider interface ———
 
 func (p *windowsProvider) AcquireLock() (bool, error) {
-	mutexName, _ := windows.UTF16PtrFromString("Global\\VocabLock_SingleInstance")
-	h, _, err := procCreateMutex.Call(0, 0, uintptr(unsafe.Pointer(mutexName)))
+	// Local\ (per session) instead of Global\: creating a Global object needs
+	// SeCreateGlobalPrivilege, which an unelevated admin does not hold, so the
+	// old name failed with access-denied and every launch "acquired" the lock
+	// (a second launch left an orphan service behind).
+	mutexName, _ := windows.UTF16PtrFromString("Local\\VocabLock_SingleInstance")
+	// Use the error returned by Call itself: a separate GetLastError call is
+	// racy (the Go runtime may issue other syscalls in between), which made
+	// every launch look like a first instance.
+	h, _, callErr := procCreateMutex.Call(0, 0, uintptr(unsafe.Pointer(mutexName)))
 	if h == 0 {
-		return false, fmt.Errorf("CreateMutex: %v", err)
+		return false, fmt.Errorf("CreateMutex: %v", callErr)
 	}
 	p.instanceMutex = windows.Handle(h)
-	le, _, _ := procGetLastError.Call()
-	if uint32(le) == ERROR_ALREADY_EXISTS {
+	if callErr == windows.ERROR_ALREADY_EXISTS {
 		procCloseHandle.Call(uintptr(p.instanceMutex))
 		return false, nil
 	}
