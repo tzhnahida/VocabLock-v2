@@ -2,14 +2,16 @@ import { t, langNative, type Lang } from '../i18n'
 
 type Props = {
   lang: Lang
-  onLang: (lang: Lang) => void
   theme: 'light' | 'dark'
   onTheme: () => void
   crumb: string
   onLock: () => void
 }
 
-export default function TitleBar({ lang, onLang, theme, onTheme, crumb, onLock }: Props) {
+// The interface language is deliberately changed in Settings (and saved)
+// instead of one click in the title bar: a stray click should not flip the
+// whole UI.
+export default function TitleBar({ lang, theme, onTheme, crumb, onLock }: Props) {
   return (
     <div className="titlebar">
       <div className="brand">
@@ -19,18 +21,6 @@ export default function TitleBar({ lang, onLang, theme, onTheme, crumb, onLock }
         <span className="crumb">{crumb}</span>
       </div>
       <div className="tbright">
-        <div className="lang" role="group" title={t(lang, 'lang.t')}>
-          {(['zh', 'en', 'ja'] as Lang[]).map((code) => (
-            <button
-              key={code}
-              className={code === lang ? 'on' : undefined}
-              onClick={() => onLang(code)}
-              title={langNative[code]}
-            >
-              {code === 'zh' ? '中' : code === 'en' ? 'EN' : '日'}
-            </button>
-          ))}
-        </div>
         <button className="iconbtn" onClick={onTheme} title={t(lang, 'theme.t')}>
           {theme === 'dark' ? (
             <svg className="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">

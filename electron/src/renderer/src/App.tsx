@@ -143,7 +143,6 @@ export default function App() {
     <div className="app">
       <TitleBar
         lang={lang}
-        onLang={setLang}
         theme={theme}
         onTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')}
         crumb={`${courseLabel(dash.activeLang, lang)}${dash.online ? '' : ' · demo'}`}
