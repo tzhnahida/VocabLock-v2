@@ -5,6 +5,8 @@ declare global {
     vocablock: {
       requestLock: () => void
       dismissLock: () => void
+      startStudy: () => void
+      onNavigate: (cb: (screen: string) => void) => void
       appInfo: () => Promise<Record<string, unknown>>
       runtime: () => Promise<{
         apiPort: string | null

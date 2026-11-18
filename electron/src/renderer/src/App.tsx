@@ -123,6 +123,14 @@ export default function App() {
     setScreen(next)
   }, [])
 
+  // The lock window's "start studying" button tells the main window where to
+  // go once the kiosk closes.
+  useEffect(() => {
+    window.vocablock.onNavigate?.((next) => {
+      if (next === 'quiz') go('quiz')
+    })
+  }, [go])
+
   // Answering a question moves the daily counters, so the shell re-reads them
   // instead of keeping a stale hero/sidebar until the next launch.
   const refresh = useCallback(async () => {
@@ -173,7 +181,21 @@ export default function App() {
           </section>
         </main>
       </div>
-      {locked && <Lock dash={dash} lang={lang} onExit={() => setLocked(false)} />}
+      {locked && (
+        <Lock
+          dash={dash}
+          lang={lang}
+          onExit={() => setLocked(false)}
+          onStudy={() => {
+            if (lockWindow) {
+              window.vocablock.startStudy()
+            } else {
+              setLocked(false)
+              go('quiz')
+            }
+          }}
+        />
+      )}
     </div>
   )
 }

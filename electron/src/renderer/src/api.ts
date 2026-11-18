@@ -121,14 +121,21 @@ export async function loadDashboard(ctx: Ctx | null): Promise<Dashboard> {
   if (!ctx) return demoDashboard
   try {
     const languages = await get<{ value: string[] }>(ctx, '/api/v1/config/languages')
-    const activeLang = languages.value[0] ?? 'en'
+    // The course language is config.active_lang, not "whichever language file
+    // happens to be listed first": after another language is configured the
+    // dashboard used to render that language's words under the current course.
+    const cfg = await get<Record<string, unknown>>(ctx, '/api/v1/config').catch((): Record<string, unknown> => ({}))
+    const activeLang =
+      (typeof cfg['active_lang'] === 'string' && cfg['active_lang'] !== '' ? (cfg['active_lang'] as string) : '') ||
+      languages.value[0] ||
+      'en'
     const q = `?language=${activeLang}`
 
     // Every call may be missing on an older server; the empty-object fallbacks
     // are typed so the numeric readers below stay checkable.
     const none = (): Record<string, unknown> => ({})
     const [config, progress, today, streak, heatmap, words, diagnostics] = await Promise.all([
-      get<Record<string, unknown>>(ctx, '/api/v1/config').catch(none),
+      Promise.resolve(cfg),
       get<Record<string, unknown>>(ctx, `/api/v1/quiz/progress${q}`).catch(none),
       get<Record<string, unknown>>(ctx, `/api/v1/quiz/today-stats${q}`).catch(none),
       get<Record<string, unknown>>(ctx, `/api/v1/stats/streak${q}`).catch(none),

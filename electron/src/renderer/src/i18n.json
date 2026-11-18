@@ -131,6 +131,8 @@
     "lock.left": "还剩 4 分钟",
     "lock.day": "第 12 天 · 连续 12 天",
     "lock.exit": "退出",
+    "lock.study": "开始学习",
+    "lock.studyHint": "离开锁屏并在学习页开始本轮答题",
     "lock.emergency": "紧急退出",
     "lock.mouse": "鼠标已锁定"
   },
@@ -266,6 +268,8 @@
     "lock.left": "4 min left",
     "lock.day": "Day 12 · 12-day streak",
     "lock.exit": "exit",
+    "lock.study": "Start studying",
+    "lock.studyHint": "Leave the lock screen and start this round in the quiz",
     "lock.emergency": "emergency exit",
     "lock.mouse": "Mouse locked"
   },
@@ -401,6 +405,8 @@
     "lock.left": "残り 4 分",
     "lock.day": "12 日目 · 12 日連続",
     "lock.exit": "終了",
+    "lock.study": "学習を始める",
+    "lock.studyHint": "ロック画面を抜けて、この回の学習を始めます",
     "lock.emergency": "緊急終了",
     "lock.mouse": "マウスをロック中"
   }

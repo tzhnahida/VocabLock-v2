@@ -15,5 +15,9 @@ contextBridge.exposeInMainWorld('vocablock', {
   close: (): void => ipcRenderer.send('window:close'),
   requestLock: (): void => ipcRenderer.send('lock:request'),
   dismissLock: (): void => ipcRenderer.send('lock:dismiss'),
+  startStudy: (): void => ipcRenderer.send('lock:study'),
+  onNavigate: (cb: (screen: string) => void): void => {
+    ipcRenderer.on('navigate', (_event, screen: string) => cb(screen))
+  },
   appInfo: (): Promise<Record<string, unknown>> => ipcRenderer.invoke('app:info')
 })

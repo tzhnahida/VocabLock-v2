@@ -568,18 +568,6 @@
 
 ### 做了什么
 
-## 课程语言锁定 + 重新初始化流程（2026-11-18 晚）
-
-### 规则
-- 课程语言一旦初始化（词库里有词，或主动走一次初始化），`app.yaml` 写 `language_locked: true`。
-- 之后 `PUT /config` 里带不同的 `active_lang` 一律 **409**，报错 `language_locked: change the course language through the init flow`——设置页的课程下拉同时置灰。
-- 唯一入口：`POST /api/v1/config/language/init {language}`。它会切语言、置锁、重新接线 TTS/词典/发音/ASR，并触发新语言的 bootstrap；旧语言的词表/计划/统计保留，互不混用。
-
-### 界面
-- 设置页：课程语言只读显示 + 「已锁定：课程语言只能通过“重新初始化”更改」+「切换课程语言…」。
-- 点按钮弹出确认向导：说明“旧记录保留、新语言从零初始化”，选语言 →「重新初始化」→ 成功后整页重载。
-
-### 验证（Win11 虚机）
-- 设置页截图：下拉置灰、锁定提示、向导弹窗。
-- 直接 PUT `active_lang=en` → 409；配置仍为 ja。
-- 走初始化：ja→en 返回 200 且 `active_lang=en, language_locked=true`；再 en→ja 恢复，配置仍加锁。
+### 锁屏补「开始学习」出口 + 仪表盘语言修复（2026-11-18 晚）
+- 锁屏（专注模式）不是答题页：选项点了只会打勾，没有「下一题」。新增主按钮 **开始学习**：通过 `lock:study` IPC 解锁、关闭 kiosk、让主窗口 `navigate` 到学习页并直接开始本轮。
+- 顺带修掉一个语言串台：`loadDashboard` 原来用 `config/languages[0]` 当课程语言，配置了第二语言后锁屏会显示别的语言的词（实测显示 en 的 hello）。改为读 `config.active_lang`，实测锁屏恢复为日语词（泳ぐ）。

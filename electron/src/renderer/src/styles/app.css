@@ -294,6 +294,17 @@ body[data-screen="listening"] .s-listening {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Lock screen: explicit way into the real study session. */
+.lockstudy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+.lockstudy .hintline {
+  margin: 0;
+}
+
 /* Recording answer (read_word / read_sentence / dialogue_speak) */
 .recorder {
   display: flex;

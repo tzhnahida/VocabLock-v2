@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { t, dyn, type Lang } from '../i18n'
 import type { Dashboard } from '../api'
 
-type Props = { dash: Dashboard; lang: Lang; onExit: () => void }
+type Props = { dash: Dashboard; lang: Lang; onExit: () => void; onStudy: () => void }
 
-export default function Lock({ dash, lang, onExit }: Props) {
+export default function Lock({ dash, lang, onExit, onStudy }: Props) {
   const word = dash.words[0] ?? { word: 'ubiquitous', meaning: '无处不在的', reading: '/juːˈbɪk.wɪ.təs/' }
   const [picked, setPicked] = useState<number | null>(null)
   const options = [
@@ -51,6 +51,12 @@ export default function Lock({ dash, lang, onExit }: Props) {
                 {picked !== null && opt.correct ? <span className="mark">✓</span> : null}
               </div>
             ))}
+          </div>
+          <div className="lockstudy">
+            <button className="btn" id="lock-study" onClick={onStudy}>
+              {t(lang, 'lock.study')}
+            </button>
+            <span className="hintline">{t(lang, 'lock.studyHint')}</span>
           </div>
           <div className="lockprog">
             <div className="progress">

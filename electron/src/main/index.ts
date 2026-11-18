@@ -303,6 +303,18 @@ ipcMain.on('lock:dismiss', () => {
   void api('/api/v1/system/unlock', { method: 'POST' })
   setLocked(false)
 })
+// "Start studying" on the lock screen: the lock is a focus screen, not a
+// quiz, so give it an explicit way into the real session instead of leaving
+// the user to guess that Esc is the only exit.
+ipcMain.on('lock:study', () => {
+  void api('/api/v1/system/unlock', { method: 'POST' })
+  setLocked(false)
+  if (win) {
+    win.show()
+    win.focus()
+    win.webContents.send('navigate', 'quiz')
+  }
+})
 
 app.on('second-instance', () => {
   if (win) {
