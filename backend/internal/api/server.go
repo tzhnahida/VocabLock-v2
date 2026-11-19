@@ -27,6 +27,12 @@ import (
 	"github.com/tzhnahida/VocabLock/internal/tts"
 )
 
+// PronounceAssessor is the part of pronounce.Provider used by the handlers.
+// Declaring it here lets tests substitute a fake without spawning binaries.
+type PronounceAssessor interface {
+	Assess(ctx context.Context, audioPath, targetText string) (*pronounce.Result, error)
+}
+
 type cachedQuestion struct {
 	q         *engine.Question
 	createdAt time.Time
@@ -51,7 +57,7 @@ type Server struct {
 	// Placement-test sessions live in memory with a short TTL.
 	placementMu       sync.Mutex
 	placementSessions map[string]*placementSession
-	PronounceProvider *pronounce.Provider
+	PronounceProvider PronounceAssessor
 	ASRProvider       asr.Provider
 
 	// Question cache for AI-generated questions (maps question_id → cachedQuestion)
