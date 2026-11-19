@@ -55,7 +55,11 @@ export async function startRealApp(): Promise<RealApp> {
     }
   }
   for (const dir of ['languages', '_languages', 'prompts']) {
-    cpSync(join(root, 'backend', 'configs', dir), join(configs, dir), { recursive: true })
+    try {
+      cpSync(join(root, 'backend', 'configs', dir), join(configs, dir), { recursive: true })
+    } catch {
+      // prompts are embedded in the Go binary; the directory is optional
+    }
   }
   writeFileSync(
     join(configs, 'app.yaml'),
