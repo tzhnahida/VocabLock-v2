@@ -568,7 +568,8 @@
 
 ### 做了什么
 
-## 仓库转公开（2026-11-20 凌晨）
-- 仓库从 private 切为 **public**（PolyForm Shield 1.0.0 源码许可，非 OSI 开源；仅源码可见）。
-- 切换前做了预检：git 历史无 API key / 密码 / 内网 IP；仅有一处历史占位符 `sk-f96...****...af1b`（已脱敏，不可用）。
-- 公开后 CodeQL（go + javascript-typescript）条件满足，push 即会跑；分支保护（test/lint/electron/e2e + 1 review）保持不变。
+## 时间额度 → 题量（设计 B，2026-11-20）
+- `session_time_budget` 开启时：总题量 = min(daily_target, budget×6 / 平均每题单位)，按 `question_type_ratio` 给各题型分配配额（无计划则均分），只统计当前可生成的题型（无 AI/ASR/pronounce 的题型不占额度）。
+- 到总题量或时间额度 → `/quiz/next` 返回 `completed`（带 `planned_questions` / `session_exhausted`）；`/quiz/session/continue` 才可突破。budget=0 时行为不变（仍用 1.5× 软上限）。
+- 设置页加说明：超预算削减题数，用不满不补题。
+- 测试：`engine.PlanSession` 4 例；handler 用 1 分钟预算跑 6 题后完成，continue 后恢复出题。

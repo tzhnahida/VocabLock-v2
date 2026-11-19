@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -520,6 +521,13 @@ type sessionBudget struct {
 	grammarFocus  []string       // cached from training plan's grammar_focus
 	sessionDone   bool           // true once quiz/complete was called today
 	forceContinue bool           // student opted in past the soft cap (see hitSoftCap)
+
+	// Time-budget plan (design B): daily target questions, cut down when the
+	// session_time_budget cannot fit them. Empty when no budget is set.
+	planKey    string
+	planTotal  int
+	planQuotas map[string]int
+	planServed map[string]int
 }
 
 func (b *sessionBudget) reset() {
@@ -531,6 +539,10 @@ func (b *sessionBudget) reset() {
 	b.totalCount = 0
 	b.sessionDone = false
 	b.forceContinue = false
+	b.planKey = ""
+	b.planTotal = 0
+	b.planQuotas = nil
+	b.planServed = nil
 }
 
 // rolloverLocked resets the day-accumulated counters when the calendar day
@@ -544,6 +556,10 @@ func (b *sessionBudget) rolloverLocked() {
 		b.slowCount = 0
 		b.totalCount = 0
 		b.forceContinue = false
+		b.planKey = ""
+		b.planTotal = 0
+		b.planQuotas = nil
+		b.planServed = nil
 	}
 }
 
@@ -562,6 +578,82 @@ func (b *sessionBudget) hitSoftCap(dailyTarget int) bool {
 		cap = dailyTarget + 10
 	}
 	return b.totalCount >= cap
+}
+
+// ensurePlan recomputes the per-type quotas when the target, budget or
+// training-plan weights changed (including once per new day).
+func (b *sessionBudget) ensurePlan(target, budget int, weights map[string]int, available []engine.QuestionType) engine.SessionPlan {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.rolloverLocked()
+
+	keyParts := make([]string, 0, len(weights)+len(available))
+	for k, v := range weights {
+		keyParts = append(keyParts, fmt.Sprintf("w:%s=%d", k, v))
+	}
+	sort.Strings(keyParts)
+	for _, t := range available {
+		keyParts = append(keyParts, "t:"+string(t))
+	}
+	key := fmt.Sprintf("%d|%d|%s", target, budget, strings.Join(keyParts, ","))
+
+	if b.planKey != key {
+		plan := engine.PlanSession(target, budget, weights, available)
+		b.planKey = key
+		b.planTotal = plan.Total
+		b.planQuotas = make(map[string]int, len(plan.Quotas))
+		for t, quota := range plan.Quotas {
+			b.planQuotas[string(t)] = quota
+		}
+		b.planServed = map[string]int{}
+	}
+	return engine.SessionPlan{Total: b.planTotal}
+}
+
+// planExhausted reports whether the day's question count or time budget is
+// used up. The student can still choose to continue deliberately.
+func (b *sessionBudget) planExhausted(budgetMinutes int) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.rolloverLocked()
+	if b.planTotal > 0 && b.totalCount >= b.planTotal {
+		return true
+	}
+	if budgetMinutes > 0 && b.timeUsed >= budgetMinutes*6 {
+		return true
+	}
+	return false
+}
+
+// typeAvailable reports whether a type still has quota left in today's plan.
+func (b *sessionBudget) typeAvailable(typeName string) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.rolloverLocked()
+	if b.forceContinue || b.planQuotas == nil {
+		return true
+	}
+	quota, ok := b.planQuotas[typeName]
+	if !ok {
+		return false
+	}
+	return b.planServed[typeName] < quota
+}
+
+// dropPlan clears the budget plan when the student turns the budget off.
+func (b *sessionBudget) dropPlan() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.planKey = ""
+	b.planTotal = 0
+	b.planQuotas = nil
+	b.planServed = nil
+}
+
+func (b *sessionBudget) plannedQuestions() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.planTotal
 }
 
 func (b *sessionBudget) setForceContinue(v bool) {
@@ -623,6 +715,18 @@ func (b *sessionBudget) allowType(typeName string, timeBudgetMinutes int, maxSlo
 
 	b.rolloverLocked()
 
+	// "Continue deliberately" lifts every budget/quota limit for today.
+	if b.forceContinue {
+		return true
+	}
+
+	if b.planQuotas != nil {
+		quota, ok := b.planQuotas[typeName]
+		if !ok || b.planServed[typeName] >= quota {
+			return false
+		}
+	}
+
 	weight := engine.TimeWeights[typeName]
 	if weight == 0 {
 		weight = 1
@@ -659,6 +763,9 @@ func (b *sessionBudget) recordType(typeName string) {
 	}
 	b.timeUsed += weight
 	b.totalCount++
+	if b.planServed != nil {
+		b.planServed[typeName]++
+	}
 	if engine.IsSlowType(typeName) {
 		b.slowCount++
 	}

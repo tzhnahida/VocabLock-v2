@@ -255,6 +255,7 @@ export default function Settings({ lang, theme, onTheme, onLang, onSaved }: Prop
                   value={data.sessionBudget}
                   onChange={(e) => setData({ ...data, sessionBudget: Number(e.target.value) })}
                 />
+                <div className="hintline">{copy.sessionBudgetHint}</div>
               </div>
               <div className="field">
                 <label>{copy.maxSlowRatio}</label>

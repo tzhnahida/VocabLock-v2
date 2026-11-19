@@ -44,6 +44,34 @@ func langQuestionTypes(lang string, cfg *config.Config) []engine.QuestionType {
 	return types
 }
 
+// planTypes filters out question types the current build cannot actually
+// generate (no AI/ASR/pronounce provider), so the time-budget plan does not
+// reserve quota for types that will never be served.
+func planTypes(types []engine.QuestionType, hasAI, hasPron, hasASR bool) []engine.QuestionType {
+	out := make([]engine.QuestionType, 0, len(types))
+	for _, t := range types {
+		switch t {
+		case engine.TypeListening, engine.TypeReadingComp, engine.TypeGrammar, engine.TypeDialogueWrite:
+			if !hasAI {
+				continue
+			}
+		case engine.TypeDialogueSpeak:
+			if !hasAI || !hasASR {
+				continue
+			}
+		case engine.TypeReadWord, engine.TypeReadSentence, engine.TypePronounce:
+			if !hasPron {
+				continue
+			}
+		}
+		out = append(out, t)
+	}
+	if len(out) == 0 {
+		return []engine.QuestionType{engine.TypeChoice}
+	}
+	return out
+}
+
 func (s *Server) handleQuizProgress(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
 		mock.HandleQuizProgress(w, r)
@@ -268,6 +296,14 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	}
 
 	lang := s.Config.App.ActiveLang
+	budget := s.Config.App.SessionTimeBudget
+	available := planTypes(langQuestionTypes(lang, s.Config), s.AI() != nil, s.HasPronounce(), s.HasASR())
+	if budget > 0 {
+		// Design B: daily target questions, cut down to fit the time budget.
+		s.sessionBudget.ensurePlan(s.Config.App.DailyTarget, budget, s.sessionBudget.getTypeWeights(), available)
+	} else {
+		s.sessionBudget.dropPlan()
+	}
 
 	log.Debug("quiz", "next question: lang=%s", lang)
 
@@ -287,6 +323,23 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 			"reviewed":         reviewed,
 			"daily_target":     s.Config.App.DailyTarget,
 			"daily_target_met": true,
+		})
+		s.exitNativeLock()
+		return
+	} else if budget > 0 && s.sessionBudget.planExhausted(budget) && !s.sessionBudget.isForceContinue() {
+		// The planned questions (or their time budget) are used up. The
+		// completion screen offers "continue deliberately" instead of
+		// silently extending the session.
+		log.Debug("quiz", "session plan exhausted: answered=%d planned=%d", s.sessionBudget.totalCount, s.sessionBudget.plannedQuestions())
+		writeJSON(w, map[string]interface{}{
+			"completed":           true,
+			"message":             "Session plan reached — review the rest tomorrow, or continue deliberately",
+			"reviewed":            reviewed,
+			"daily_target":        s.Config.App.DailyTarget,
+			"daily_target_met":    false,
+			"planned_questions":   s.sessionBudget.plannedQuestions(),
+			"session_time_budget": budget,
+			"session_exhausted":   true,
 		})
 		s.exitNativeLock()
 		return
@@ -384,13 +437,37 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 			)
 
 			if !s.sessionBudget.allowType(string(qType), s.Config.App.SessionTimeBudget, s.Config.App.MaxSlowTypeRatio) {
+				// Prefer a cheaper type that still has quota, then any type
+				// with quota left. When the whole plan is spent, stop.
+				chosen := engine.QuestionType("")
 				fastTypes := []engine.QuestionType{engine.TypeChoice, engine.TypeFill, engine.TypePronounce}
 				for _, ft := range fastTypes {
-					if engine.TimeWeights[string(ft)] < engine.TimeWeights[string(qType)] {
-						qType = ft
+					if engine.TimeWeights[string(ft)] < engine.TimeWeights[string(qType)] && s.sessionBudget.typeAvailable(string(ft)) {
+						chosen = ft
 						break
 					}
 				}
+				if chosen == "" {
+					for _, t := range available {
+						if s.sessionBudget.typeAvailable(string(t)) {
+							chosen = t
+							break
+						}
+					}
+				}
+				if chosen == "" {
+					writeJSON(w, map[string]interface{}{
+						"completed":         true,
+						"message":           "Session plan reached — review the rest tomorrow, or continue deliberately",
+						"daily_target":      s.Config.App.DailyTarget,
+						"daily_target_met":  false,
+						"planned_questions": s.sessionBudget.plannedQuestions(),
+						"session_exhausted": true,
+					})
+					s.exitNativeLock()
+					return
+				}
+				qType = chosen
 			}
 			s.sessionBudget.recordType(string(qType))
 
