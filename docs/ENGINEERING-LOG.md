@@ -568,16 +568,9 @@
 
 ### 做了什么
 
-## JLPT 分级内容包（2026-11-19 夜）
-
-### 数据源调研
-- **OpenJLPT**（evanclan/openjlpt）：7,811 词 N5–N1，JMdict 交叉校验、读音/词性/例句（Tatoeba）齐全，数据 **CC BY-SA 4.0**，有 JSON/CSV/SQLite。选它。
-- Bluskyo/JLPT_Vocabulary：tanos 列表的 JSON/CSV 转换，代码 MIT、数据 CC BY，作为备选。
-- firavoyage/_anki-jlpt-decks：中日 Anki 卡组，但许可是 **CC BY-NC 4.0**，商用不可用，放弃。
-
-### 落地
-- 新增内容包 `content/packs/ja-jlpt-open/`：7,811 条（N5 674 / N4 630 / N3 1,659 / N2 1,778 / N1 3,070），`entries.jsonl.gz` 约 0.5 MB，priority 15。
-- `internal/content` 支持 `entries.jsonl.gz`（整包约 3 MB → 0.5 MB）；合并时把 `level` 一并带进结果。
-- 生成脚本 `content/tools/build-jlpt-pack.py`（从 OpenJLPT 重新拉取构建），内容不编进 exe。
-- 虚机实测：`/content/packs` 显示 3 个包（含 ja-jlpt-open:7811）；`lookup 会う → N5/to meet`、`勉強 → N5`、`経済 → N4`。
-- 水平过滤实测（student_state ja=N2，空库扩词）：日志 `skip below-level word: 方向 (N3) / 左右 (N3) / 向かう (N4) / 指す (N3)`，入库 15 词中可见 N1/N2（導く N1、斜め N2、前後 N2…），P1 定位测试所需的等级数据已就绪。
+## P1 定位测试（2026-11-19 深夜）
+- 新增接口：`POST /quiz/placement/start`（从内容包按 level 分层抽 6 题/级，N5–N1；正确答案只留在服务端，返回四选一）与 `POST /quiz/placement/submit`（按 band 正确率估算，≥70% 视为通过，遇简单档失败即停止）。
+- 结果写入 `student_state`（扩词据此跳过低水平词），并写入一条 `training_plans`（direction=exam，含 bands/建议每日新词），即“培养方案”的落库形态。
+- 设置页新增「水平测试」入口 + 30 题弹窗 + 结果视图（等级、各级正确率、建议新词数），完成后刷新设置里的水平。
+- 实现：`backend/internal/api/placement.go`、`content.SampleByLevel`、`placement_test.go`（estimateLevel 4 用例）。
+- 虚机实测：API 返回 30 题覆盖 N5–N1；UI 走完 30 题出现结果弹窗（随机作答 → beginner，band 正确率 1/6…3/6，建议 15 词/天）。

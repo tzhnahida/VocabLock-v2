@@ -15,6 +15,8 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	// Quiz
 	mux.HandleFunc("POST "+prefix+"/quiz/session/start", s.handleQuizSessionStart)
 	mux.HandleFunc("POST "+prefix+"/quiz/session/continue", s.handleQuizSessionContinue)
+	mux.HandleFunc("POST "+prefix+"/quiz/placement/start", s.handlePlacementStart)
+	mux.HandleFunc("POST "+prefix+"/quiz/placement/submit", s.handlePlacementSubmit)
 	mux.HandleFunc("GET "+prefix+"/quiz/progress", s.handleQuizProgress)
 	mux.HandleFunc("GET "+prefix+"/quiz/next", s.handleQuizNext)
 	mux.HandleFunc("POST "+prefix+"/quiz/submit", s.handleQuizSubmit)

@@ -264,6 +264,57 @@ func (l *Library) Packs() []PackInfo {
 	return out
 }
 
+// SampleByLevel returns up to perLevel entries for every level present for
+// the language, each with at least one gloss. Used by the placement test.
+func (l *Library) SampleByLevel(language string, perLevel int, pick func(n int) int) []*Entry {
+	if l == nil || perLevel <= 0 {
+		return nil
+	}
+	byLevel := map[string][]*Entry{}
+	for _, p := range l.packs {
+		if p.Language != language {
+			continue
+		}
+		for i := range p.Entries {
+			e := &p.Entries[i]
+			if e.Level == "" || len(e.Senses) == 0 || len(e.Senses[0].Glosses) == 0 {
+				continue
+			}
+			byLevel[e.Level] = append(byLevel[e.Level], e)
+		}
+	}
+	levels := make([]string, 0, len(byLevel))
+	for lv := range byLevel {
+		levels = append(levels, lv)
+	}
+	sort.Slice(levels, func(i, j int) bool { return levelOrder(levels[i]) < levelOrder(levels[j]) })
+	var out []*Entry
+	for _, lv := range levels {
+		pool := byLevel[lv]
+		for len(pool) > 0 && len(out) < len(levels)*perLevel {
+			idx := pick(len(pool))
+			out = append(out, pool[idx])
+			pool = append(pool[:idx], pool[idx+1:]...)
+			if len(out)%perLevel == 0 {
+				break
+			}
+		}
+	}
+	return out
+}
+
+// levelOrder gives a stable sort key for known level labels.
+func levelOrder(level string) int {
+	l := strings.ToUpper(strings.TrimSpace(level))
+	if strings.HasPrefix(l, "N") && len(l) == 2 && l[1] >= '1' && l[1] <= '5' {
+		return int('5' - l[1]) // N5=0 … N1=4
+	}
+	if strings.HasPrefix(l, "HSK") && len(l) == 4 && l[3] >= '1' && l[3] <= '6' {
+		return int(l[3] - '1')
+	}
+	return 99
+}
+
 // Root reports where packs were loaded from (for the API and logs).
 func (l *Library) Root() string {
 	if l == nil {

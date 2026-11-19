@@ -43,10 +43,14 @@ type Server struct {
 	DB        *db.Database
 
 	// Optional — nil means not configured, handlers fall back gracefully
-	aiValue           atomic.Value // *ai.Client, safe for concurrent access
-	TTSProvider       *tts.Provider
-	DictProvider      *dict.Provider
-	Content           *content.Library
+	aiValue      atomic.Value // *ai.Client, safe for concurrent access
+	TTSProvider  *tts.Provider
+	DictProvider *dict.Provider
+	Content      *content.Library
+
+	// Placement-test sessions live in memory with a short TTL.
+	placementMu       sync.Mutex
+	placementSessions map[string]*placementSession
 	PronounceProvider *pronounce.Provider
 	ASRProvider       asr.Provider
 

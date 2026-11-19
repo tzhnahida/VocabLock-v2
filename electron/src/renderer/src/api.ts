@@ -329,3 +329,30 @@ export function saveAppConfig(patch: Record<string, unknown>): Promise<unknown> 
 export function saveAIConfig(input: { baseUrl?: string; apiKey?: string; model?: string }): Promise<unknown> {
   return jsonCall('/api/v1/config/ai', { method: 'PUT', body: JSON.stringify(input) })
 }
+
+export type PlacementQuestion = {
+  id: string
+  word: string
+  reading: string
+  level: string
+  options: string[]
+}
+
+export type PlacementResult = {
+  estimated_level: string
+  bands: Record<string, { correct: number; total: number }>
+  daily_new_words: number
+}
+
+// 30 questions sampled across the installed graded packs; the server keeps the
+// answer key, so the client never sees it.
+export function startPlacement(): Promise<{ id: string; questions: PlacementQuestion[] }> {
+  return jsonCall('/api/v1/quiz/placement/start', { method: 'POST', body: '{}' })
+}
+
+export function submitPlacement(
+  id: string,
+  answers: { id: string; answer: string }[]
+): Promise<PlacementResult> {
+  return jsonCall('/api/v1/quiz/placement/submit', { method: 'POST', body: JSON.stringify({ id, answers }) })
+}

@@ -1,7 +1,26 @@
 import { useEffect, useState } from 'react'
 import { courseLabel, langNative, normaliseLang, type Lang } from '../i18n'
 import { st } from '../strings'
-import { initCourseLanguage, loadSettings, saveAIConfig, saveAppConfig, type Settings as SettingsData } from '../api'
+import {
+  initCourseLanguage,
+  loadSettings,
+  saveAIConfig,
+  saveAppConfig,
+  startPlacement,
+  submitPlacement,
+  type PlacementQuestion,
+  type PlacementResult,
+  type Settings as SettingsData
+} from '../api'
+
+// Bands arrive as a JSON object; show them easiest-first.
+function bandOrder(level: string): number {
+  const m = /^N([1-5])$/i.exec(level)
+  if (m) return 5 - Number(m[1])
+  const h = /^HSK([1-6])$/i.exec(level)
+  if (h) return Number(h[1])
+  return 99
+}
 
 type Props = {
   lang: Lang
@@ -22,6 +41,14 @@ export default function Settings({ lang, theme, onTheme, onLang, onSaved }: Prop
   const [switchOpen, setSwitchOpen] = useState(false)
   const [switchLang, setSwitchLang] = useState('')
   const [switching, setSwitching] = useState(false)
+  const [placement, setPlacement] = useState<{
+    id: string
+    questions: PlacementQuestion[]
+    idx: number
+    answers: { id: string; answer: string }[]
+  } | null>(null)
+  const [placementResult, setPlacementResult] = useState<PlacementResult | null>(null)
+  const [placementBusy, setPlacementBusy] = useState(false)
 
   useEffect(() => {
     void loadSettings()
@@ -31,6 +58,50 @@ export default function Settings({ lang, theme, onTheme, onLang, onSaved }: Prop
         setMessage(copy.failed + (e instanceof Error ? e.message : String(e)))
       })
   }, [copy.failed])
+
+  async function startPlacementTest(): Promise<void> {
+    if (placementBusy) return
+    setPlacementBusy(true)
+    setPlacementResult(null)
+    setFailed(false)
+    setMessage('')
+    try {
+      const r = await startPlacement()
+      if (r.questions.length === 0) {
+        setFailed(true)
+        setMessage(copy.placementEmpty)
+        return
+      }
+      setPlacement({ ...r, idx: 0, answers: [] })
+    } catch (e) {
+      setFailed(true)
+      setMessage(copy.failed + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setPlacementBusy(false)
+    }
+  }
+
+  async function answerPlacement(option: string): Promise<void> {
+    if (!placement || placementBusy) return
+    const answers = [...placement.answers, { id: placement.questions[placement.idx].id, answer: option }]
+    if (placement.idx + 1 < placement.questions.length) {
+      setPlacement({ ...placement, idx: placement.idx + 1, answers })
+      return
+    }
+    setPlacementBusy(true)
+    try {
+      const result = await submitPlacement(placement.id, answers)
+      setPlacementResult(result)
+      setPlacement(null)
+      setData((d) => (d ? { ...d, studentLevel: result.estimated_level } : d))
+      onSaved()
+    } catch (e) {
+      setFailed(true)
+      setMessage(copy.failed + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setPlacementBusy(false)
+    }
+  }
 
   async function save(): Promise<void> {
     if (!data || busy) return
@@ -241,6 +312,19 @@ export default function Settings({ lang, theme, onTheme, onLang, onSaved }: Prop
                 </select>
               </div>
             </div>
+          </section>
+
+          <section className="card sect">
+            <h3>{copy.placement}</h3>
+            <div className="hintline">{copy.placementHint}</div>
+            <button
+              className="btn"
+              id="placement-start"
+              disabled={placementBusy}
+              onClick={() => void startPlacementTest()}
+            >
+              {placementBusy ? copy.placementRunning : copy.placementStart}
+            </button>
           </section>
 
           <section className="card sect">
@@ -492,6 +576,51 @@ export default function Settings({ lang, theme, onTheme, onLang, onSaved }: Prop
                 {copy.switchConfirm}
               </button>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {placement ? (
+        <div className="backdrop">
+          <div className="dialog placement-dialog">
+            <h3>{copy.placement}</h3>
+            <div className="hintline">
+              {copy.placementProgress(placement.idx + 1, placement.questions.length)}
+            </div>
+            <div className="placement-word">{placement.questions[placement.idx].word}</div>
+            <div className="phon">{placement.questions[placement.idx].reading}</div>
+            <div className="placement-options">
+              {placement.questions[placement.idx].options.map((opt) => (
+                <button key={opt} className="placement-opt" onClick={() => void answerPlacement(opt)}>
+                  {opt}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {placementResult ? (
+        <div className="backdrop">
+          <div className="dialog placement-dialog">
+            <h3>{copy.placementResult}</h3>
+            <div className="placement-level">{placementResult.estimated_level}</div>
+            <div className="hintline">{copy.placementNewWords(placementResult.daily_new_words)}</div>
+            <div className="placement-bands">
+              {Object.entries(placementResult.bands)
+                .sort((a, b) => bandOrder(a[0]) - bandOrder(b[0]))
+                .map(([lv, b]) => (
+                <div key={lv} className="placement-band">
+                    <span>{lv}</span>
+                    <span>
+                      {b.correct}/{b.total}
+                    </span>
+                  </div>
+                ))}
+            </div>
+            <button className="btn" id="placement-close" onClick={() => setPlacementResult(null)}>
+              {copy.placementClose}
+            </button>
           </div>
         </div>
       ) : null}

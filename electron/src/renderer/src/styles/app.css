@@ -294,6 +294,52 @@ body[data-screen="listening"] .s-listening {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.placement-dialog {
+  width: min(560px, 92vw);
+}
+.placement-word {
+  font-size: 34px;
+  font-weight: 600;
+  margin: 10px 0 2px;
+}
+.placement-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+.placement-opt {
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--soft);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+.placement-opt:hover {
+  border-color: var(--accent);
+}
+.placement-level {
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--accent-strong, var(--accent));
+  margin: 6px 0;
+}
+.placement-bands {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 10px 0 16px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.placement-band {
+  display: flex;
+  justify-content: space-between;
+}
+
 /* The pronunciation speaker in the question header is a real button now
    (it used to be a decorative span). */
 .phon .play {
