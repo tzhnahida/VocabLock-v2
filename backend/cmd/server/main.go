@@ -247,9 +247,7 @@ func main() {
 		func() {
 			// onShow: bring Flutter window to foreground
 			if hwnd, err := systemProvider.FindFlutterWindow(); err == nil {
-				user32 := syscall.NewLazyDLL("user32.dll")
-				user32.NewProc("SetForegroundWindow").Call(hwnd)
-				user32.NewProc("ShowWindow").Call(hwnd, 9) // SW_RESTORE
+				restoreWindow(hwnd)
 			}
 		},
 		func() {
