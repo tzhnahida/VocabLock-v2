@@ -568,8 +568,9 @@
 
 ### 做了什么
 
-## 时间额度 → 题量（设计 B，2026-11-20）
-- `session_time_budget` 开启时：总题量 = min(daily_target, budget×6 / 平均每题单位)，按 `question_type_ratio` 给各题型分配配额（无计划则均分），只统计当前可生成的题型（无 AI/ASR/pronounce 的题型不占额度）。
-- 到总题量或时间额度 → `/quiz/next` 返回 `completed`（带 `planned_questions` / `session_exhausted`）；`/quiz/session/continue` 才可突破。budget=0 时行为不变（仍用 1.5× 软上限）。
-- 设置页加说明：超预算削减题数，用不满不补题。
-- 测试：`engine.PlanSession` 4 例；handler 用 1 分钟预算跑 6 题后完成，continue 后恢复出题。
+## 本机部署（2026-11-20）
+- 重建 Go 服务（`go build -trimpath`）与 Electron（`electron-vite build` + `electron-builder --win dir`），更新 `release/VocabLock-ja-electron`；旧 exe/configs/data 备份在 `release/backup-20261120`。
+- 安装目录补齐：`content/`（3 个 pack）、`bin/` + `models/`（whisper-cli + ggml-base）、`configs/asr.yaml`；TTS/dict/pronounce 继续复用旧 release 的 junction（edge-tts / jmdict / julius）。
+- 无窗口启动验证：CDP ok；日志 `content: loaded 3 pack(s)`、`tts: edge-tts (ja-JP-NanamiNeural)`、`dict: jmdict`、`pronounce: julius`、`asr: whisper`、`ai: configured`；TTS 实生成 5.7s 音频。
+- 自启注册表仍指向 `release\VocabLock-ja-electron\vocablock.exe`。
+- electron-builder 要求图标 ≥256×256，原 64×64 已放大到 512×512（后续应换成真 512 源图）。
