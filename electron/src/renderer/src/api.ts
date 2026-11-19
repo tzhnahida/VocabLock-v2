@@ -282,9 +282,8 @@ export type Settings = {
   aiModel: string
   aiConfigured: boolean
 }
-export async function loadSettings(): Promise<Settings> {
-  const cfg = await jsonCall<Record<string, unknown>>('/api/v1/config', { method: 'GET' })
-  const ai = await jsonCall<Record<string, unknown>>('/api/v1/config/ai', { method: 'GET' })
+// Pure mapping so tests can pin the defaults without a live server.
+export function mapSettings(cfg: Record<string, unknown>, ai: Record<string, unknown>): Settings {
   return {
     activeLang: String(cfg['active_lang'] ?? 'en'),
     interfaceLang: normaliseLang(String(cfg['interface_lang'] ?? 'zh')),
@@ -317,6 +316,12 @@ export async function loadSettings(): Promise<Settings> {
     aiModel: String(ai['model'] ?? ''),
     aiConfigured: ai['configured'] === true
   }
+}
+
+export async function loadSettings(): Promise<Settings> {
+  const cfg = await jsonCall<Record<string, unknown>>('/api/v1/config', { method: 'GET' })
+  const ai = await jsonCall<Record<string, unknown>>('/api/v1/config/ai', { method: 'GET' })
+  return mapSettings(cfg, ai)
 }
 // The only way to change the course language once it is locked: the server
 // re-runs initialisation for the new language instead of mixing vaults.

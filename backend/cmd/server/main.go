@@ -370,6 +370,11 @@ func spawnElectron(port int, token string) int {
 	}
 
 	args := []string{}
+	// Dev-mode Electron treats switches after the app path as app arguments;
+	// put the test DevTools port before it so Chromium actually listens.
+	if p := os.Getenv("VOCABLOCK_ELECTRON_DEBUG_PORT"); p != "" {
+		args = append(args, "--remote-debugging-port="+p)
+	}
 	if target.AppDir != "" {
 		args = append(args, target.AppDir)
 	}
@@ -383,7 +388,17 @@ func spawnElectron(port int, token string) int {
 	}
 
 	cmd := exec.Command(target.Bin, args...)
-	cmd.Env = append(os.Environ(), "VOCABLOCK_AUTH_TOKEN="+token)
+	// Never inherit Electron/Node dev switches: a test runner (or a shell that
+	// sets ELECTRON_RUN_AS_NODE) would turn the shell into plain Node and
+	// reject Chromium switches such as --remote-debugging-port.
+	env := make([]string, 0, len(os.Environ())+1)
+	for _, kv := range os.Environ() {
+		if strings.HasPrefix(kv, "ELECTRON_RUN_AS_NODE=") || strings.HasPrefix(kv, "NODE_OPTIONS=") {
+			continue
+		}
+		env = append(env, kv)
+	}
+	cmd.Env = append(env, "VOCABLOCK_AUTH_TOKEN="+token)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {

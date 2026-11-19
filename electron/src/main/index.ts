@@ -25,6 +25,14 @@ function readArg(name: string): string | undefined {
 const apiPort = readArg('api-port')
 const authTokenArg = readArg('auth-token')
 
+// In dev mode the Go service spawns "electron.exe <app-dir> --api-port=…
+// --remote-debugging-port=…"; Chromium switches placed after the app path are
+// treated as app arguments, so re-register the DevTools port before ready.
+const remoteDebugPort = readArg('remote-debugging-port')
+if (remoteDebugPort) {
+  app.commandLine.appendSwitch('remote-debugging-port', remoteDebugPort)
+}
+
 // The Go service hands the token over stdin so it never appears in a process
 // listing (same rule the Flutter shell followed).
 const stdinToken = new Promise<string | null>((resolve) => {

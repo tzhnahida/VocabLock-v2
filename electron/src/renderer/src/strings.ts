@@ -6,10 +6,6 @@
  */
 import type { Lang } from './i18n'
 
-type Fn = (...args: never[]) => string
-type Entry = string | Fn
-type Dict = Record<string, Entry>
-
 const zh = {
   quiz: {
     record: '录音',

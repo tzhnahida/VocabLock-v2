@@ -10,7 +10,7 @@ type Props = { dash: Dashboard; lang: Lang; onExit: () => void; onStudy: () => v
  * only words that actually have a meaning are used — a blank correct option
  * was possible when the first word's meaning was empty.
  */
-function buildOptions(words: Dashboard['words'], word: Dashboard['words'][number] | undefined) {
+export function buildOptions(words: Dashboard['words'], word: Dashboard['words'][number] | undefined) {
   const correct = (word?.meaning ?? '').trim()
   const seen = new Set<string>(correct ? [correct] : [])
   const distractors: string[] = []

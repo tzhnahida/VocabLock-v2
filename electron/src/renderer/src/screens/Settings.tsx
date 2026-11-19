@@ -14,7 +14,7 @@ import {
 } from '../api'
 
 // Bands arrive as a JSON object; show them easiest-first.
-function bandOrder(level: string): number {
+export function bandOrder(level: string): number {
   const m = /^N([1-5])$/i.exec(level)
   if (m) return 5 - Number(m[1])
   const h = /^HSK([1-6])$/i.exec(level)

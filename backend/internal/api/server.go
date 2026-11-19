@@ -471,7 +471,11 @@ func (s *Server) Start() error {
 	mux := http.NewServeMux()
 	s.registerRoutes(mux)
 
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	addr := "127.0.0.1:0"
+	if s.Port != 0 { // tests pin the port; normal runs stay random
+		addr = fmt.Sprintf("127.0.0.1:%d", s.Port)
+	}
+	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("bind: %w", err)
 	}

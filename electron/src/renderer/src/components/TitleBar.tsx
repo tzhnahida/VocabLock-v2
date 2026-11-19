@@ -1,4 +1,4 @@
-import { t, langNative, type Lang } from '../i18n'
+import { t, type Lang } from '../i18n'
 
 type Props = {
   lang: Lang
