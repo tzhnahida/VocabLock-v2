@@ -568,9 +568,7 @@
 
 ### 做了什么
 
-## P2：扩词 known 列表 + 例句 i+1（2026-11-20 凌晨）
-- 扩词 prompt 的“已知词”上下文现在包含 `status='known'` 的词（最多 200 条，追加在已有词之后），日志会打印 `prompt context: N words (M known)`。
-- 新增 `DB.KnownWords` / `DB.UnknownWords`（active 且 repetitions=0）：后者用于例句过滤。
-- 入库时优先从内容包挑**符合 i+1** 的例句：必须提到目标词（按词干匹配，会う→会，兼容活用），且不包含其它未复习词；没有合适例句才回退 AI 例句。
-- 测试：`exampleCompatible` 5 用例、`TestPickPackExample`（真实 JLPT 包返回「もうスミスさんに会われましたね。」）、known/unknown 查询。
-- 虚机实测：导入 known 経済 后扩词日志 `prompt context: 100 words (1 known)`；新词 detail 里的 `example` 为短句。
+## 仓库转公开（2026-11-20 凌晨）
+- 仓库从 private 切为 **public**（PolyForm Shield 1.0.0 源码许可，非 OSI 开源；仅源码可见）。
+- 切换前做了预检：git 历史无 API key / 密码 / 内网 IP；仅有一处历史占位符 `sk-f96...****...af1b`（已脱敏，不可用）。
+- 公开后 CodeQL（go + javascript-typescript）条件满足，push 即会跑；分支保护（test/lint/electron/e2e + 1 review）保持不变。
