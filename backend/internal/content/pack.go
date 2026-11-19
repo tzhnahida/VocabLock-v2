@@ -78,6 +78,10 @@ type Library struct {
 	root  string
 	packs []*Pack
 	index map[string]map[string][]*Entry // language -> lemma -> refs (priority order)
+	// Errors records packs that failed to load. They are surfaced through the
+	// API instead of silently disappearing: a typo in a manifest should be
+	// visible, not look like "no packs installed".
+	Errors []error
 }
 
 // Load scans <root>/packs/* for manifests and entries. A missing directory is
@@ -98,7 +102,9 @@ func Load(root string) (*Library, error) {
 		}
 		pack, err := loadPack(filepath.Join(packsDir, de.Name()))
 		if err != nil {
-			// One broken pack must not take the whole library down.
+			// One broken pack must not take the whole library down, but it must
+			// be reported (API + logs) rather than silently skipped.
+			lib.Errors = append(lib.Errors, fmt.Errorf("pack %s: %w", de.Name(), err))
 			continue
 		}
 		lib.packs = append(lib.packs, pack)
@@ -120,6 +126,9 @@ func loadPack(dir string) (*Pack, error) {
 	}
 	if m.ID == "" {
 		m.ID = filepath.Base(dir)
+	}
+	if m.Schema != 0 && m.Schema != 1 {
+		return nil, fmt.Errorf("%s: unsupported schema %d", m.ID, m.Schema)
 	}
 	if m.Language == "" {
 		return nil, fmt.Errorf("%s: manifest.language is required", m.ID)
@@ -167,7 +176,13 @@ func loadPack(dir string) (*Pack, error) {
 		}
 		pack.Entries = append(pack.Entries, e)
 	}
-	return pack, sc.Err()
+	if err := sc.Err(); err != nil {
+		return nil, err
+	}
+	if len(pack.Entries) == 0 {
+		return nil, fmt.Errorf("%s: no entries", m.ID)
+	}
+	return pack, nil
 }
 
 func (l *Library) reindex() {

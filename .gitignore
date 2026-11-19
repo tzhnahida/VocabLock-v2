@@ -81,3 +81,4 @@ Thumbs.db
 backend/coverage.out
 electron/test-results/
 electron/playwright-report/
+backend/api.out

@@ -963,13 +963,3 @@ func injectExample(detail, example string) string {
 	}
 	return string(result)
 }
-
-// jsonEscape escapes a string for safe JSON embedding.
-func jsonEscape(s string) string {
-	b, _ := json.Marshal(s)
-	// json.Marshal wraps in quotes; strip them
-	if len(b) >= 2 {
-		return string(b[1 : len(b)-1])
-	}
-	return s
-}

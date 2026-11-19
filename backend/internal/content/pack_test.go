@@ -71,3 +71,32 @@ func TestLoadMissingDirIsEmpty(t *testing.T) {
 		t.Error("empty library returned an entry")
 	}
 }
+
+// A broken pack must be reported, not silently dropped: otherwise a typo
+// looks exactly like "no packs installed".
+func TestLoadReportsBrokenPacks(t *testing.T) {
+	root := t.TempDir()
+	writePack(t, root, "good",
+		"{\"schema\":1,\"id\":\"good\",\"language\":\"ja\"}",
+		"{\"word\":\"水\",\"reading\":\"みず\",\"senses\":[{\"glosses\":[\"water\"]}]}\n")
+	writePack(t, root, "bad-schema",
+		"{\"schema\":2,\"id\":\"bad-schema\",\"language\":\"ja\"}",
+		"{\"word\":\"火\"}\n")
+	writePack(t, root, "no-language",
+		"{\"schema\":1,\"id\":\"no-language\"}",
+		"{\"word\":\"山\"}\n")
+	writePack(t, root, "empty",
+		"{\"schema\":1,\"id\":\"empty\",\"language\":\"ja\"}",
+		"")
+
+	lib, err := Load(root)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if len(lib.Packs()) != 1 || lib.Packs()[0].ID != "good" {
+		t.Errorf("packs = %+v, want just good", lib.Packs())
+	}
+	if len(lib.Errors) != 3 {
+		t.Fatalf("errors = %d, want 3: %v", len(lib.Errors), lib.Errors)
+	}
+}

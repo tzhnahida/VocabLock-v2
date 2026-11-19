@@ -16,9 +16,21 @@ func (s *Server) handleContentPacks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]interface{}{
-		"root":  s.Content.Root(),
-		"packs": s.Content.Packs(),
+		"root":   s.Content.Root(),
+		"packs":  s.Content.Packs(),
+		"errors": contentErrors(s.Content),
 	})
+}
+
+func contentErrors(lib *content.Library) []string {
+	if lib == nil {
+		return nil
+	}
+	out := make([]string, 0, len(lib.Errors))
+	for _, err := range lib.Errors {
+		out = append(out, err.Error())
+	}
+	return out
 }
 
 // handleDictionaryLookup exposes the merged content-pack lookup, so the UI
@@ -56,7 +68,8 @@ func (s *Server) handleContentReload(w http.ResponseWriter, r *http.Request) {
 	s.Content = lib
 	log.Info("content", "reloaded %d pack(s) from %s", len(lib.Packs()), lib.Root())
 	writeJSON(w, map[string]interface{}{
-		"root":  lib.Root(),
-		"packs": lib.Packs(),
+		"root":   lib.Root(),
+		"packs":  lib.Packs(),
+		"errors": contentErrors(lib),
 	})
 }

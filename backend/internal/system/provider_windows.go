@@ -38,8 +38,6 @@ var (
 	procSetWindowLong    = user32.NewProc("SetWindowLongPtrW")
 	procShowWindow       = user32.NewProc("ShowWindow")
 	procInvalidateRect   = user32.NewProc("InvalidateRect")
-	procGetDC            = user32.NewProc("GetDC")
-	procReleaseDC        = user32.NewProc("ReleaseDC")
 	procFillRect         = user32.NewProc("FillRect")
 	procBeginPaint       = user32.NewProc("BeginPaint")
 	procEndPaint         = user32.NewProc("EndPaint")
@@ -79,14 +77,12 @@ var (
 	procShellNotifyIcon = shell32.NewProc("Shell_NotifyIconW")
 
 	// Mutex
-	procCreateMutex  = kernel32.NewProc("CreateMutexW")
-	procCloseHandle  = kernel32.NewProc("CloseHandle")
-	procGetLastError = kernel32.NewProc("GetLastError")
+	procCreateMutex = kernel32.NewProc("CreateMutexW")
+	procCloseHandle = kernel32.NewProc("CloseHandle")
 
 	// Process
-	procOpenProcess      = kernel32.NewProc("OpenProcess")
-	procGetExitCode      = kernel32.NewProc("GetExitCodeProcess")
-	procTerminateProcess = kernel32.NewProc("TerminateProcess")
+	procOpenProcess = kernel32.NewProc("OpenProcess")
+	procGetExitCode = kernel32.NewProc("GetExitCodeProcess")
 
 	// Registry
 	procRegCreateKeyEx = advapi32.NewProc("RegCreateKeyExW")
@@ -485,7 +481,7 @@ func createRunKey() (windows.Handle, error) {
 	return hKey, nil
 }
 
-var errRunKeyMissing = errors.New("Run key missing")
+var errRunKeyMissing = errors.New("run key missing")
 
 func openRunKey() (windows.Handle, error) {
 	keyName, _ := windows.UTF16PtrFromString(runKeyPath)

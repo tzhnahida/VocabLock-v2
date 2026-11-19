@@ -321,9 +321,8 @@ func extractContentWords(sentence, targetWord, lang string) []string {
 		}
 	} else {
 		// CJK: walk character by character, collect runs between particles
-		runes := []rune(sentence)
 		var current []rune
-		for _, r := range runes {
+		for _, r := range sentence {
 			ch := string(r)
 			if particles[ch] || r == '。' || r == '、' || r == '「' || r == '」' ||
 				r == '（' || r == '）' || r == '！' || r == '？' || r == '.' || r == ',' {
