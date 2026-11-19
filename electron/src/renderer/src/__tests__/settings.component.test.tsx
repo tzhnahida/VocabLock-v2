@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import Settings from '../screens/Settings'
 
 const mocks = vi.hoisted(() => ({
-  saveAppConfig: vi.fn(async () => ({})),
+  saveAppConfig: vi.fn(async (_patch: Record<string, unknown>) => ({})),
   saveAIConfig: vi.fn(async () => ({})),
   loadSettings: vi.fn(async () => ({
     activeLang: 'ja',
@@ -59,7 +59,7 @@ describe('Settings component', () => {
     await userEvent.click(screen.getByRole('button', { name: '保存' }))
 
     await waitFor(() => expect(mocks.saveAppConfig).toHaveBeenCalled())
-    const saved = mocks.saveAppConfig.mock.calls[0][0] as Record<string, unknown>
+    const saved = mocks.saveAppConfig.mock.calls[0][0]
     expect(saved.student_level).toBe('N2')
   })
 })
