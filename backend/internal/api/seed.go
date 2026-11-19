@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/tzhnahida/VocabLock/internal/config"
 	"github.com/tzhnahida/VocabLock/internal/db"
 	"github.com/tzhnahida/VocabLock/internal/log"
 )
@@ -24,7 +25,11 @@ type seedWord struct {
 // inserts any that do not already exist in the database. Returns the number of
 // newly inserted words.
 func loadSeedWords(s *Server, lang string) (int, error) {
-	path := filepath.Join(s.ConfigDir, "languages", "seeds", lang+".json")
+	safe, ok := config.SafeLanguageCode(lang)
+	if !ok {
+		return 0, fmt.Errorf("unsafe language code %q", lang)
+	}
+	path := filepath.Join(s.ConfigDir, "languages", "seeds", safe+".json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return 0, fmt.Errorf("read seed file %s: %w", path, err)

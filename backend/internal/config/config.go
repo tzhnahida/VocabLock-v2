@@ -343,10 +343,33 @@ func ReadTemplate(configDir, code string) *LanguageConfig {
 	return &lc
 }
 
+// SafeLanguageCode normalises a language code for use as a file name. It
+// rejects separators, traversal and anything outside [A-Za-z0-9_-] so a config
+// value cannot escape the languages directory.
+func SafeLanguageCode(code string) (string, bool) {
+	code = strings.TrimSpace(code)
+	if code == "" || code != filepath.Base(code) || code == "." || code == ".." {
+		return "", false
+	}
+	for _, r := range code {
+		ok := r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_'
+		if !ok {
+			return "", false
+		}
+	}
+	return code, true
+}
+
 // InstallTemplate copies configs/_languages/<code>.yaml into languages/<code>.yaml
 // and returns the parsed copy. The write is intentional (first use of a new
 // course) but the old name hid it, so the name says so now.
 func InstallTemplate(configDir, code string) *LanguageConfig {
+	if safe, ok := SafeLanguageCode(code); ok {
+		code = safe
+	} else {
+		log.Warn("config", "reject unsafe language code %q", code)
+		return nil
+	}
 	// Try file first
 	templatePath := filepath.Join(configDir, "_languages", code+".yaml")
 	if data, err := os.ReadFile(templatePath); err == nil {

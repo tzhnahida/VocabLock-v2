@@ -286,9 +286,7 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 				if example == "" {
 					example = e.Example
 				}
-				if example != "" {
-					detail = `{"example":"` + jsonEscape(example) + `"}`
-				}
+				detail = exampleDetail(example)
 				_, insertErr := s.DB.InsertWord(&db.Word{
 					Word:       e.Word,
 					Reading:    e.Reading,
@@ -305,10 +303,7 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 				}
 			} else {
 				// AI gave neither a dictionary hit nor a meaning — quarantine.
-				detail := "{}"
-				if e.Example != "" {
-					detail = `{"example":"` + jsonEscape(e.Example) + `"}`
-				}
+				detail := exampleDetail(e.Example)
 				s.DB.InsertWord(&db.Word{
 					Word: e.Word, Language: lang, Source: "ai_expansion",
 					Status: "pending_review", Detail: detail,
@@ -365,6 +360,19 @@ func (s *Server) collectExistingWords(lang string) (existingWords string, total 
 		return "(no words yet)", 0
 	}
 	return strings.Join(parts, ", "), total
+}
+
+// exampleDetail builds the detail JSON with encoding/json instead of string
+// concatenation, so quotes/backslashes in the sentence cannot corrupt it.
+func exampleDetail(example string) string {
+	if example == "" {
+		return "{}"
+	}
+	b, err := json.Marshal(map[string]string{"example": example})
+	if err != nil {
+		return "{}"
+	}
+	return string(b)
 }
 
 // targetStem strips trailing hiragana (okurigana) so an inflected sentence
