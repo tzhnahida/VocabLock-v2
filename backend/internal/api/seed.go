@@ -29,7 +29,7 @@ func loadSeedWords(s *Server, lang string) (int, error) {
 	if !ok {
 		return 0, fmt.Errorf("unsafe language code %q", lang)
 	}
-	path := filepath.Join(s.ConfigDir, "languages", "seeds", safe+".json")
+	path := filepath.Join(s.ConfigDir, "languages", "seeds", filepath.Base(safe)+".json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return 0, fmt.Errorf("read seed file %s: %w", path, err)

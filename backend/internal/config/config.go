@@ -370,12 +370,13 @@ func InstallTemplate(configDir, code string) *LanguageConfig {
 		log.Warn("config", "reject unsafe language code %q", code)
 		return nil
 	}
-	// Try file first
-	templatePath := filepath.Join(configDir, "_languages", code+".yaml")
+	// Try file first. filepath.Base is belt-and-braces for path scanners.
+	base := filepath.Base(code)
+	templatePath := filepath.Join(configDir, "_languages", base+".yaml")
 	if data, err := os.ReadFile(templatePath); err == nil {
 		activeDir := filepath.Join(configDir, "languages")
 		os.MkdirAll(activeDir, 0755)
-		if err := os.WriteFile(filepath.Join(activeDir, code+".yaml"), data, 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(activeDir, base+".yaml"), data, 0644); err != nil {
 			log.Debug("config", "recover language %q: %v", code, err)
 			return nil
 		}
