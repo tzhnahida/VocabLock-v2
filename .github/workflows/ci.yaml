@@ -31,24 +31,26 @@ jobs:
       - name: Build
         run: go build -o vocablock.exe ./cmd/server/
 
-  frontend:
+  electron:
     runs-on: windows-latest
     defaults:
       run:
-        working-directory: backend/frontend
+        working-directory: electron
+
     steps:
       - uses: actions/checkout@v4
 
-      - uses: subosito/flutter-action@v2
+      - uses: actions/setup-node@v4
         with:
-          channel: stable
-          cache: true
+          node-version: 22
+          cache: npm
+          cache-dependency-path: electron/package-lock.json
 
-      - name: Get dependencies
-        run: flutter pub get
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Analyze
-        run: flutter analyze
+      - name: Type check
+        run: npx tsc --noEmit -p tsconfig.json
 
-      - name: Test
-        run: flutter test
+      - name: Build
+        run: npm run build

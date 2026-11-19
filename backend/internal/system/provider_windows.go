@@ -3,6 +3,7 @@
 package system
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -88,6 +89,7 @@ var (
 	procTerminateProcess = kernel32.NewProc("TerminateProcess")
 
 	// Registry
+	procRegCreateKeyEx = advapi32.NewProc("RegCreateKeyExW")
 	procRegOpenKeyEx   = advapi32.NewProc("RegOpenKeyExW")
 	procRegSetValueEx  = advapi32.NewProc("RegSetValueExW")
 	procRegDeleteValue = advapi32.NewProc("RegDeleteValueW")
@@ -415,8 +417,12 @@ func (p *windowsProvider) SetAutoStart(enabled bool) error {
 }
 
 // setRunValue writes a REG_SZ under HKCU\...\Run.
+//
+// RegCreateKeyEx rather than RegOpenKeyEx: a fresh Windows profile may not
+// have the Run key yet (GitHub's CI runner does not), and opening it failed
+// with ERROR_FILE_NOT_FOUND instead of creating it.
 func setRunValue(name, command string) error {
-	hKey, err := openRunKey()
+	hKey, err := createRunKey()
 	if err != nil {
 		return err
 	}
@@ -441,6 +447,9 @@ func setRunValue(name, command string) error {
 // deleteRunValue removes a value; a missing value is not an error.
 func deleteRunValue(name string) error {
 	hKey, err := openRunKey()
+	if errors.Is(err, errRunKeyMissing) {
+		return nil
+	}
 	if err != nil {
 		return err
 	}
@@ -455,6 +464,29 @@ func deleteRunValue(name string) error {
 	return nil
 }
 
+// createRunKey opens the Run key, creating it (and its parents) when absent.
+func createRunKey() (windows.Handle, error) {
+	keyName, _ := windows.UTF16PtrFromString(runKeyPath)
+	var hKey windows.Handle
+	ret, _, _ := procRegCreateKeyEx.Call(
+		uintptr(HKEY_CURRENT_USER),
+		uintptr(unsafe.Pointer(keyName)),
+		0, // reserved
+		0, // class
+		0, // REG_OPTION_NON_VOLATILE
+		uintptr(KEY_SET_VALUE),
+		0, // security attributes
+		uintptr(unsafe.Pointer(&hKey)),
+		0, // disposition, unused
+	)
+	if ret != 0 {
+		return 0, fmt.Errorf("RegCreateKeyEx: %d", ret)
+	}
+	return hKey, nil
+}
+
+var errRunKeyMissing = errors.New("Run key missing")
+
 func openRunKey() (windows.Handle, error) {
 	keyName, _ := windows.UTF16PtrFromString(runKeyPath)
 	var hKey windows.Handle
@@ -465,6 +497,9 @@ func openRunKey() (windows.Handle, error) {
 		uintptr(KEY_SET_VALUE),
 		uintptr(unsafe.Pointer(&hKey)),
 	)
+	if ret == 2 { // ERROR_FILE_NOT_FOUND: nothing to delete
+		return 0, errRunKeyMissing
+	}
 	if ret != 0 {
 		return 0, fmt.Errorf("RegOpenKeyEx: %d", ret)
 	}
