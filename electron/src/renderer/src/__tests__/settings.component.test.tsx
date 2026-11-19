@@ -42,6 +42,20 @@ vi.mock('../api', () => ({
   loadSettings: mocks.loadSettings,
   saveAppConfig: mocks.saveAppConfig,
   saveAIConfig: mocks.saveAIConfig,
+  loadCapabilities: vi.fn(async () => ({
+    active_language: 'ja',
+    ai: false,
+    tts: false,
+    dict: false,
+    asr: false,
+    pronounce: false,
+    content: { root: '', packs: [] },
+    languages: {}
+  })),
+  loadPresets: vi.fn(async () => ({ language: 'ja', presets: [] })),
+  applyPreset: vi.fn(async () => ({ applied: {}, skipped: [], available: true })),
+  loadProfile: vi.fn(async () => ({})),
+  saveProfile: vi.fn(async () => ({})),
   initCourseLanguage: vi.fn(),
   startPlacement: vi.fn(),
   submitPlacement: vi.fn()

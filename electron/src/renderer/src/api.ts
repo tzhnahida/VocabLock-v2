@@ -361,3 +361,78 @@ export function submitPlacement(
 ): Promise<PlacementResult> {
   return jsonCall('/api/v1/quiz/placement/submit', { method: 'POST', body: JSON.stringify({ id, answers }) })
 }
+export type CapabilityLanguage = {
+  code: string
+  packs: string[]
+  levels: string[]
+  placement: boolean
+  tts: boolean
+  dict: boolean
+  asr: boolean
+  pronounce: boolean
+  question_types: string[]
+}
+
+export type Capabilities = {
+  active_language: string
+  ai: boolean
+  tts: boolean
+  dict: boolean
+  asr: boolean
+  pronounce: boolean
+  content: { root: string; packs: { id: string; language: string }[] }
+  languages: Record<string, CapabilityLanguage>
+}
+
+export type Preset = {
+  id: string
+  name: string
+  goal: string
+  direction: string
+  minutes: number
+  daily_target: number
+  daily_time_target: number
+  session_time_budget: number
+  max_slow_type_ratio: number
+  content_pack?: string
+  levels?: string[]
+  available: boolean
+  reason?: string
+}
+
+export function loadCapabilities(): Promise<Capabilities> {
+  return jsonCall('/api/v1/capabilities', { method: 'GET' })
+}
+
+export function loadPresets(language: string): Promise<{ language: string; presets: Preset[] }> {
+  return jsonCall('/api/v1/presets?language=' + encodeURIComponent(language), { method: 'GET' })
+}
+
+export function applyPreset(id: string, language: string): Promise<{
+  preset: string
+  language: string
+  available: boolean
+  applied: Record<string, unknown>
+  skipped: string[]
+}> {
+  return jsonCall('/api/v1/config/preset', { method: 'PUT', body: JSON.stringify({ id, language }) })
+}
+
+export type LearnerProfile = {
+  goal: string
+  level: string
+  daily_minutes: number
+  preferences: string[]
+  onboarding_done: boolean
+  daily_target: number
+  daily_time_target: number
+  active_language: string
+}
+
+export function loadProfile(): Promise<LearnerProfile> {
+  return jsonCall('/api/v1/profile', { method: 'GET' })
+}
+
+export function saveProfile(p: Partial<LearnerProfile>): Promise<LearnerProfile> {
+  return jsonCall('/api/v1/profile', { method: 'PUT', body: JSON.stringify(p) })
+}

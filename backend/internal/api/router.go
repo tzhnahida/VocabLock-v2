@@ -91,6 +91,11 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 
 	// Config
 	mux.HandleFunc("GET "+prefix+"/config", s.handleConfigGet)
+	mux.HandleFunc("GET "+prefix+"/capabilities", s.handleCapabilities)
+	mux.HandleFunc("GET "+prefix+"/presets", s.handlePresets)
+	mux.HandleFunc("PUT "+prefix+"/config/preset", s.handleApplyPreset)
+	mux.HandleFunc("GET "+prefix+"/profile", s.handleProfileGet)
+	mux.HandleFunc("PUT "+prefix+"/profile", s.handleProfilePut)
 	mux.HandleFunc("GET "+prefix+"/config/{key}", s.handleConfigGetKey)
 	mux.HandleFunc("PUT "+prefix+"/config", s.handleConfigUpdate)
 	mux.HandleFunc("POST "+prefix+"/config/language/init", s.handleConfigLanguageInit)

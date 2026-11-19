@@ -40,8 +40,8 @@ jobs:
           go test ./... -count=1 -coverprofile=coverage.out -covermode=atomic
           total=$(go tool cover -func=coverage.out | tail -1 | grep -oE '[0-9]+(\.[0-9]+)?%' | tr -d '%')
           echo "coverage: ${total}%"
-          if awk -v t="$total" 'BEGIN { exit !(t >= 41) }'; then
-            echo "total coverage meets the 41% floor"
+          if awk -v t="$total" 'BEGIN { exit !(t >= 43) }'; then
+            echo "total coverage meets the 43% floor"
           else
             echo "total coverage ${total}% is below the 32% floor" >&2
             exit 1
@@ -50,8 +50,8 @@ jobs:
           go test ./internal/api/ -count=1 -coverprofile=api.out
           api=$(go tool cover -func=api.out | tail -1 | grep -oE '[0-9]+(\.[0-9]+)?%' | tr -d '%')
           echo "internal/api coverage: ${api}%"
-          if awk -v t="$api" 'BEGIN { exit !(t >= 46) }'; then
-            echo "internal/api coverage meets the 46% floor"
+          if awk -v t="$api" 'BEGIN { exit !(t >= 47) }'; then
+            echo "internal/api coverage meets the 47% floor"
           else
             echo "internal/api coverage ${api}% is below the 31% floor" >&2
             exit 1

@@ -331,6 +331,27 @@ func levelOrder(level string) int {
 }
 
 // Root reports where packs were loaded from (for the API and logs).
+// Levels returns the sorted level labels present for a language.
+func (l *Library) Levels(language string) []string {
+	if l == nil {
+		return nil
+	}
+	set := map[string]bool{}
+	for _, refs := range l.index[language] {
+		for _, e := range refs {
+			if e.Level != "" {
+				set[e.Level] = true
+			}
+		}
+	}
+	levels := make([]string, 0, len(set))
+	for lv := range set {
+		levels = append(levels, lv)
+	}
+	sort.Slice(levels, func(i, j int) bool { return levelOrder(levels[i]) < levelOrder(levels[j]) })
+	return levels
+}
+
 func (l *Library) Root() string {
 	if l == nil {
 		return ""

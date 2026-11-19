@@ -2,14 +2,19 @@ import { useEffect, useState } from 'react'
 import { courseLabel, langNative, normaliseLang, type Lang } from '../i18n'
 import { st } from '../strings'
 import {
+  applyPreset,
   initCourseLanguage,
+  loadCapabilities,
+  loadPresets,
   loadSettings,
   saveAIConfig,
   saveAppConfig,
   startPlacement,
   submitPlacement,
+  type Capabilities,
   type PlacementQuestion,
   type PlacementResult,
+  type Preset,
   type Settings as SettingsData
 } from '../api'
 
@@ -49,6 +54,10 @@ export default function Settings({ lang, theme, onTheme, onLang, onSaved }: Prop
   } | null>(null)
   const [placementResult, setPlacementResult] = useState<PlacementResult | null>(null)
   const [placementBusy, setPlacementBusy] = useState(false)
+  const [presets, setPresets] = useState<Preset[]>([])
+  const [caps, setCaps] = useState<Capabilities | null>(null)
+  const [presetBusy, setPresetBusy] = useState(false)
+  const [presetMsg, setPresetMsg] = useState('')
 
   useEffect(() => {
     void loadSettings()
@@ -58,6 +67,47 @@ export default function Settings({ lang, theme, onTheme, onLang, onSaved }: Prop
         setMessage(copy.failed + (e instanceof Error ? e.message : String(e)))
       })
   }, [copy.failed])
+
+  useEffect(() => {
+    if (!data) return
+    let alive = true
+    void loadPresets(data.activeLang)
+      .then((r) => {
+        if (alive) setPresets(r.presets)
+      })
+      .catch(() => {})
+    void loadCapabilities()
+      .then((c) => {
+        if (alive) setCaps(c)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [data])
+
+  async function applyPlan(id: string): Promise<void> {
+    if (presetBusy || !data) return
+    setPresetBusy(true)
+    setPresetMsg('')
+    setFailed(false)
+    try {
+      const r = await applyPreset(id, data.activeLang)
+      if (!r.available) {
+        setFailed(true)
+        setPresetMsg(copy.presetUnavailable + (r.skipped.length ? ': ' + r.skipped.join('; ') : ''))
+        return
+      }
+      setData(await loadSettings())
+      setPresetMsg(copy.presetApplied)
+      onSaved()
+    } catch (e) {
+      setFailed(true)
+      setPresetMsg(copy.failed + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setPresetBusy(false)
+    }
+  }
 
   async function startPlacementTest(): Promise<void> {
     if (placementBusy) return
@@ -165,6 +215,31 @@ export default function Settings({ lang, theme, onTheme, onLang, onSaved }: Prop
         </span>
         <span>{data.aiConfigured ? copy.configured : copy.notConfigured}</span>
       </div>
+
+      <section className="card sect">
+        <h3>{copy.presetsTitle}</h3>
+        <div className="hintline">{copy.presetsHint}</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+          {presets.map((p) => (
+            <button
+              key={p.id}
+              id={'preset-' + p.id}
+              className="btn"
+              disabled={presetBusy || !p.available}
+              title={p.reason ?? ''}
+              onClick={() => void applyPlan(p.id)}
+            >
+              {copy.presetNames[p.id] ?? p.name}
+            </button>
+          ))}
+        </div>
+        {presetMsg ? <div className="hintline">{presetMsg}</div> : null}
+        {caps && caps.languages[data.activeLang] ? (
+          <div className="hintline">
+            {copy.languageStatus(caps.languages[data.activeLang].packs.length, caps.languages[data.activeLang].placement)}
+          </div>
+        ) : null}
+      </section>
 
       <div className="hgrid">
         <div className="col">

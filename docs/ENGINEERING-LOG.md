@@ -568,9 +568,11 @@
 
 ### 做了什么
 
-## 本机部署（2026-11-20）
-- 重建 Go 服务（`go build -trimpath`）与 Electron（`electron-vite build` + `electron-builder --win dir`），更新 `release/VocabLock-ja-electron`；旧 exe/configs/data 备份在 `release/backup-20261120`。
-- 安装目录补齐：`content/`（3 个 pack）、`bin/` + `models/`（whisper-cli + ggml-base）、`configs/asr.yaml`；TTS/dict/pronounce 继续复用旧 release 的 junction（edge-tts / jmdict / julius）。
-- 无窗口启动验证：CDP ok；日志 `content: loaded 3 pack(s)`、`tts: edge-tts (ja-JP-NanamiNeural)`、`dict: jmdict`、`pronounce: julius`、`asr: whisper`、`ai: configured`；TTS 实生成 5.7s 音频。
-- 自启注册表仍指向 `release\VocabLock-ja-electron\vocablock.exe`。
-- electron-builder 要求图标 ≥256×256，原 64×64 已放大到 512×512（后续应换成真 512 源图）。
+## Phase 1：能力层 + 一键方案 + Profile（2026-11-20）
+- 新增 `GET /api/v1/capabilities`：按语言返回 packs/levels/placement/tts/dict/asr/pronounce/可用题型，全部来自真实资产检查，不读配置声明。
+- 新增 `GET /api/v1/presets?language=` 与 `PUT /api/v1/config/preset`：节奏方案（考试冲刺/日常会话/兴趣阅读/轻度复习）语言无关；内容绑定方案（JLPT）缺 pack 时标记 unavailable，通用节奏仍可应用，并返回 applied/skipped。
+- 新增 `GET/PUT /api/v1/profile`：goal/level/daily_minutes/preferences/onboarding_done 单一来源，daily_target 由分钟数推导；保存到 app.yaml。
+- 新增 `languages/en.yaml`（英语基础题型 + edge-tts en 语音）；英语无内容包时 capabilities 显示 placement=false、packs=[]。
+- 设置页新增“一键方案”卡片与语言状态行；缺内容包时按钮禁用并显示原因。UI 文案 zh/en/ja 三套。
+- 覆盖：`internal/api` 48.2%，总量 43.4%；CI 门槛 47% / 43%。
+- 未做（下一阶段）：AI 访谈式 onboarding、英语内容包 en-cefr、`dict/en_lookup.py`、CEFR 定位测试。

@@ -51,6 +51,12 @@ type AppConfig struct {
 	// ContentDir is the root of installable content packs (dictionaries, word
 	// lists). Relative paths resolve against the working directory.
 	ContentDir string `yaml:"content_dir"`
+	// Learner profile (created by onboarding, edited by settings).
+	LearnerGoal         string   `yaml:"learner_goal"`
+	LearnerLevel        string   `yaml:"learner_level"`
+	LearnerDailyMinutes int      `yaml:"learner_daily_minutes"`
+	LearnerPreferences  []string `yaml:"learner_preferences"`
+	OnboardingDone      bool     `yaml:"onboarding_done"`
 }
 
 // ——— AI config ———
