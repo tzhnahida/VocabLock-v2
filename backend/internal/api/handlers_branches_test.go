@@ -235,10 +235,6 @@ func fakeAIServerContent(t *testing.T, content string) *httptest.Server {
 	return srv
 }
 
-func fakeAIServer(t *testing.T) *httptest.Server {
-	return fakeAIServerContent(t, "{\"reply\":\"hi\",\"verdict\":true}")
-}
-
 func withFakeAIContent(t *testing.T, s *Server, content string) {
 	t.Helper()
 	srv := fakeAIServerContent(t, content)
