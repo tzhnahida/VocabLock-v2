@@ -68,10 +68,22 @@ $secrets = Join-Path $release 'configs\secrets.yaml'
 if (-not (Test-Path $secrets)) { Write-Warning 'configs\secrets.yaml is missing: AI features will be disabled' }
 
 Write-Host "start:   $exe"
-Start-Process -FilePath $exe -WorkingDirectory $release
-Start-Sleep -Seconds 8
+$log = Join-Path $release "data\init-$stamp.log"
+$errLog = "$log.err"
+Start-Process -FilePath $exe -WorkingDirectory $release -RedirectStandardOutput $log -RedirectStandardError $errLog
+Write-Host "log:     $log"
 
+# First-run bootstrap (AI plan + initial words) runs asynchronously. Wait for
+# its "bootstrap: done" line before powering off, otherwise the expansion is
+# cut in half.
 if ($Shutdown) {
+  $deadline = (Get-Date).AddMinutes(10)
+  $done = $false
+  while ((Get-Date) -lt $deadline) {
+    if ((Test-Path $log) -and (Select-String -Path $log -Pattern 'bootstrap: done' -Quiet)) { $done = $true; break }
+    Start-Sleep -Seconds 5
+  }
+  if ($done) { Write-Host 'bootstrap: done' } else { Write-Warning 'bootstrap did not finish within 10 minutes; check the log before relying on this install' }
   Write-Host 'shutdown: 60s'
   shutdown.exe /s /t 60 /c 'VocabLock init complete'
 }
