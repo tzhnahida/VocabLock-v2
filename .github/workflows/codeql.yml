@@ -11,6 +11,10 @@ on:
 jobs:
   analyze:
     name: analyze (${{ matrix.language }})
+    # Code scanning (SARIF upload) requires a public repository or GitHub
+    # Advanced Security; this repo is private, so the job stays skipped until
+    # either is enabled.
+    if: github.event.repository.visibility == 'public'
     runs-on: ubuntu-latest
     permissions:
       security-events: write
