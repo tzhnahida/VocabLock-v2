@@ -128,6 +128,43 @@ func (d *Database) WordExistsFold(language, word string) (bool, error) {
 	return count > 0, nil
 }
 
+// KnownWords lists words the learner declared as known (imported lists or
+// manual marks). They are fed to the expansion prompt so the model stops
+// suggesting them.
+func (d *Database) KnownWords(language string, limit int) ([]string, error) {
+	return d.wordStrings(language, "status = 'known'", limit)
+}
+
+// UnknownWords lists active words that have never been reviewed. Example
+// sentences containing them are rejected when picking an i+1 sentence: the
+// target is supposed to be the only unknown word.
+func (d *Database) UnknownWords(language string, limit int) ([]string, error) {
+	return d.wordStrings(language, "status = 'active' AND repetitions = 0", limit)
+}
+
+func (d *Database) wordStrings(language, where string, limit int) ([]string, error) {
+	if limit <= 0 {
+		limit = 500
+	}
+	rows, err := d.DB.Query(
+		"SELECT word FROM words WHERE language = ? AND "+where+" AND word <> '' LIMIT ?",
+		language, limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list words (%s): %w", where, err)
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var w string
+		if err := rows.Scan(&w); err != nil {
+			return nil, err
+		}
+		out = append(out, w)
+	}
+	return out, rows.Err()
+}
+
 func (d *Database) WordActive(language, word string) (bool, error) {
 	var count int
 	err := d.DB.QueryRow(`SELECT COUNT(*) FROM words WHERE language = ? AND word = ? AND status = 'active'`, language, word).Scan(&count)

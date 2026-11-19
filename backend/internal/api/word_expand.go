@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/tzhnahida/VocabLock/internal/ai"
 	"github.com/tzhnahida/VocabLock/internal/clock"
@@ -68,8 +69,13 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 		count = 50
 	}
 
-	// Collect existing words for dedup context
+	// Collect existing words for dedup context. Known words matter too: a
+	// learner who imported a "I already know these" list should never be
+	// taught them again.
 	existingWords, totalCount := s.collectExistingWords(lang)
+	// Unreviewed words are used to reject example sentences that would
+	// introduce a second unknown word (i+1 filtering).
+	unknownWords, _ := s.DB.UnknownWords(lang, 500)
 
 	// Build language context once
 	teacherRole, level, explLang, targetLang := s.expandLangContext(lang)
@@ -247,8 +253,11 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 				// Dict detail base + AI gap-fill (dict keys take priority)
 				detail := mergeJSON(dictEntry.Detail, aiDetail)
 
-				// Inject AI-provided example sentence into detail
-				if e.Example != "" {
+				// Prefer a pack example that fits i+1 (target is the only
+				// unreviewed word); fall back to the AI example.
+				if example := s.pickPackExample(lang, e.Word, unknownWords); example != "" {
+					detail = injectExample(detail, example)
+				} else if e.Example != "" {
 					detail = injectExample(detail, e.Example)
 				}
 
@@ -273,8 +282,12 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 				// reading/meaning so the word is studyable, but mark it medium
 				// confidence so the review UI can still flag it.
 				detail := "{}"
-				if e.Example != "" {
-					detail = `{"example":"` + jsonEscape(e.Example) + `"}`
+				example := s.pickPackExample(lang, e.Word, unknownWords)
+				if example == "" {
+					example = e.Example
+				}
+				if example != "" {
+					detail = `{"example":"` + jsonEscape(example) + `"}`
 				}
 				_, insertErr := s.DB.InsertWord(&db.Word{
 					Word:       e.Word,
@@ -325,16 +338,96 @@ func (s *Server) collectExistingWords(lang string) (existingWords string, total 
 			log.Warn("expand", "list words (5): %v", err)
 		}
 	}
-	parts := make([]string, 0, len(words))
-	for _, w := range words {
-		if w.Word != "" {
-			parts = append(parts, w.Word)
+	seen := map[string]bool{}
+	parts := make([]string, 0, len(words)+200)
+	add := func(w string) {
+		w = strings.TrimSpace(w)
+		if w == "" || seen[w] {
+			return
 		}
+		seen[w] = true
+		parts = append(parts, w)
 	}
+	for _, w := range words {
+		add(w.Word)
+	}
+	// The "already known" list is deliberately appended last: it can be long,
+	// and the model reads the whole context anyway.
+	knownCount := 0
+	if known, err := s.DB.KnownWords(lang, 200); err == nil {
+		for _, w := range known {
+			add(w)
+		}
+		knownCount = len(known)
+	}
+	log.Debug("expand", "prompt context: %d words (%d known)", len(parts), knownCount)
 	if len(parts) == 0 {
 		return "(no words yet)", 0
 	}
 	return strings.Join(parts, ", "), total
+}
+
+// targetStem strips trailing hiragana (okurigana) so an inflected sentence
+// still counts as "about" the target: 会う → 会 matches 会いました. Kana-only
+// words keep their full form.
+func targetStem(word string) string {
+	runes := []rune(word)
+	hasHan := false
+	for _, r := range runes {
+		if unicode.Is(unicode.Han, r) {
+			hasHan = true
+			break
+		}
+	}
+	if !hasHan {
+		return word
+	}
+	end := len(runes)
+	for end > 1 && unicode.Is(unicode.Hiragana, runes[end-1]) {
+		end--
+	}
+	return string(runes[:end])
+}
+
+// exampleCompatible reports whether an example can serve as an i+1 sentence
+// for target: it must mention the target and no other unreviewed word.
+func exampleCompatible(example, target string, unknown []string) bool {
+	stem := targetStem(target)
+	if example == "" || !strings.Contains(example, stem) {
+		return false
+	}
+	for _, u := range unknown {
+		if u == target || len([]rune(u)) < 2 {
+			continue
+		}
+		if strings.Contains(example, u) {
+			return false
+		}
+	}
+	return true
+}
+
+// pickPackExample finds the shortest pack example that fits i+1.
+func (s *Server) pickPackExample(lang, word string, unknown []string) string {
+	if s.Content == nil {
+		return ""
+	}
+	entry := s.Content.Lookup(lang, word)
+	if entry == nil {
+		return ""
+	}
+	best := ""
+	for _, sense := range entry.Senses {
+		for _, ex := range sense.Examples {
+			if !exampleCompatible(ex.Text, word, unknown) {
+				continue
+			}
+			if best == "" || len([]rune(ex.Text)) < len([]rune(best)) {
+				best = ex.Text
+			}
+		}
+	}
+	return best
 }
 
 func (s *Server) buildRecentContext(lang string) string {

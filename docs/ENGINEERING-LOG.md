@@ -568,9 +568,9 @@
 
 ### 做了什么
 
-## P1 定位测试（2026-11-19 深夜）
-- 新增接口：`POST /quiz/placement/start`（从内容包按 level 分层抽 6 题/级，N5–N1；正确答案只留在服务端，返回四选一）与 `POST /quiz/placement/submit`（按 band 正确率估算，≥70% 视为通过，遇简单档失败即停止）。
-- 结果写入 `student_state`（扩词据此跳过低水平词），并写入一条 `training_plans`（direction=exam，含 bands/建议每日新词），即“培养方案”的落库形态。
-- 设置页新增「水平测试」入口 + 30 题弹窗 + 结果视图（等级、各级正确率、建议新词数），完成后刷新设置里的水平。
-- 实现：`backend/internal/api/placement.go`、`content.SampleByLevel`、`placement_test.go`（estimateLevel 4 用例）。
-- 虚机实测：API 返回 30 题覆盖 N5–N1；UI 走完 30 题出现结果弹窗（随机作答 → beginner，band 正确率 1/6…3/6，建议 15 词/天）。
+## P2：扩词 known 列表 + 例句 i+1（2026-11-20 凌晨）
+- 扩词 prompt 的“已知词”上下文现在包含 `status='known'` 的词（最多 200 条，追加在已有词之后），日志会打印 `prompt context: N words (M known)`。
+- 新增 `DB.KnownWords` / `DB.UnknownWords`（active 且 repetitions=0）：后者用于例句过滤。
+- 入库时优先从内容包挑**符合 i+1** 的例句：必须提到目标词（按词干匹配，会う→会，兼容活用），且不包含其它未复习词；没有合适例句才回退 AI 例句。
+- 测试：`exampleCompatible` 5 用例、`TestPickPackExample`（真实 JLPT 包返回「もうスミスさんに会われましたね。」）、known/unknown 查询。
+- 虚机实测：导入 known 経済 后扩词日志 `prompt context: 100 words (1 known)`；新词 detail 里的 `example` 为短句。

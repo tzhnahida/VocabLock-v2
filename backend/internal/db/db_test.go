@@ -547,3 +547,32 @@ func TestWordExistsFold(t *testing.T) {
 		t.Error("WordExistsFold(goodbye) = true, want false")
 	}
 }
+
+// Known and never-reviewed words drive the expansion prompt and the i+1
+// example filter; keep the two sets disjoint and language-scoped.
+func TestKnownAndUnknownWords(t *testing.T) {
+	d := openTestDB(t)
+	must := func(w *Word) {
+		if _, err := d.InsertWord(w); err != nil {
+			t.Fatalf("insert %s: %v", w.Word, err)
+		}
+	}
+	must(&Word{Word: "経済", Language: "ja", Status: "known"})
+	must(&Word{Word: "学校", Language: "ja", Status: "active"})
+	must(&Word{Word: "水", Language: "en", Status: "known"})
+
+	known, err := d.KnownWords("ja", 10)
+	if err != nil {
+		t.Fatalf("known: %v", err)
+	}
+	if len(known) != 1 || known[0] != "経済" {
+		t.Errorf("known = %v, want [経済]", known)
+	}
+	unknown, err := d.UnknownWords("ja", 10)
+	if err != nil {
+		t.Fatalf("unknown: %v", err)
+	}
+	if len(unknown) != 1 || unknown[0] != "学校" {
+		t.Errorf("unknown = %v, want [学校]", unknown)
+	}
+}
