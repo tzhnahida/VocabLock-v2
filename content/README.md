@@ -10,7 +10,7 @@ a personal word list, or a graded list.
 ```
 content/packs/<id>/
   manifest.json   # required
-  entries.jsonl   # required, one entry per line
+  entries.jsonl   # required (or entries.jsonl.gz), one entry per line
   NOTICE.md       # optional attribution / license text
   media/          # optional audio files referenced by entry.audio
 ```
@@ -57,7 +57,10 @@ pack or to the AI provider.
 
 ## Sample packs
 
-- `ja-jmdict-sample` — 300 common Japanese words from JMdict (English glosses,
+- `ja-jlpt-open` — 7,811 Japanese words tagged N5–N1 (OpenJLPT, CC BY-SA 4.0)
+  with readings, POS and Tatoeba examples; rebuild with
+  `content/tools/build-jlpt-pack.py`.
+- `ja-jmdict-sample` — 108 common Japanese words from JMdict (English glosses,
   CC BY-SA 4.0), sample only.
-- `ja-user-sample` — a tiny hand-written Chinese glossary that overlaps a few
-  lemmas with the JMdict pack, to demonstrate merging.
+- `ja-user-sample` — a tiny hand-written Chinese glossary that overlaps the
+  other packs' lemmas, to demonstrate merging (priority 20 wins display).

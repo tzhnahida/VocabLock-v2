@@ -6,8 +6,10 @@ package content
 
 import (
 	"bufio"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -122,14 +124,28 @@ func loadPack(dir string) (*Pack, error) {
 	if m.Language == "" {
 		return nil, fmt.Errorf("%s: manifest.language is required", m.ID)
 	}
-	f, err := os.Open(filepath.Join(dir, "entries.jsonl"))
-	if err != nil {
-		return nil, err
+	// Prefer compressed entries: a full N5–N1 pack is ~3 MB raw, ~0.5 MB
+	// gzipped. entries.jsonl stays supported for small hand-written packs.
+	var reader io.Reader
+	if gf, err := os.Open(filepath.Join(dir, "entries.jsonl.gz")); err == nil {
+		defer gf.Close()
+		gz, err := gzip.NewReader(gf)
+		if err != nil {
+			return nil, fmt.Errorf("open gzip entries: %w", err)
+		}
+		defer gz.Close()
+		reader = gz
+	} else {
+		f, err := os.Open(filepath.Join(dir, "entries.jsonl"))
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+		reader = f
 	}
-	defer f.Close()
 
 	pack := &Pack{Manifest: m, Dir: dir}
-	sc := bufio.NewScanner(f)
+	sc := bufio.NewScanner(reader)
 	sc.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
 	for sc.Scan() {
 		line := strings.TrimSpace(sc.Text())
@@ -188,6 +204,9 @@ func (l *Library) Lookup(language, word string) *Entry {
 	for _, e := range refs {
 		if merged.Reading == "" {
 			merged.Reading = e.Reading
+		}
+		if merged.Level == "" {
+			merged.Level = e.Level
 		}
 		merged.POS = appendUnique(merged.POS, e.POS...)
 		if merged.Frequency == 0 || (e.Frequency > 0 && e.Frequency < merged.Frequency) {

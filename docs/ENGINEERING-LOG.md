@@ -568,8 +568,16 @@
 
 ### 做了什么
 
-### P0：水平设置 + 内容包 level 过滤（2026-11-18 夜）
-- 内容包 entry 支持 `level`（N5–N1 / HSK1–6 / beginner–advanced）；查包时把 level 带进 `LookupResult`。
-- 设置页新增 **我的水平**（日语 N5–N1、中文 HSK1–6、其它 beginner/intermediate/advanced，可选自动）；保存走 `PUT /config {student_level}`，写入 `student_state`，非法值 400。
-- 扩词时若包条目的 level 低于学习者水平，视为已会直接跳过（`belowLevel`），不占当天名额。
-- 虚机实测：`before=beginner → PUT N2 200 → after=n2`，`N6` 返回 400。
+## JLPT 分级内容包（2026-11-19 夜）
+
+### 数据源调研
+- **OpenJLPT**（evanclan/openjlpt）：7,811 词 N5–N1，JMdict 交叉校验、读音/词性/例句（Tatoeba）齐全，数据 **CC BY-SA 4.0**，有 JSON/CSV/SQLite。选它。
+- Bluskyo/JLPT_Vocabulary：tanos 列表的 JSON/CSV 转换，代码 MIT、数据 CC BY，作为备选。
+- firavoyage/_anki-jlpt-decks：中日 Anki 卡组，但许可是 **CC BY-NC 4.0**，商用不可用，放弃。
+
+### 落地
+- 新增内容包 `content/packs/ja-jlpt-open/`：7,811 条（N5 674 / N4 630 / N3 1,659 / N2 1,778 / N1 3,070），`entries.jsonl.gz` 约 0.5 MB，priority 15。
+- `internal/content` 支持 `entries.jsonl.gz`（整包约 3 MB → 0.5 MB）；合并时把 `level` 一并带进结果。
+- 生成脚本 `content/tools/build-jlpt-pack.py`（从 OpenJLPT 重新拉取构建），内容不编进 exe。
+- 虚机实测：`/content/packs` 显示 3 个包（含 ja-jlpt-open:7811）；`lookup 会う → N5/to meet`、`勉強 → N5`、`経済 → N4`。
+- 水平过滤实测（student_state ja=N2，空库扩词）：日志 `skip below-level word: 方向 (N3) / 左右 (N3) / 向かう (N4) / 指す (N3)`，入库 15 词中可见 N1/N2（導く N1、斜め N2、前後 N2…），P1 定位测试所需的等级数据已就绪。

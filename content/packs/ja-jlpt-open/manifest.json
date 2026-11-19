@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "id": "ja-jlpt-open",
+  "name": "OpenJLPT N5–N1",
+  "language": "ja",
+  "gloss_lang": "en",
+  "version": "1.0.0",
+  "license": "CC BY-SA 4.0",
+  "attribution": "OpenJLPT (CC BY-SA 4.0); levels after Jonathan Waller / tanos.co.uk (CC BY); example sentences from Tatoeba (CC BY 2.0 FR)",
+  "priority": 15
+}
