@@ -99,7 +99,6 @@ export default function App() {
       }
       if (runtime.locked && !needsOnboarding) {
         setFocusLocked(true)
-        setScreen('quiz')
       }
       setOnboarding(needsOnboarding)
       setReady(true)
@@ -129,7 +128,6 @@ export default function App() {
   useEffect(() => {
     window.vocablock.onLockState?.((value) => {
       setFocusLocked(value)
-      if (value) setScreen('quiz')
     })
   }, [])
 

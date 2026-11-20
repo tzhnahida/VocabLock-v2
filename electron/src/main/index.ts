@@ -112,11 +112,15 @@ function loadInto(target: BrowserWindow): void {
 function targetDisplay(): ReturnType<typeof screen.getPrimaryDisplay> {
   const raw = process.env.VOCABLOCK_WINDOW_DISPLAY
   const all = screen.getAllDisplays()
+  const primary = screen.getPrimaryDisplay()
   if (raw) {
     const idx = Number(raw) - 1
     if (Number.isFinite(idx) && all[idx]) return all[idx]
+    return primary
   }
-  return screen.getPrimaryDisplay()
+  // Default to the secondary display when one exists, so launches (including
+  // the autostart entry) never cover the user's primary workspace.
+  return all.find((d) => d.id !== primary.id) ?? primary
 }
 
 function createWindow(): void {
@@ -134,12 +138,19 @@ function createWindow(): void {
     height,
     x: captureMode ? -32000 : display.workArea.x + Math.round((areaW - width) / 2),
     y: captureMode ? -32000 : display.workArea.y + Math.round((areaH - height) / 2),
-    show: !captureMode && !hidden
+    show: false
+  })
+  win.once('ready-to-show', () => {
+    if (!win) return
+    if (captureMode) {
+      win.showInactive()
+      return
+    }
+    if (hidden) return
+    win.maximize()
+    win.show()
   })
   loadInto(win)
-  win.once('ready-to-show', () => {
-    if (!captureMode && !hidden) win?.maximize()
-  })
 
   // Renderer errors otherwise vanish in a packaged build (no devtools). Forward
   // them to the service log so a blank screen can be diagnosed from stderr.
@@ -150,10 +161,11 @@ function createWindow(): void {
     console.error('[renderer] process gone:', details.reason, details.exitCode)
   })
 
-  if (captureMode) win.showInactive()
-
   // Closing the window parks the app in the tray; quitting goes through the menu
   // (or app.quit), so the service keeps running and the lock stays armed.
+  win.on('resize', () => {
+    if (locked && !quitting && win && !win.isKiosk()) win.setKiosk(true)
+  })
   win.on('close', (event) => {
     // Focus mode: the window is not closable until today's quota is done.
     if (locked && !quitting) {
@@ -220,14 +232,34 @@ function destroyLockWindow(): void {
   target.destroy()
 }
 
+function applyFocusWindow(lock: boolean): void {
+  if (!win || captureMode || hidden) return
+  win.setResizable(!lock)
+  win.setMinimizable(!lock)
+  win.setMaximizable(!lock)
+  win.setClosable(!lock)
+  if (lock) {
+    win.setKiosk(true)
+    win.show()
+    win.focus()
+  } else {
+    try {
+      win.setKiosk(false)
+    } catch {
+      /* already out of kiosk */
+    }
+    win.setFullScreen(false)
+  }
+}
+
 function setLocked(next: boolean): void {
   const changed = locked !== next
   locked = next
   if (next) createLockWindow()
   else destroyLockWindow()
+  applyFocusWindow(next)
   if (changed && win) {
     win.webContents.send('lock-state', next)
-    if (next) win.webContents.send('navigate', 'quiz')
   }
 }
 
@@ -311,9 +343,12 @@ ipcMain.handle('app:info', () => ({
   alwaysOnTop: lockWin ? lockWin.isAlwaysOnTop() : false
 }))
 
-ipcMain.on('window:minimize', () => win?.minimize())
+ipcMain.on('window:minimize', () => {
+  if (locked) return
+  win?.minimize()
+})
 ipcMain.on('window:maximize', () => {
-  if (!win) return
+  if (!win || locked) return
   if (win.isMaximized()) win.unmaximize()
   else win.maximize()
 })
