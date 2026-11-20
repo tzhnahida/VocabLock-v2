@@ -114,25 +114,6 @@ type Server struct {
 	// Pronounce re-init). It does NOT kill/restart the Flutter process —
 	// the comment on the old code claimed otherwise.
 	RestartFunc func()
-
-	// Session time accounting (stats only — NOT an unlock condition; the
-	// daily target is count-based, see DailyTargetMet). Elapsed time
-	// between question interactions accumulates into daily_stats.
-	timeMu         sync.Mutex
-	lastActivityAt time.Time
-}
-
-// sessionGapCapSec bounds a single inter-question gap when accumulating
-// study time — anything longer is treated as idle, not study.
-const sessionGapCapSec = 15 * 60
-
-// markActivity records the moment a question-interaction happens. Called
-// when a session goes READY so the study/learning phase counts as time.
-// Stats only; never gates unlock.
-func (s *Server) markActivity() {
-	s.timeMu.Lock()
-	defer s.timeMu.Unlock()
-	s.lastActivityAt = time.Now()
 }
 
 // fixedQuestionSeconds is the time credited for one answer, regardless of how
@@ -149,27 +130,6 @@ func fixedQuestionSeconds(questionType string) int {
 // type-based; wall-clock duration is irrelevant.
 func (s *Server) questionTimeCredit(questionType string) int {
 	return fixedQuestionSeconds(questionType)
-}
-
-// consumeActivityElapsed returns the seconds since the last activity,
-// clamped to sessionGapCapSec, and resets the clock. Returns 0 if the
-// clock was never started (e.g. submit without session/start).
-func (s *Server) consumeActivityElapsed() int {
-	s.timeMu.Lock()
-	defer s.timeMu.Unlock()
-	if s.lastActivityAt.IsZero() {
-		s.lastActivityAt = time.Now()
-		return 0
-	}
-	elapsed := int(time.Since(s.lastActivityAt).Seconds())
-	s.lastActivityAt = time.Now()
-	if elapsed > sessionGapCapSec {
-		elapsed = sessionGapCapSec
-	}
-	if elapsed < 0 {
-		elapsed = 0
-	}
-	return elapsed
 }
 
 // aiExplLang returns the language the AI should use when speaking to the

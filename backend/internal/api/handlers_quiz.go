@@ -267,7 +267,6 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 	}
 
 	log.Debug("session", "READY: nw=%d ng=%d rw=%d rg=%d", nw, ng, rw, rg)
-	s.markActivity() // stats-only: study-time accounting (no unlock semantics)
 
 	// Pre-warm TTS for new study words in background so audio is
 	// cached before the user reaches the learning screen.
