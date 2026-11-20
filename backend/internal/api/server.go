@@ -195,6 +195,15 @@ func (s *Server) DailyTargetMet(lang string) bool {
 	if s.DB == nil {
 		return false
 	}
+	// The daily quota is TIME when configured: the close lock stays until the
+	// learner has actually spent that many minutes today.
+	if s.Config.App.DailyTimeTarget > 0 {
+		spent, err := s.DB.GetTodayTimeSpent(lang)
+		if err != nil {
+			return false
+		}
+		return spent >= s.Config.App.DailyTimeTarget
+	}
 	reviewed, err := s.DB.GetUniqueSubjectsReviewed(lang)
 	if err != nil {
 		return false

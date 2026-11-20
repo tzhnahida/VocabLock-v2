@@ -111,6 +111,13 @@ export function recordStudyTime(seconds: number, wordId: number): Promise<{ ok: 
   })
 }
 
+export function continueSession(): Promise<{ ok: boolean; continue: boolean }> {
+  return call<{ ok: boolean; continue: boolean }>('/api/v1/quiz/session/continue', {
+    method: 'POST',
+    body: JSON.stringify({})
+  })
+}
+
 export function startSession(language: string): Promise<SessionStart> {
   return call<SessionStart>('/api/v1/quiz/session/start', {
     method: 'POST',

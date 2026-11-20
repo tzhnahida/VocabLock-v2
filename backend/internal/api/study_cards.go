@@ -3,6 +3,8 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/tzhnahida/VocabLock/internal/clock"
 	"strconv"
 	"strings"
 )
@@ -92,5 +94,8 @@ func (s *Server) handleQuizStudyTime(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	used := s.sessionBudget.recordStudyTime(req.Seconds)
+	if s.DB != nil {
+		_ = s.DB.UpsertDailyStats(clock.Today(), s.Config.App.ActiveLang, 0, 0, req.Seconds)
+	}
 	writeJSON(w, map[string]interface{}{"ok": true, "time_used": used})
 }

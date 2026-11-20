@@ -13,6 +13,10 @@ import (
 
 func (s *Server) handleSystemStatus(w http.ResponseWriter, r *http.Request) {
 	log.Debug("system", "status")
+	// Release as soon as the time quota is reached, even mid-session.
+	if s.IsLocked() && s.DailyTargetMet(s.Config.App.ActiveLang) {
+		s.exitNativeLock()
+	}
 	writeJSON(w, map[string]interface{}{
 		"status":      "running",
 		"locked":      s.IsLocked(),

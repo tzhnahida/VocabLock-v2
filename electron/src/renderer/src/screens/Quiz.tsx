@@ -4,6 +4,7 @@ import type { Dashboard } from '../api'
 import {
   assessPronounce,
   completeSession,
+  continueSession,
   disputeAnswer,
   loadStudyCards,
   nextQuestion,
@@ -282,9 +283,19 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
       return (
         <div className="emptystate">
           <div>{dyn[lang].dailyDone}</div>
-          <button className="btn" onClick={onExit}>
-            {t(lang, 'quiz.back')}
-          </button>
+          <div className="qfoot" style={{ justifyContent: 'center', gap: 10 }}>
+            <button className="btn ghost" onClick={onExit}>
+              {t(lang, 'quiz.back')}
+            </button>
+            <button
+              className="btn"
+              onClick={() => {
+                void continueSession().then(() => loadNext())
+              }}
+            >
+              {copy.keepGoing}
+            </button>
+          </div>
         </div>
       )
     }
