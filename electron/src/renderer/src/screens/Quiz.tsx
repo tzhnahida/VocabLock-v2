@@ -331,28 +331,32 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
           {assessing ? (
             <p className="pronfb">{copy.pronAssessing}</p>
           ) : pron ? (
-            <div className="pronfb">
-              {pron.status === 'ok' ? (
-                <>
-                  <b>{copy.pronScore(Math.round(pron.score <= 1 ? pron.score * 100 : pron.score))}</b>
-                  {(pron.phonemes ?? []).filter((p) => p.score < 0.6).length > 0 ? (
-                    <span>
-                      {copy.pronWeak(
-                        (pron.phonemes ?? [])
-                          .filter((p) => p.score < 0.6)
-                          .slice(0, 4)
-                          .map((p) => p.phoneme + ' ' + Math.round(p.score * 100) + '%')
-                          .join(' · ')
-                      )}
-                    </span>
-                  ) : (
-                    <span className="pronok">{copy.pronGood}</span>
-                  )}
-                </>
-              ) : (
+            pron.status === 'ok' ? (
+              <div className={'pronfb ' + (Math.round(pron.score <= 1 ? pron.score * 100 : pron.score) >= 50 ? 'ok' : 'warn')}>
+                <div className="pronhead">
+                  <b>
+                    {Math.round(pron.score <= 1 ? pron.score * 100 : pron.score) >= 50
+                      ? copy.pronPass
+                      : copy.pronNeedWork}
+                  </b>
+                  <span>{copy.pronScoreLine(Math.round(pron.score <= 1 ? pron.score * 100 : pron.score), 50)}</span>
+                </div>
+                {(pron.phonemes ?? []).length > 0 ? (
+                  <div className="phonemes">
+                    {(pron.phonemes ?? []).map((p, i) => (
+                      <span key={i} className={p.score >= 0.45 ? 'p-ok' : 'p-bad'}>
+                        {p.phoneme}
+                        <em>{Math.round(p.score * 100)}%</em>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div className="pronfb">
                 <span>{pron.status === 'not_configured' ? copy.pronUnavailable : copy.pronError}</span>
-              )}
-            </div>
+              </div>
+            )
           ) : null}
           <div className="qfoot">
             <button className="link" onClick={() => void loadNext()}>
