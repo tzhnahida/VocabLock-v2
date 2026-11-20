@@ -6,6 +6,7 @@ export type RuntimeConfig = {
   screen: string
   theme: string | null
   lang: string | null
+  locked: boolean
 }
 
 contextBridge.exposeInMainWorld('vocablock', {
@@ -18,6 +19,9 @@ contextBridge.exposeInMainWorld('vocablock', {
   startStudy: (): void => ipcRenderer.send('lock:study'),
   onNavigate: (cb: (screen: string) => void): void => {
     ipcRenderer.on('navigate', (_event, screen: string) => cb(screen))
+  },
+  onLockState: (cb: (locked: boolean) => void): void => {
+    ipcRenderer.on('lock-state', (_event, locked: boolean) => cb(locked))
   },
   appInfo: (): Promise<Record<string, unknown>> => ipcRenderer.invoke('app:info')
 })

@@ -221,9 +221,14 @@ function destroyLockWindow(): void {
 }
 
 function setLocked(next: boolean): void {
+  const changed = locked !== next
   locked = next
   if (next) createLockWindow()
   else destroyLockWindow()
+  if (changed && win) {
+    win.webContents.send('lock-state', next)
+    if (next) win.webContents.send('navigate', 'quiz')
+  }
 }
 
 function createTray(): void {
@@ -291,7 +296,8 @@ ipcMain.handle('runtime:config', async (event) => {
     authToken: await stdinToken,
     screen: sender && lockWin && sender.id === lockWin.id ? 'lock' : initialScreen,
     theme: initialTheme ?? null,
-    lang: initialLang ?? null
+    lang: initialLang ?? null,
+    locked
   }
 })
 
