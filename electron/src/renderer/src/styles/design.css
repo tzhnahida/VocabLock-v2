@@ -432,3 +432,43 @@ main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
 .fbword b{font-size:var(--fs-body)}
 .fbword span{color:var(--muted);font-weight:400}
 .fbword div{color:var(--muted);margin-top:2px}
+
+/* Old Flutter shell visual language: soft purple glass, 20px cards, gradient CTAs. */
+:root{--pink:#EC4899;--radius-card:20px}
+html[data-theme="dark"]{
+  --bg:#141526; --panel:#1E1F33; --panel2:#16172A;
+  --border:rgba(255,255,255,.08); --track:#2C2D49;
+  --text:#EAEAF0; --muted:#A0A0B8; --faint:#70708A;
+  --accent:#A78BFA; --accent-soft:rgba(167,139,250,.16);
+  --green:#5BD68A; --green-soft:rgba(91,214,138,.12); --green-border:rgba(91,214,138,.3);
+  --amber:#E8B45E; --amber-soft:rgba(232,180,94,.12); --amber-border:rgba(232,180,94,.28);
+  --active:rgba(255,255,255,.07); --soft:rgba(255,255,255,.055); --hover:rgba(255,255,255,.05)
+}
+.app{
+  background:
+    radial-gradient(900px 560px at 88% 112%, rgba(236,72,153,.13), transparent 62%),
+    radial-gradient(760px 500px at -6% -8%, rgba(139,92,246,.15), transparent 58%),
+    var(--bg)
+}
+html[data-theme="dark"] .card{
+  border-radius:var(--radius-card);
+  background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.008)), var(--panel);
+  box-shadow:0 12px 32px rgba(0,0,0,.22)
+}
+html[data-theme="dark"] .sidebar{background:rgba(18,19,28,.78);backdrop-filter:blur(14px)}
+.btn{
+  background:linear-gradient(135deg,var(--accent),var(--pink));
+  color:#fff;border:0;box-shadow:0 6px 18px rgba(139,92,246,.28)
+}
+.btn:hover{filter:brightness(1.08);box-shadow:0 8px 22px rgba(139,92,246,.36)}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--border);box-shadow:none}
+.progress i,.rbar i,.bar i{background:linear-gradient(90deg,var(--accent),var(--pink))}
+.hero.pathcard{
+  background:
+    radial-gradient(600px 260px at 92% -20%, rgba(236,72,153,.16), transparent 65%),
+    linear-gradient(135deg, rgba(167,139,250,.15), rgba(30,31,51,.2)),
+    var(--panel)
+}
+html[data-theme="dark"] .qcard{border-radius:22px}
+html[data-theme="dark"] .opt{border-radius:12px;background:rgba(255,255,255,.025)}
+html[data-theme="dark"] .opt:hover{background:rgba(255,255,255,.05)}
