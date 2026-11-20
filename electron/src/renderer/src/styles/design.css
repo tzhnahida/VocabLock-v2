@@ -258,3 +258,30 @@ body.locked .lock{display:flex}
 .lockfoot{height:60px;flex:none;display:flex;align-items:center;justify-content:center;gap:22px;font-size:10.5px;color:var(--faint)}
 .lockfoot i{font-style:normal}
 .lockfoot span{display:inline-flex;align-items:center;gap:6px}
+
+/* First-run onboarding: centered card flow, independent of the app shell. */
+.onboard-wrap{height:100vh;overflow:auto;display:flex;justify-content:center;padding:48px 24px;
+  background:radial-gradient(1100px 480px at 50% -12%, var(--accent-soft), transparent 62%), var(--bg)}
+.onboard-card{width:min(880px,100%);margin:0 auto}
+.onboard-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}
+.onboard-brand{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600}
+.onboard-steps{display:flex;gap:6px}
+.onboard-steps span{width:30px;height:4px;border-radius:2px;background:var(--track);transition:background var(--dur)}
+.onboard-steps span.on{background:var(--accent)}
+.onboard-title{font-size:26px;font-weight:650;letter-spacing:-.01em;margin-bottom:8px}
+.onboard-sub{color:var(--muted);font-size:13px;line-height:1.65;margin-bottom:22px;max-width:62ch}
+.onboard-section{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px 20px;margin-bottom:14px}
+.onboard-section h3{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-bottom:12px}
+.onboard-section select,.onboard-section input{width:100%;height:36px;border-radius:9px;border:1px solid var(--border);
+  background:var(--panel2);color:var(--text);padding:0 12px;font-family:inherit;font-size:13px;outline:none}
+.onboard-section select:focus,.onboard-section input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.option-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.option{text-align:left;padding:13px 15px;border-radius:11px;border:1px solid var(--border);background:var(--panel2);
+  color:var(--text);font-family:inherit;font-size:13px;cursor:pointer;
+  transition:border-color var(--dur),background var(--dur),box-shadow var(--dur)}
+.option:hover{border-color:var(--faint)}
+.option.on{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent)}
+.option:disabled{opacity:.45;cursor:not-allowed}
+.option small{display:block;color:var(--muted);font-size:11px;line-height:1.45;margin-top:5px;font-weight:400}
+.onboard-note{color:var(--faint);font-size:11.5px;line-height:1.55;margin-top:10px}
+.onboard-actions{display:flex;justify-content:space-between;align-items:center;margin-top:20px}

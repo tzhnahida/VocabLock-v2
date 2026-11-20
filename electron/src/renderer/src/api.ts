@@ -400,6 +400,10 @@ export type Preset = {
   reason?: string
 }
 
+export function loadLanguages(): Promise<{ value: string[] }> {
+  return jsonCall('/api/v1/config/languages', { method: 'GET' })
+}
+
 export function loadCapabilities(): Promise<Capabilities> {
   return jsonCall('/api/v1/capabilities', { method: 'GET' })
 }

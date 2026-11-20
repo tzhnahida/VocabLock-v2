@@ -25,6 +25,7 @@ const zh = {
     planHint: '按目标、每日时长和已安装内容一键设定；不可用的方案会说明原因。',
     noPack: '暂无内容包：可以用 AI 生成或导入词表',
     summary: (langLabel: string, minutes: number, goalLabel: string) => '将设置：' + langLabel + ' · 每天 ' + minutes + ' 分钟 · ' + goalLabel,
+    moreLangs: '这里列出已配置的语言；安装新的 languages/<code>.yaml 和内容包后会自动出现。',
     failed: '保存失败：',
     goals: { exam: '考试', conversation: '日常交流', work: '工作', interest: '兴趣' },
     prefs: { visual: '视觉（词卡）', auditory: '听觉（多听）', kinesthetic: '动手（多写）', mixed: '都可以' }
@@ -200,6 +201,7 @@ const en: typeof zh = {
     planHint: 'Sets goal, daily minutes and installed content in one go; unavailable plans explain why.',
     noPack: 'No content pack yet: use AI generation or import a word list',
     summary: (langLabel: string, minutes: number, goalLabel: string) => 'Will set: ' + langLabel + ' · ' + minutes + ' min/day · ' + goalLabel,
+    moreLangs: 'Only configured languages are listed; add a languages/<code>.yaml and a content pack to make another one appear.',
     failed: 'Save failed: ',
     goals: { exam: 'Exam', conversation: 'Conversation', work: 'Work', interest: 'Interest' },
     prefs: { visual: 'Visual (cards)', auditory: 'Auditory (listening)', kinesthetic: 'Hands-on (writing)', mixed: 'Anything' }
@@ -375,6 +377,7 @@ const ja: typeof zh = {
     planHint: '目標・1日の時間・インストール済みコンテンツをまとめて設定。使えないプランは理由を表示します。',
     noPack: 'コンテンツパックなし：AI 生成か単語リストのインポートが使えます',
     summary: (langLabel: string, minutes: number, goalLabel: string) => '設定内容：' + langLabel + ' · 1日 ' + minutes + ' 分 · ' + goalLabel,
+    moreLangs: '設定済みの言語だけを表示します。languages/<code>.yaml とコンテンツパックを追加すると自動で増えます。',
     failed: '保存に失敗しました：',
     goals: { exam: '試験', conversation: '日常会話', work: '仕事', interest: '趣味' },
     prefs: { visual: '視覚（カード）', auditory: '聴覚（聞く）', kinesthetic: '手を動かす（書く）', mixed: 'どれでも' }

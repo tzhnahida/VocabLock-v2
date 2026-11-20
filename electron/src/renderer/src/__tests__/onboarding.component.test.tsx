@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('../api', () => ({
+  loadLanguages: vi.fn(async () => ({ value: ['ja', 'en'] })),
   loadCapabilities: vi.fn(async () => ({
     active_language: 'ja',
     ai: true,
