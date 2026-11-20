@@ -10,6 +10,11 @@ import (
 	"github.com/tzhnahida/VocabLock/internal/log"
 )
 
+const interviewSystemPrompt = `You are the onboarding requirements interviewer for a vocabulary-learning app. The course language has already been chosen; never ask which language to learn.
+Collect only: current level (self-estimate), minutes per day, goal (exam/conversation/work/interest), learning preferences (visual/auditory/kinesthetic/mixed), and weak areas.
+Hard rules: do NOT teach, translate, define words, give example sentences, vocabulary lists, quizzes, study plans, lessons, or role-play as a teacher. Do not produce Japanese/English example content.
+Ask exactly ONE short question per turn. After at most 3 answers, summarize the profile in one short paragraph and tell the user to press the "生成学习档案" button.`
+
 func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
 		mock.HandleAIChat(w, r)
@@ -19,6 +24,9 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Message string       `json:"message"`
 		History []ai.Message `json:"history"`
+		// Purpose selects a dedicated system prompt. "interview" is the
+		// onboarding requirements interview and must never teach.
+		Purpose string `json:"purpose,omitempty"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeError(w, 400, "invalid request body")
@@ -87,6 +95,12 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	allMsgs = append(allMsgs, sysMsg)
 	allMsgs = append(allMsgs, req.History...)
 	allMsgs = append(allMsgs, messages[1:]...)
+
+	// Onboarding interview: replace the teacher prompt entirely. The model must
+	// collect requirements only — no vocabulary, examples or lessons.
+	if req.Purpose == "interview" {
+		allMsgs[0] = ai.Message{Role: "system", Content: interviewSystemPrompt}
+	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()

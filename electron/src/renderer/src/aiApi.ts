@@ -26,9 +26,9 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 
 export type ChatReply = { reply: string; model: string }
 
-export function sendChat(message: string, history: ChatMessage[]): Promise<ChatReply> {
+export function sendChat(message: string, history: ChatMessage[], purpose?: 'interview'): Promise<ChatReply> {
   return call<ChatReply>('/api/v1/ai/chat', {
     method: 'POST',
-    body: JSON.stringify({ message, history: history.slice(-10) })
+    body: JSON.stringify({ message, history: history.slice(-10), ...(purpose ? { purpose } : {}) })
   })
 }

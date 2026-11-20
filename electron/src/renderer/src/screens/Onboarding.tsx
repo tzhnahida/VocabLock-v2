@@ -97,7 +97,7 @@ export default function Onboarding({ lang, activeLang, onLang, onDone }: Props) 
     setMessages(next)
     setChatInput('')
     try {
-      const r = await sendChat(text, history)
+      const r = await sendChat(text, history, 'interview')
       setMessages([...next, { role: 'assistant', content: r.reply }])
     } catch {
       setAiError(copy.interviewFailed)
@@ -128,7 +128,7 @@ export default function Onboarding({ lang, activeLang, onLang, onDone }: Props) 
     setExtracting(true)
     setAiError('')
     try {
-      const r = await sendChat(copy.extractPrompt, messages)
+      const r = await sendChat(copy.extractPrompt, messages, 'interview')
       const p = parseProfile(r.reply)
       if (!p) {
         setAiError(copy.interviewFailed)
