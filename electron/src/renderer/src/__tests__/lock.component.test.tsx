@@ -17,8 +17,7 @@ const dash = {
 describe('Lock component', () => {
   it('calls onStudy when the start button is pressed', async () => {
     const onStudy = vi.fn()
-    const { container } = render(<Lock dash={dash} lang="zh" onStudy={onStudy} />)
-    await userEvent.click(container.querySelector('.opt[data-correct="true"]') as HTMLElement)
+    render(<Lock dash={dash} lang="zh" onStudy={onStudy} />)
     await userEvent.click(screen.getByRole('button', { name: '开始学习' }))
     expect(onStudy).toHaveBeenCalledTimes(1)
   })

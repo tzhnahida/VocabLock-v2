@@ -139,9 +139,24 @@ function createWindow(): void {
   // Closing the window parks the app in the tray; quitting goes through the menu
   // (or app.quit), so the service keeps running and the lock stays armed.
   win.on('close', (event) => {
-    if (!quitting && tray) {
+    // Focus mode: the window is not closable until today's quota is done.
+    if (locked && !quitting) {
       event.preventDefault()
-      win?.hide()
+      win?.show()
+      win?.focus()
+      void dialog.showMessageBox(win!, {
+        type: 'info',
+        title: '专注模式',
+        message: '完成今日学习目标后才能关闭窗口。',
+        detail: '达标后会自动解锁，届时可以直接关闭。',
+        buttons: ['继续学习']
+      })
+      return
+    }
+    // After the quota is met the user is released: closing the window quits.
+    if (!quitting) {
+      quitting = true
+      app.quit()
     }
   })
   win.on('closed', () => {
@@ -315,15 +330,19 @@ ipcMain.on('window:maximize', () => {
 ipcMain.on('window:close', () => win?.close())
 ipcMain.on('lock:request', () => void requestLock())
 ipcMain.on('lock:dismiss', () => {
-  void api('/api/v1/system/unlock', { method: 'POST' })
+  // Only the service may release a focus lock (daily quota met). Renderer
+  // shortcuts must not be able to dismiss it.
+  if (locked) return
   setLocked(false)
 })
 // "Start studying" on the lock screen: the lock is a focus screen, not a
 // quiz, so give it an explicit way into the real session instead of leaving
 // the user to guess that Esc is the only exit.
 ipcMain.on('lock:study', () => {
-  void api('/api/v1/system/unlock', { method: 'POST' })
-  setLocked(false)
+  // Enter the real session while keeping the focus lock armed. The lock is
+  // released by the service only when the daily quota is complete.
+  if (!locked) return
+  lockWin?.hide()
   if (win) {
     win.show()
     win.focus()
@@ -367,7 +386,16 @@ if (singleInstance) {
   })
 }
 
-app.on('before-quit', () => {
+app.on('before-quit', (event) => {
+  // Quit is also blocked while the daily quota is unfinished.
+  if (locked && !quitting) {
+    event.preventDefault()
+    if (win) {
+      win.show()
+      win.focus()
+    }
+    return
+  }
   quitting = true
 })
 

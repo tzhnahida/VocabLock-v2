@@ -35,7 +35,6 @@ export default function Lock({ dash, lang, onStudy }: Props) {
   const studyable = dash.words.filter((w) => (w.meaning ?? '').trim() !== '')
   const word = studyable[0] ?? dash.words[0] ?? { word: 'ubiquitous', meaning: '无处不在的', reading: '/juːˈbɪk.wɪ.təs/' }
   const [picked, setPicked] = useState<number | null>(null)
-  const [solved, setSolved] = useState(false)
   const [options] = useState(() => buildOptions(studyable, word))
 
   return (
@@ -68,12 +67,8 @@ export default function Lock({ dash, lang, onStudy }: Props) {
             {options.map((opt, i) => (
               <div
                 key={i}
-                data-correct={opt.correct ? 'true' : 'false'}
-                className={`opt${picked !== null && opt.correct ? ' good' : ''}${picked === i && !opt.correct ? ' bad' : ''}`}
-                onClick={() => {
-                  setPicked(i)
-                  if (opt.correct) setSolved(true)
-                }}
+                className={`opt${picked !== null && opt.correct ? ' good' : ''}`}
+                onClick={() => setPicked(i)}
               >
                 <span className="k">{i + 1}</span>
                 <span>{opt.label}</span>
@@ -83,10 +78,10 @@ export default function Lock({ dash, lang, onStudy }: Props) {
           </div>
           ) : null}
           <div className="lockstudy">
-            <button className="btn" id="lock-study" disabled={!solved} onClick={onStudy}>
-              {solved ? t(lang, 'lock.study') : copy.answerFirst}
+            <button className="btn" id="lock-study" onClick={onStudy}>
+              {t(lang, 'lock.study')}
             </button>
-            <span className="hintline">{solved ? t(lang, 'lock.studyHint') : copy.gate}</span>
+            <span className="hintline">{t(lang, 'lock.studyHint')}</span>
           </div>
           <div className="lockprog">
             <div className="progress">
@@ -99,7 +94,7 @@ export default function Lock({ dash, lang, onStudy }: Props) {
         </div>
       </div>
       <div className="lockfoot">
-        <span>{solved ? t(lang, 'lock.exit') : copy.gate}</span>
+        <span>{copy.gate}</span>
         <span>
           <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Q</kbd> <i>{t(lang, 'lock.emergency')}</i>
         </span>
