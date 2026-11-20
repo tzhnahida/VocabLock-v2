@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, screen } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, Tray, nativeImage, screen } from 'electron'
 import { join } from 'path'
 import { mkdirSync, writeFileSync } from 'fs'
 import { trayIconDataUrl } from './icon'
@@ -341,6 +341,17 @@ app.on('second-instance', () => {
 
 if (singleInstance) {
   app.whenReady().then(() => {
+    // The packaged shell is useless on its own: without the Go service it
+    // falls back to demo data. Point the user at the real entry point instead
+    // of silently showing an English demo vault.
+    if (app.isPackaged && !process.argv.some((a) => a.startsWith('--api-port'))) {
+      dialog.showErrorBox(
+        'VocabLock',
+        '请通过 VocabLock.exe 启动。\n\n直接运行界面外壳（vocablock-desktop.exe）只会显示演示数据。'
+      )
+      app.quit()
+      return
+    }
     createWindow()
     createTray()
     if (lockDemo) {

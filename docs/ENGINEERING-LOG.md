@@ -568,9 +568,7 @@
 
 ### 做了什么
 
-## 首次启动向导（2026-11-20 晚）
-- 新增 Electron `Onboarding` 三屏：界面/学习语言（带 pack/定位状态）→ 目标/水平/每日分钟/偏好 → 方案选择（缺内容包禁用并说明）。
-- 完成时写 `PUT /profile`（goal/level/daily_minutes/preferences/onboarding_done），必要时 `POST /config/language/init` 切课程，再应用 `PUT /config/preset`。
-- App 仅在 `totalWords === 0 && !onboarding_done` 时进入向导；已有词库的安装不受影响。mock/离线后端失败时跳过向导。
-- E2E fixture 的 app.yaml 写入 `onboarding_done: true`，保持既有 5 条 E2E 覆盖主界面；新增组件测试覆盖向导保存流程。
-- release 已重新打包部署；前端 12 个单测、typecheck、lint 通过。
+## 直接启动界面外壳的误用修复（2026-11-20 晚）
+- 现象：双击 `vocablock-desktop.exe`（Electron 外壳）时没有 Go 服务，renderer 回落到 demoDashboard，界面显示“英语 · demo”和英文示例词。
+- 修复：打包版 Electron 启动时若 argv 没有 `--api-port`，弹窗提示“请通过 VocabLock.exe 启动”并退出；桌面新建 `VocabLock.lnk` 指向 `vocablock.exe`。
+- 真正入口始终是 `vocablock.exe`（Go 服务负责端口/token/SQLite，再拉起 Electron）。
