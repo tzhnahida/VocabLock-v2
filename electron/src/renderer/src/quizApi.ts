@@ -65,6 +65,21 @@ export function loadStudyCards(language: string, count = 8): Promise<StudyCard[]
   ).then((r) => r.cards ?? [])
 }
 
+export type PlanSummary = {
+  message?: string
+  warning?: string
+  summary?: Record<string, unknown>
+  plan?: {
+    direction?: string
+    direction_confidence?: number
+    tomorrow?: { word_count?: number; difficulty?: string; question_type_ratio?: Record<string, number> }
+  }
+}
+
+export function summarizeSession(): Promise<PlanSummary> {
+  return call<PlanSummary>('/api/v1/quiz/summarize', { method: 'POST', body: JSON.stringify({}) })
+}
+
 export function recordStudyTime(seconds: number, wordId: number): Promise<{ ok: boolean; time_used: number }> {
   return call<{ ok: boolean; time_used: number }>('/api/v1/quiz/study-time', {
     method: 'POST',

@@ -44,6 +44,16 @@ const zh = {
     goals: { exam: '考试', conversation: '日常交流', work: '工作', interest: '兴趣', reading: '兴趣阅读', general: '轻度复习' },
     prefs: { visual: '视觉（词卡）', auditory: '听觉（多听）', kinesthetic: '动手（多写）', mixed: '都可以' }
   },
+  planTune: {
+    title: 'AI 微调',
+    hint: '让 AI 看最近的正确率、薄弱项和复习压力，调整明天的词量与题型比例。',
+    run: '根据最近进度调整',
+    busy: '分析中…',
+    noData: '还没有足够的答题记录，先学一轮再来。',
+    noChange: 'AI 认为当前节奏合适，暂不调整。',
+    done: (words: string, diff: string) => '已调整：明天 ' + words + ' 词 · 难度 ' + diff,
+    failed: (e: string) => '调整失败：' + e
+  },
   quiz: {
     record: '录音',
     recordStop: '停止录音',
@@ -246,6 +256,16 @@ const en: typeof zh = {
     goals: { exam: 'Exam', conversation: 'Conversation', work: 'Work', interest: 'Interest', reading: 'Reading', general: 'Light review' },
     prefs: { visual: 'Visual (cards)', auditory: 'Auditory (listening)', kinesthetic: 'Hands-on (writing)', mixed: 'Anything' }
   },
+  planTune: {
+    title: 'AI tune',
+    hint: 'Let AI review recent accuracy, weak types and review load, then adjust tomorrow’s word count and question mix.',
+    run: 'Tune from recent progress',
+    busy: 'Analyzing…',
+    noData: 'Not enough answers yet — study one round first.',
+    noChange: 'AI thinks the current pace is fine; no change.',
+    done: (words: string, diff: string) => 'Updated: ' + words + ' words tomorrow · difficulty ' + diff,
+    failed: (e: string) => 'Tune failed: ' + e
+  },
   quiz: {
     record: 'Record',
     recordStop: 'Stop',
@@ -447,6 +467,16 @@ const ja: typeof zh = {
     failed: '保存に失敗しました：',
     goals: { exam: '試験', conversation: '日常会話', work: '仕事', interest: '趣味', reading: '読解', general: '軽い復習' },
     prefs: { visual: '視覚（カード）', auditory: '聴覚（聞く）', kinesthetic: '手を動かす（書く）', mixed: 'どれでも' }
+  },
+  planTune: {
+    title: 'AI 調整',
+    hint: '最近の正答率・苦手分野・復習量から、明日の語数と問題比率を調整します。',
+    run: '最近の進捗から調整',
+    busy: '分析中…',
+    noData: 'まだ解答記録が足りません。まず1ラウンド学習してください。',
+    noChange: 'AI は現在のペースが適切と判断しました。',
+    done: (words: string, diff: string) => '更新：明日 ' + words + ' 語 · 難易度 ' + diff,
+    failed: (e: string) => '調整に失敗：' + e
   },
   quiz: {
     record: '録音',
