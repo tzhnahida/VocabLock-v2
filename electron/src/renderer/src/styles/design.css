@@ -420,3 +420,6 @@ body{font-size:var(--fs-small)}
   .pathcard .ring-lg{width:72px;height:72px}
   .pathcard .ring-lg svg{width:72px;height:72px}
 }
+
+/* The flex row needs the main column to actually take the remaining width. */
+main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
