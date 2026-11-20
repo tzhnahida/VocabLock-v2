@@ -23,7 +23,7 @@ import { st } from '../strings'
 
 type Props = { dash: Dashboard; lang: Lang; onExit: () => void; onAnswered: () => void }
 
-type Phase = 'starting' | 'study' | 'question' | 'feedback' | 'done' | 'preparing' | 'empty' | 'error'
+type Phase = 'starting' | 'intro' | 'study' | 'question' | 'feedback' | 'done' | 'preparing' | 'empty' | 'error'
 
 /** Types the service grades from a recording, not from typed text. */
 const AUDIO_TYPES = ['read_word', 'read_sentence', 'dialogue_speak']
@@ -67,6 +67,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   const [wrong, setWrong] = useState(0)
   const [studyCards, setStudyCards] = useState<StudyCard[]>([])
   const [grammarCards, setGrammarCards] = useState<GrammarCard[]>([])
+  const [intro, setIntro] = useState({ words: 0, questions: 0, minutes: 0 })
   const [studyIdx, setStudyIdx] = useState(0)
   const [studyRead, setStudyRead] = useState(false)
   const [recordingCard, setRecordingCard] = useState<number | null>(null)
@@ -163,7 +164,9 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
             setStudyCards(preview.cards)
             setGrammarCards(preview.grammar)
             setStudyIdx(0)
-            setPhase('study')
+            const questions = (started.new_words ?? 0) + (started.review_words ?? 0) + (started.new_grammar ?? 0) + (started.review_grammar ?? 0)
+            setIntro({ words: preview.cards.length, questions: Math.max(questions, preview.cards.length), minutes: Math.max(1, Math.round(Math.max(questions, preview.cards.length) * 0.75)) })
+            setPhase('intro')
             return
           }
         } catch {
@@ -343,6 +346,26 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
             {dyn[lang].retry}
           </button>
         </div>
+      )
+    }
+    if (phase === 'intro') {
+      return (
+        <section className="card qcard introcard">
+          <div className="qhead">
+            <span className="tag">{copy.studyPhase}</span>
+            <span className="hint">{intro.words} new words</span>
+          </div>
+          <h1 className="introtagline">Today's Study</h1>
+          <p className="introsub">SM-2 smart review + curated new words</p>
+          <div className="introcounts">
+            <div><b>{intro.words}</b><span>New Words</span></div>
+            <div><b>{intro.questions}</b><span>Questions</span></div>
+            <div><b>~{intro.minutes} min</b><span>Estimated</span></div>
+          </div>
+          <button className="btn introstart" onClick={() => setPhase('study')}>
+            Start Learning
+          </button>
+        </section>
       )
     }
     if (phase === 'study' && studyCards.length + grammarCards.length > 0) {
