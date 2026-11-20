@@ -82,7 +82,22 @@ func (s *Server) handleQuizStudyCards(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	s.setStudyQueue(ids)
-	writeJSON(w, map[string]interface{}{"cards": cards})
+
+	// The old Flutter flow showed grammar study cards after the word cards.
+	grammarCards := make([]map[string]interface{}, 0, 4)
+	if gps, err := s.DB.GetReviewGrammarPoints(lang, 4); err == nil {
+		for _, gp := range gps {
+			grammarCards = append(grammarCards, map[string]interface{}{
+				"id":          gp.ID,
+				"title":       gp.Title,
+				"explanation": gp.Explanation,
+				"example":     gp.Example,
+				"detail":      gp.Detail,
+			})
+		}
+	}
+
+	writeJSON(w, map[string]interface{}{"cards": cards, "grammar": grammarCards})
 }
 
 // handleQuizStudyTime credits read-along time from a study card to the session

@@ -13,6 +13,7 @@ import {
   submitAnswer,
   type PronounceResult,
   type Question,
+  type GrammarCard,
   type StudyCard,
   type SubmitResult
 } from '../quizApi'
@@ -65,6 +66,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   const [answered, setAnswered] = useState(0)
   const [wrong, setWrong] = useState(0)
   const [studyCards, setStudyCards] = useState<StudyCard[]>([])
+  const [grammarCards, setGrammarCards] = useState<GrammarCard[]>([])
   const [studyIdx, setStudyIdx] = useState(0)
   const [studyRead, setStudyRead] = useState(false)
   const [recordingCard, setRecordingCard] = useState<number | null>(null)
@@ -102,10 +104,13 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   }, [language])
 
   const nextStudyCard = useCallback(() => {
-    if (!studyRead) return
-    if (studyIdx + 1 < studyCards.length) setStudyIdx(studyIdx + 1)
+    const total = studyCards.length + grammarCards.length
+    // Grammar cards are read-only study material; only word cards require the
+    // read-aloud take first.
+    if (studyIdx < studyCards.length && !studyRead) return
+    if (studyIdx + 1 < total) setStudyIdx(studyIdx + 1)
     else void loadNext()
-  }, [studyRead, studyIdx, studyCards.length, loadNext])
+  }, [studyRead, studyIdx, studyCards.length, grammarCards.length, loadNext])
 
   // Each study card requires one read-aloud; its duration is credited to the
   // session time budget on the server.
@@ -152,10 +157,11 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
         if (started.empty) return setPhase('empty')
         // Study-before-test: show the session's new words before asking.
         try {
-          const cards = await loadStudyCards(language, 8)
+          const preview = await loadStudyCards(language, 8)
           if (cancelled) return
-          if (cards.length > 0) {
-            setStudyCards(cards)
+          if (preview.cards.length > 0 || preview.grammar.length > 0) {
+            setStudyCards(preview.cards)
+            setGrammarCards(preview.grammar)
             setStudyIdx(0)
             setPhase('study')
             return
@@ -339,15 +345,39 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
         </div>
       )
     }
-    if (phase === 'study' && studyCards.length > 0) {
+    if (phase === 'study' && studyCards.length + grammarCards.length > 0) {
+      const total = studyCards.length + grammarCards.length
       const card = studyCards[studyIdx]
-      const last = studyIdx >= studyCards.length - 1
+      const grammar = grammarCards[studyIdx - studyCards.length]
+      const last = studyIdx >= total - 1
+      if (grammar) {
+        return (
+          <section className="card qcard studycard">
+            <div className="qhead">
+              <span className="tag">{typeName('grammar', lang)}</span>
+              <span className="hint">{studyIdx + 1} / {total}</span>
+            </div>
+            <h1 className="studyword grammarword">{grammar.title}</h1>
+            {grammar.explanation ? <div className="studymeaning">{grammar.explanation}</div> : null}
+            {grammar.example ? <div className="studyexample">{grammar.example}</div> : null}
+            <div className="qfoot">
+              <button className="skipbtn" onClick={() => void loadNext()}>
+                {copy.studySkip}
+              </button>
+              <button className="btn" onClick={nextStudyCard}>
+                {last ? copy.studyStart : copy.studyNext}
+              </button>
+            </div>
+          </section>
+        )
+      }
+      if (!card) return null
       return (
         <section className="card qcard studycard">
           <audio ref={audioRef} preload="auto" />
           <div className="qhead">
             <span className="tag">{copy.studyPhase}</span>
-            <span className="hint">{studyIdx + 1} / {studyCards.length}</span>
+            <span className="hint">{studyIdx + 1} / {total}</span>
           </div>
           <div className="studyword">{card.word}</div>
           <div className="studyre">

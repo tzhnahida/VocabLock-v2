@@ -68,10 +68,12 @@ export type StudyCard = {
   pitch?: string
 }
 
-export function loadStudyCards(language: string, count = 8): Promise<StudyCard[]> {
-  return call<{ cards: StudyCard[] }>(
+export type GrammarCard = { id: number; title: string; explanation: string; example: string; detail: string }
+
+export function loadStudyCards(language: string, count = 8): Promise<{ cards: StudyCard[]; grammar: GrammarCard[] }> {
+  return call<{ cards: StudyCard[]; grammar?: GrammarCard[] }>(
     '/api/v1/quiz/study-cards?count=' + count + '&language=' + encodeURIComponent(language)
-  ).then((r) => r.cards ?? [])
+  ).then((r) => ({ cards: r.cards ?? [], grammar: r.grammar ?? [] }))
 }
 
 export type PlanSummary = {
