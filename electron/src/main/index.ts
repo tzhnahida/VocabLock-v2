@@ -239,7 +239,11 @@ function applyFocusWindow(lock: boolean): void {
   win.setMaximizable(!lock)
   win.setClosable(!lock)
   if (lock) {
+    const display = targetDisplay()
+    const bounds = { x: display.bounds.x, y: display.bounds.y, width: display.bounds.width, height: display.bounds.height }
+    win.setBounds(bounds)
     win.setKiosk(true)
+    win.setBounds(bounds)
     win.show()
     win.focus()
   } else {
