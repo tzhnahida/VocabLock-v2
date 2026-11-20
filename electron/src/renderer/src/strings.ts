@@ -44,6 +44,20 @@ const zh = {
     goals: { exam: '考试', conversation: '日常交流', work: '工作', interest: '兴趣', reading: '兴趣阅读', general: '轻度复习' },
     prefs: { visual: '视觉（词卡）', auditory: '听觉（多听）', kinesthetic: '动手（多写）', mixed: '都可以' }
   },
+  homePath: {
+    title: '今日路径',
+    study: '学习卡',
+    studyHint: '先认词、跟读',
+    practice: '练习',
+    practiceHint: '趁热作答',
+    review: '复习',
+    reviewHint: '到期词回炉',
+    done: '已完成',
+    current: '进行中',
+    pending: '待开始',
+    cta: '继续学习',
+    ctaStart: '开始今天的学习'
+  },
   planTune: {
     title: 'AI 微调',
     hint: '让 AI 看最近的正确率、薄弱项和复习压力，调整明天的词量与题型比例。',
@@ -256,6 +270,20 @@ const en: typeof zh = {
     goals: { exam: 'Exam', conversation: 'Conversation', work: 'Work', interest: 'Interest', reading: 'Reading', general: 'Light review' },
     prefs: { visual: 'Visual (cards)', auditory: 'Auditory (listening)', kinesthetic: 'Hands-on (writing)', mixed: 'Anything' }
   },
+  homePath: {
+    title: "Today's path",
+    study: 'Study cards',
+    studyHint: 'Recognize & read aloud',
+    practice: 'Practice',
+    practiceHint: 'Answer while fresh',
+    review: 'Review',
+    reviewHint: 'Due words',
+    done: 'Done',
+    current: 'In progress',
+    pending: 'Up next',
+    cta: 'Continue',
+    ctaStart: "Start today's session"
+  },
   planTune: {
     title: 'AI tune',
     hint: 'Let AI review recent accuracy, weak types and review load, then adjust tomorrow’s word count and question mix.',
@@ -467,6 +495,20 @@ const ja: typeof zh = {
     failed: '保存に失敗しました：',
     goals: { exam: '試験', conversation: '日常会話', work: '仕事', interest: '趣味', reading: '読解', general: '軽い復習' },
     prefs: { visual: '視覚（カード）', auditory: '聴覚（聞く）', kinesthetic: '手を動かす（書く）', mixed: 'どれでも' }
+  },
+  homePath: {
+    title: '今日のルート',
+    study: '学習カード',
+    studyHint: '単語を確認・音読',
+    practice: '練習',
+    practiceHint: '覚えたうちに解答',
+    review: '復習',
+    reviewHint: '期限が来た単語',
+    done: '完了',
+    current: '進行中',
+    pending: '待機',
+    cta: '学習を続ける',
+    ctaStart: '今日の学習を始める'
   },
   planTune: {
     title: 'AI 調整',

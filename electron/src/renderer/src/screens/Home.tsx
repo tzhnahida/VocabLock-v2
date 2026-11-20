@@ -1,4 +1,5 @@
 import { t, dyn, typeName, ago, type Lang } from '../i18n'
+import { st } from '../strings'
 import { daysUntil, type Dashboard } from '../api'
 import AssignmentCard from '../components/Assignment'
 
@@ -48,6 +49,8 @@ export default function Home({ dash, lang, onStart, onLibrary, onStats, onLock }
     const d = daysUntil(w.next_review_at)
     return d !== null && d <= 0
   }).length
+  const path = st(lang, 'homePath')
+  const practiceDone = dash.dailyTarget > 0 && dash.reviewedToday >= dash.dailyTarget
   const weak = Object.entries(dash.typeRates)
     .map(([type, rate]) => ({ type, acc: rate.total > 0 ? rate.correct / rate.total : 0 }))
     .sort((a, b) => a.acc - b.acc)
@@ -62,35 +65,63 @@ export default function Home({ dash, lang, onStart, onLibrary, onStats, onLock }
 
       <div className="hgrid">
         <div className="col">
-          <section className="card hero">
-            <div>
-              <div className="eyebrow">{t(lang, 'home.goal')}</div>
-              <div className="hbig">
-                <b>{dash.reviewedToday}</b>
-                <span>{dyn[lang].unitQuestions(dash.dailyTarget)}</span>
+          <section className="card hero pathcard">
+            <div className="pathhead">
+              <div>
+                <div className="eyebrow">{path.title}</div>
+                <div className="hbig">
+                  <b>{dash.reviewedToday}</b>
+                  <span>{dyn[lang].unitQuestions(dash.dailyTarget)}</span>
+                </div>
+                <div className="note">{dyn[lang].done(Math.round(pct * 100))}</div>
               </div>
-              <div className="note">{dyn[lang].done(Math.round(pct * 100))}</div>
-              <button className="btn" onClick={onStart}>
-                <span>{t(lang, 'home.start')}</span>
-                <kbd>Enter</kbd>
-              </button>
+              <div className="ring-lg">
+                <svg viewBox="0 0 104 104">
+                  <circle cx="52" cy="52" r="44" fill="none" stroke="var(--track)" strokeWidth="3" />
+                  <circle
+                    cx="52"
+                    cy="52"
+                    r="44"
+                    fill="none"
+                    stroke="var(--accent)"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeDasharray={`${pct * 276.5} 276.5`}
+                  />
+                </svg>
+                <b>{Math.round(pct * 100)}%</b>
+              </div>
             </div>
-            <div className="ring-lg">
-              <svg viewBox="0 0 104 104">
-                <circle cx="52" cy="52" r="44" fill="none" stroke="var(--track)" strokeWidth="3" />
-                <circle
-                  cx="52"
-                  cy="52"
-                  r="44"
-                  fill="none"
-                  stroke="var(--accent)"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeDasharray={`${pct * 276.5} 276.5`}
-                />
-              </svg>
-              <b>{Math.round(pct * 100)}%</b>
+            <div className="pathsteps">
+              <div className={'pstep ' + (dash.reviewedToday > 0 ? 'done' : 'current')}>
+                <i>1</i>
+                <div>
+                  <b>{path.study}</b>
+                  <small>{path.studyHint}</small>
+                </div>
+                <span>{dash.reviewedToday > 0 ? path.done : path.current}</span>
+              </div>
+              <div className={'pstep ' + (practiceDone ? 'done' : dash.reviewedToday > 0 ? 'current' : '')}>
+                <i>2</i>
+                <div>
+                  <b>{path.practice}</b>
+                  <small>{path.practiceHint}</small>
+                </div>
+                <span>{practiceDone ? path.done : dash.reviewedToday > 0 ? path.current : path.pending}</span>
+              </div>
+              <div className={'pstep ' + (dueCount > 0 ? 'current' : '')}>
+                <i>3</i>
+                <div>
+                  <b>{path.review}</b>
+                  <small>{path.reviewHint}</small>
+                </div>
+                <span>{dueCount > 0 ? String(dueCount) : path.pending}</span>
+              </div>
             </div>
+            <button className="btn pathcta" onClick={onStart}>
+              <span>{dash.reviewedToday > 0 ? path.cta : path.ctaStart}</span>
+              <kbd>Enter</kbd>
+            </button>
           </section>
 
           <section className="card chart">

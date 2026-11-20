@@ -357,3 +357,18 @@ button.option:hover{border-color:var(--faint)}
 .studyread{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px}
 .studyok{color:var(--green);font-size:12px}
 .studyneed{color:var(--faint);font-size:12px}
+
+/* Today's path: one focal card, one primary action. */
+.pathcard .pathhead{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}
+.pathcard .hbig b{font-size:44px;line-height:1}
+.pathsteps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:18px 0 16px}
+.pstep{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--panel2);min-width:0;transition:border-color var(--fast) var(--ease),background var(--fast) var(--ease)}
+.pstep i{width:24px;height:24px;flex:none;border-radius:50%;display:grid;place-items:center;background:var(--soft);color:var(--muted);font-size:11px;font-style:normal;font-weight:650}
+.pstep b{display:block;font-size:13px}
+.pstep small{display:block;color:var(--muted);font-size:11px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pstep span{margin-left:auto;font-size:11px;color:var(--faint);white-space:nowrap}
+.pstep.current{border-color:var(--accent);background:var(--accent-soft)}
+.pstep.current i{background:var(--accent);color:var(--bg)}
+.pstep.done i{background:var(--green);color:var(--bg)}
+.pathcta{width:100%;justify-content:center;height:42px;font-size:13px}
+@media (max-width: 900px){.pathsteps{grid-template-columns:1fr}}
