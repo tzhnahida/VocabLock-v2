@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { t, dyn, typeName, type Lang } from '../i18n'
 import type { Dashboard } from '../api'
 import {
+  assessPronounce,
   completeSession,
   disputeAnswer,
   loadStudyCards,
@@ -9,6 +10,7 @@ import {
   recordStudyTime,
   startSession,
   submitAnswer,
+  type PronounceResult,
   type Question,
   type StudyCard,
   type SubmitResult
@@ -43,6 +45,8 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   const [studyCards, setStudyCards] = useState<StudyCard[]>([])
   const [studyIdx, setStudyIdx] = useState(0)
   const [studyRead, setStudyRead] = useState(false)
+  const [pron, setPron] = useState<PronounceResult | null>(null)
+  const [assessing, setAssessing] = useState(false)
   const [disputed, setDisputed] = useState(false)
   const inputRef = useRef<HTMLInputElement | null>(null)
   const recorder = useRecorder()
@@ -84,6 +88,8 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   // session time budget on the server.
   useEffect(() => {
     setStudyRead(false)
+    setPron(null)
+    setAssessing(false)
     recorder.reset()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- card change only
   }, [studyIdx])
@@ -93,7 +99,12 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
     if (phase !== 'study' || !card || studyRead || recorder.state !== 'ready') return
     setStudyRead(true)
     void recordStudyTime(Math.max(1, recorder.seconds), card.id).catch(() => {})
-  }, [phase, studyCards, studyIdx, studyRead, recorder.state, recorder.seconds])
+    setAssessing(true)
+    void assessPronounce(recorder.audio, card.id)
+      .then((r) => setPron(r))
+      .catch(() => setPron({ status: 'error', score: 0 }))
+      .finally(() => setAssessing(false))
+  }, [phase, studyCards, studyIdx, studyRead, recorder.state, recorder.seconds, recorder.audio])
 
   useEffect(() => {
     let cancelled = false
@@ -280,8 +291,12 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
               className="btn ghost"
               disabled={recorder.state === 'requesting'}
               onClick={() => {
-                if (recorder.state === 'recording') recorder.stop()
-                else void recorder.start()
+                if (recorder.state === 'recording') {
+                  recorder.stop()
+                } else {
+                  setPron(null)
+                  void recorder.start()
+                }
               }}
             >
               {recorder.state === 'recording'
@@ -308,6 +323,32 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
               <span className="studyneed">{copy.studyNeedRead}</span>
             )}
           </div>
+          {assessing ? (
+            <p className="pronfb">{copy.pronAssessing}</p>
+          ) : pron ? (
+            <div className="pronfb">
+              {pron.status === 'ok' ? (
+                <>
+                  <b>{copy.pronScore(Math.round(pron.score <= 1 ? pron.score * 100 : pron.score))}</b>
+                  {(pron.phonemes ?? []).filter((p) => p.score < 0.6).length > 0 ? (
+                    <span>
+                      {copy.pronWeak(
+                        (pron.phonemes ?? [])
+                          .filter((p) => p.score < 0.6)
+                          .slice(0, 4)
+                          .map((p) => p.phoneme + ' ' + Math.round(p.score * 100) + '%')
+                          .join(' · ')
+                      )}
+                    </span>
+                  ) : (
+                    <span className="pronok">{copy.pronGood}</span>
+                  )}
+                </>
+              ) : (
+                <span>{pron.status === 'not_configured' ? copy.pronUnavailable : copy.pronError}</span>
+              )}
+            </div>
+          ) : null}
           <div className="qfoot">
             <button className="link" onClick={() => void loadNext()}>
               {copy.studySkip}

@@ -80,6 +80,21 @@ export function summarizeSession(): Promise<PlanSummary> {
   return call<PlanSummary>('/api/v1/quiz/summarize', { method: 'POST', body: JSON.stringify({}) })
 }
 
+export type PronounceResult = {
+  status: 'ok' | 'not_configured' | 'error'
+  score: number
+  phonemes?: Array<{ phoneme: string; score: number }>
+  detail?: string
+  error?: string
+}
+
+export function assessPronounce(audio: string, wordId: number): Promise<PronounceResult> {
+  return call<PronounceResult>('/api/v1/pronounce/assess', {
+    method: 'POST',
+    body: JSON.stringify({ audio, word_id: wordId })
+  })
+}
+
 export function recordStudyTime(seconds: number, wordId: number): Promise<{ ok: boolean; time_used: number }> {
   return call<{ ok: boolean; time_used: number }>('/api/v1/quiz/study-time', {
     method: 'POST',

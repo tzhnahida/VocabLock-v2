@@ -423,3 +423,7 @@ body{font-size:var(--fs-small)}
 
 /* The flex row needs the main column to actually take the remaining width. */
 main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+
+.pronfb{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--panel2);font-size:var(--fs-small);color:var(--muted)}
+.pronfb b{color:var(--accent);font-size:var(--fs-body)}
+.pronok{color:var(--green)}
