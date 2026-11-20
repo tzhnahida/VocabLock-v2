@@ -164,7 +164,7 @@ function createWindow(): void {
   // Closing the window parks the app in the tray; quitting goes through the menu
   // (or app.quit), so the service keeps running and the lock stays armed.
   win.on('resize', () => {
-    if (locked && !quitting && win && !win.isKiosk()) win.setKiosk(true)
+    if (locked && !quitting && win && !win.isFullScreen()) win.setFullScreen(true)
   })
   win.on('close', (event) => {
     // Focus mode: the window is not closable until today's quota is done.
@@ -241,17 +241,18 @@ function applyFocusWindow(lock: boolean): void {
   if (lock) {
     const display = targetDisplay()
     const bounds = { x: display.bounds.x, y: display.bounds.y, width: display.bounds.width, height: display.bounds.height }
+    try {
+      win.setKiosk(false)
+    } catch {
+      /* not in kiosk */
+    }
     win.setBounds(bounds)
-    win.setKiosk(true)
+    win.setFullScreen(true)
     win.setBounds(bounds)
     win.show()
     win.focus()
   } else {
-    try {
-      win.setKiosk(false)
-    } catch {
-      /* already out of kiosk */
-    }
+    win.setKiosk(false)
     win.setFullScreen(false)
   }
 }
@@ -386,6 +387,7 @@ app.on('second-instance', () => {
     if (win.isMinimized()) win.restore()
     win.show()
     win.focus()
+    win.webContents.send('navigate', 'home')
   }
 })
 

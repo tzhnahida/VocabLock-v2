@@ -121,6 +121,14 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [screen])
 
+  useEffect(() => {
+    window.vocablock.onLockState?.((value) => {
+      // A fresh focus-lock always lands on the main screen; inner navigation
+      // stays free afterwards.
+      if (value) setScreen('home')
+    })
+  }, [])
+
   const go = useCallback((next: Screen) => {
     setScreen(next)
   }, [])
