@@ -50,6 +50,7 @@ export default function Home({ dash, lang, onStart, onLibrary, onStats, onLock }
     return d !== null && d <= 0
   }).length
   const path = st(lang, 'homePath')
+  const shownReviewed = Math.min(dash.reviewedToday, dash.dailyTarget)
   const practiceDone = dash.dailyTarget > 0 && dash.reviewedToday >= dash.dailyTarget
   const weak = Object.entries(dash.typeRates)
     .map(([type, rate]) => ({ type, acc: rate.total > 0 ? rate.correct / rate.total : 0 }))
@@ -70,7 +71,7 @@ export default function Home({ dash, lang, onStart, onLibrary, onStats, onLock }
               <div>
                 <div className="eyebrow">{path.title}</div>
                 <div className="hbig">
-                  <b>{dash.reviewedToday}</b>
+                  <b>{shownReviewed}</b>
                   <span>{dyn[lang].unitQuestions(dash.dailyTarget)}</span>
                 </div>
                 <div className="note">{dyn[lang].done(Math.round(pct * 100))}</div>
@@ -92,7 +93,7 @@ export default function Home({ dash, lang, onStart, onLibrary, onStats, onLock }
                 <b>{Math.round(pct * 100)}%</b>
               </div>
             </div>
-            <div className="pathsteps">
+            <div className={'pathsteps' + (dueCount > 0 ? '' : ' two')}>
               <div className={'pstep ' + (dash.reviewedToday > 0 ? 'done' : 'current')}>
                 <i>1</i>
                 <div>
@@ -109,6 +110,7 @@ export default function Home({ dash, lang, onStart, onLibrary, onStats, onLock }
                 </div>
                 <span>{practiceDone ? path.done : dash.reviewedToday > 0 ? path.current : path.pending}</span>
               </div>
+              {dueCount > 0 ? (
               <div className={'pstep ' + (dueCount > 0 ? 'current' : '')}>
                 <i>3</i>
                 <div>
@@ -117,6 +119,7 @@ export default function Home({ dash, lang, onStart, onLibrary, onStats, onLock }
                 </div>
                 <span>{dueCount > 0 ? String(dueCount) : path.pending}</span>
               </div>
+              ) : null}
             </div>
             <button className="btn pathcta" onClick={onStart}>
               <span>{dash.reviewedToday > 0 ? path.cta : path.ctaStart}</span>
