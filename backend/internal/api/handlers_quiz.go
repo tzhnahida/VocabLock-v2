@@ -342,7 +342,7 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	// session could serve 80+ questions when SM-2 accumulates many due
 	// items on the same day.
 	reviewed, err := s.DB.GetUniqueSubjectsReviewed(lang)
-	stageTypes := earlyTypes(reviewed, available)
+	stageTypes := available
 	if err != nil {
 		log.Warn("quiz", "get unique subjects for next: %v", err)
 	} else if s.DailyTargetMet(lang) {

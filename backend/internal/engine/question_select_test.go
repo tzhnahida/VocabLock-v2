@@ -9,7 +9,7 @@ func TestSelectQuestionType_NewWord(t *testing.T) {
 	// New words get recognition only: production types wait for a review.
 	// Include meaning so the sampler has two valid candidates.
 	types := []QuestionType{TypeChoice, TypeMeaning, TypeFill, TypePronounce, TypeSpelling, TypeListening, TypeReadingComp, TypeGrammar}
-	tier0 := map[QuestionType]bool{TypeChoice: true, TypeMeaning: true}
+	tier0 := map[QuestionType]bool{TypeChoice: true, TypeMeaning: true, TypePronounce: true, TypeReadWord: true}
 	seen := make(map[QuestionType]int)
 	for i := 0; i < 50; i++ {
 		qt := SelectQuestionType(nil, 2.5, 0, 0, types, true, false, false)
