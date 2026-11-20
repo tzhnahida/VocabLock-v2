@@ -24,6 +24,10 @@ type Phase = 'starting' | 'study' | 'question' | 'feedback' | 'done' | 'preparin
 /** Types the service grades from a recording, not from typed text. */
 const AUDIO_TYPES = ['read_word', 'read_sentence', 'dialogue_speak']
 
+function formatClock(seconds: number): string {
+  return Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0')
+}
+
 /**
  * M1 quiz loop against the real service: session/start → next → submit → next.
  * Judging, SM-2 and the review log all happen on the Go side; this screen only
@@ -222,6 +226,13 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only on question change
   }, [question?.id])
 
+  // Correct answers advance on their own; wrong answers wait for the learner.
+  useEffect(() => {
+    if (phase !== 'feedback' || !result?.correct) return
+    const timer = window.setTimeout(() => void loadNext(), 900)
+    return () => window.clearTimeout(timer)
+  }, [phase, result, loadNext])
+
   const progress = dash.dailyTarget > 0 ? Math.min(1, dash.reviewedToday / dash.dailyTarget) : 0
 
   function renderBody() {
@@ -279,6 +290,16 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
                   ? copy.studyReadAgain
                   : copy.studyRead}
             </button>
+            {recorder.state === 'recording' ? (
+              <span className="wave" aria-hidden="true">
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <i key={i} />
+                ))}
+              </span>
+            ) : null}
+            <span className="studytimer">
+              {recorder.state === 'recording' || studyRead ? formatClock(recorder.seconds) : ''}
+            </span>
             {recorder.error ? (
               <span className="studyneed">{copy.recordFailed(recorder.error)}</span>
             ) : studyRead ? (
@@ -472,19 +493,13 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
           </div>
         ) : null}
 
-        <div className="qfoot">
-          <button className="btn" onClick={() => void loadNext()} disabled={phase !== 'feedback'}>
-            <i>{t(lang, 'next')}</i>
-            <kbd>Space</kbd>
-          </button>
-        </div>
       </section>
     )
   }
 
   return (
-    <div className="content">
-      <div>
+    <div className="content quizshell">
+      <div className="quizmain">
         <div className="topline">
           <span>
             <a className="link" onClick={onExit}>
@@ -544,6 +559,22 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
           <kbd>Ctrl</kbd>+<kbd>K</kbd> <span>{t(lang, 'hint.cmd')}</span> · <kbd>Ctrl</kbd>+<kbd>L</kbd> <span>{t(lang, 'hint.lock')}</span>
         </div>
       </div>
+
+      {(phase as Phase) !== 'study' ? <div className="quizbar">
+        <span className="quizbarhint">
+          {phase === 'study'
+            ? copy.shellStudy
+            : phase === 'feedback'
+              ? result?.correct
+                ? copy.shellCorrect
+                : copy.shellWrong
+              : copy.shellAnswer}
+        </span>
+        <button className="btn quiznext" disabled={phase !== 'feedback'} onClick={() => void loadNext()}>
+          <i>{t(lang, 'next')}</i>
+          <kbd>Space</kbd>
+        </button>
+      </div> : null}
     </div>
   )
 }

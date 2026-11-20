@@ -372,3 +372,32 @@ button.option:hover{border-color:var(--faint)}
 .pstep.done i{background:var(--green);color:var(--bg)}
 .pathcta{width:100%;justify-content:center;height:42px;font-size:13px}
 @media (max-width: 900px){.pathsteps{grid-template-columns:1fr}}
+
+/* Type scale: one display size, one title, body, small, tiny. */
+:root{--fs-display:28px;--fs-title:20px;--fs-body:16px;--fs-small:14px;--fs-tiny:12px}
+body{font-size:var(--fs-small)}
+.hbig b{font-size:var(--fs-display)}
+.hbig span{font-size:var(--fs-small)}
+.pathcard .hbig b{font-size:var(--fs-display)}
+.word{font-size:var(--fs-display)}
+.onboard-title{font-size:var(--fs-display)}
+.onboard-section h3{font-size:var(--fs-tiny)}
+.rh{font-size:var(--fs-tiny)}
+.btn{font-size:var(--fs-small)}
+.note{font-size:var(--fs-small)}
+/* Quiz shell: fixed bottom action bar, progress pinned above the card. */
+.quizshell{grid-template-rows:auto auto}
+.quizmain{min-width:0}
+.quizbar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:16px;
+  position:sticky;bottom:0;z-index:6;padding:12px 0 6px;
+  background:linear-gradient(to top,var(--bg) 72%,transparent)}
+.quizbarhint{font-size:var(--fs-small);color:var(--muted)}
+.quiznext{min-width:160px;height:42px;justify-content:center}
+/* Recording feedback on the study card. */
+.wave{display:flex;align-items:flex-end;gap:2px;height:18px}
+.wave i{width:3px;height:6px;border-radius:2px;background:var(--accent);animation:vlWave .9s ease-in-out infinite}
+.wave i:nth-child(2n){animation-delay:.09s}
+.wave i:nth-child(3n){animation-delay:.18s}
+.wave i:nth-child(4n){animation-delay:.27s}
+.studytimer{font-variant-numeric:tabular-nums;font-size:13px;color:var(--accent);min-width:34px}
+@keyframes vlWave{0%,100%{height:4px;opacity:.45}50%{height:16px;opacity:1}}

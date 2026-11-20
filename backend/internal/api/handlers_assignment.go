@@ -7,8 +7,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/tzhnahida/VocabLock/internal/ai"
+	"github.com/tzhnahida/VocabLock/internal/db"
 	"github.com/tzhnahida/VocabLock/internal/engine"
 	"github.com/tzhnahida/VocabLock/internal/log"
 )
@@ -38,14 +40,24 @@ func (s *Server) handleAssignmentNext(w http.ResponseWriter, r *http.Request) {
 	lang := s.Config.App.ActiveLang
 	cfg := s.Config.App.Assignment
 
-	// Check for existing pending assignments
+	// Check for existing pending assignments. Rows generated with the wrong
+	// explanation language are hidden instead of shown as English homework.
+	explLang := s.aiExplLang(lang)
 	pending, err := s.DB.ListPendingAssignments(lang)
 	if err == nil && len(pending) > 0 {
-		writeJSON(w, map[string]interface{}{
-			"assignments": pending,
-			"pending":     true,
-		})
-		return
+		good := make([]*db.Assignment, 0, len(pending))
+		for _, a := range pending {
+			if promptMatchesLanguage(a.Prompt, explLang) {
+				good = append(good, a)
+			}
+		}
+		if len(good) > 0 {
+			writeJSON(w, map[string]interface{}{
+				"assignments": good,
+				"pending":     true,
+			})
+			return
+		}
 	}
 
 	// Check cadence: is it time for new assignments?
@@ -222,6 +234,40 @@ func (s *Server) handleAssignmentCadence(w http.ResponseWriter, r *http.Request)
 
 // ——— AI call helpers ———
 
+// promptMatchesLanguage rejects an assignment prompt written in the wrong
+// explanation language. Only scripts we can check are enforced.
+func promptMatchesLanguage(prompt, explLang string) bool {
+	if strings.TrimSpace(prompt) == "" {
+		return true
+	}
+	lower := strings.ToLower(explLang)
+	switch {
+	case strings.HasPrefix(lower, "zh"):
+		for _, r := range prompt {
+			if unicode.Is(unicode.Han, r) {
+				return true
+			}
+		}
+		return false
+	case strings.HasPrefix(lower, "ja"):
+		for _, r := range prompt {
+			if unicode.Is(unicode.Hiragana, r) || unicode.Is(unicode.Katakana, r) || unicode.Is(unicode.Han, r) {
+				return true
+			}
+		}
+		return false
+	case strings.HasPrefix(lower, "ko"):
+		for _, r := range prompt {
+			if unicode.Is(unicode.Hangul, r) {
+				return true
+			}
+		}
+		return false
+	default:
+		return true
+	}
+}
+
 func (s *Server) generateAssignment(ctx context.Context, lang string, aType engine.AssignmentType) (*engine.Assignment, error) {
 	pt, err := ai.LoadPrompt("assignment_generate")
 	if err != nil {
@@ -231,8 +277,14 @@ func (s *Server) generateAssignment(ctx context.Context, lang string, aType engi
 	teacherRole := "Language Teacher"
 	explLang := s.aiExplLang(lang)
 	level := s.getStudentLevel(lang)
+	courseName := lang
 	if lc, ok := s.Config.Languages[lang]; ok {
 		teacherRole = lc.PromptContext.TeacherRole
+		if lc.Lang.NativeName != "" {
+			courseName = lc.Lang.NativeName
+		} else if lc.Lang.DisplayName != "" {
+			courseName = lc.Lang.DisplayName
+		}
 	}
 
 	// Get recent words for context
@@ -256,7 +308,7 @@ func (s *Server) generateAssignment(ctx context.Context, lang string, aType engi
 	messages, err := pt.BuildMessages(&ai.PromptVars{
 		TeacherRole:     teacherRole,
 		ExplanationLang: explLang,
-		Language:        lang,
+		Language:        courseName,
 		Level:           level,
 		AssignmentType:  string(aType),
 		WordList:        wordList,
@@ -284,6 +336,27 @@ func (s *Server) generateAssignment(ctx context.Context, lang string, aType engi
 	}
 	if err := json.Unmarshal([]byte(response), &result); err != nil {
 		return nil, err
+	}
+
+	// One corrective retry if the model wrote the instructions in the wrong
+	// language (the classic symptom: an English prompt on a zh-CN course).
+	if !promptMatchesLanguage(result.Prompt, explLang) {
+		retryMessages := append(append([]ai.Message{}, messages...), ai.Message{
+			Role:    "system",
+			Content: "The assignment prompt MUST be written in " + explLang + ". Do not use English. Return the same JSON shape.",
+		})
+		if retry, err := s.AI().Chat(timeoutCtx, retryMessages, pt.Temperature); err == nil {
+			var retryResult struct {
+				Type      string `json:"type"`
+				Prompt    string `json:"prompt"`
+				Context   string `json:"context"`
+				WordCount int    `json:"word_count"`
+				Reference string `json:"reference"`
+			}
+			if json.Unmarshal([]byte(retry), &retryResult) == nil && promptMatchesLanguage(retryResult.Prompt, explLang) {
+				result = retryResult
+			}
+		}
 	}
 
 	return &engine.Assignment{
