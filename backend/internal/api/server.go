@@ -517,6 +517,19 @@ type sessionBudget struct {
 	planServed map[string]int
 }
 
+// ensureSessionPlan computes the session size and per-type quotas once, before
+// the first study card is shown. The key-based cache in ensurePlan keeps the
+// next-question path idempotent.
+func (s *Server) ensureSessionPlan(lang string) {
+	budget := s.Config.App.SessionTimeBudget
+	if budget <= 0 {
+		s.sessionBudget.dropPlan()
+		return
+	}
+	available := planTypes(langQuestionTypes(lang, s.Config), s.AI() != nil, s.HasPronounce(), s.HasASR())
+	s.sessionBudget.ensurePlan(s.Config.App.DailyTarget, budget, s.sessionBudget.getTypeWeights(), available)
+}
+
 func (b *sessionBudget) plannedTotal() int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
