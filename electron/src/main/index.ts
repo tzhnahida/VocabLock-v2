@@ -107,10 +107,23 @@ function loadInto(target: BrowserWindow): void {
   else if (target_.file) void target.loadFile(target_.file)
 }
 
+// Testing and focus sessions can be pinned to a secondary display with
+// VOCABLOCK_WINDOW_DISPLAY=2 (1-based); the default remains the primary screen.
+function targetDisplay(): ReturnType<typeof screen.getPrimaryDisplay> {
+  const raw = process.env.VOCABLOCK_WINDOW_DISPLAY
+  const all = screen.getAllDisplays()
+  if (raw) {
+    const idx = Number(raw) - 1
+    if (Number.isFinite(idx) && all[idx]) return all[idx]
+  }
+  return screen.getPrimaryDisplay()
+}
+
 function createWindow(): void {
   // A fixed 1280x800 looked tiny on a 1440p/1080p desktop; size the window to
   // most of the work area while staying above the layout's minimum.
-  const { width: areaW, height: areaH } = screen.getPrimaryDisplay().workAreaSize
+  const display = targetDisplay()
+  const { width: areaW, height: areaH } = display.workAreaSize
   const width = Math.min(1440, Math.max(1040, Math.round(areaW * 0.9)))
   const height = Math.min(920, Math.max(680, Math.round(areaH * 0.9)))
   // Scripted captures need a painting window; park it far off-screen and show
@@ -119,8 +132,8 @@ function createWindow(): void {
     ...baseWindowOptions(),
     width,
     height,
-    x: captureMode ? -32000 : undefined,
-    y: captureMode ? -32000 : undefined,
+    x: captureMode ? -32000 : display.workArea.x + Math.round((areaW - width) / 2),
+    y: captureMode ? -32000 : display.workArea.y + Math.round((areaH - height) / 2),
     show: !captureMode && !hidden
   })
   loadInto(win)
@@ -195,13 +208,14 @@ function captureScreenshot(path: string): void {
  */
 function createLockWindow(): void {
   if (lockWin) return
-  const { width, height } = screen.getPrimaryDisplay().bounds
+  const display = targetDisplay()
+  const { x, y, width, height } = display.bounds
   // kiosk+fullscreen together were clamped to the work area, leaving the
   // taskbar clickable; a frameless window sized to the display covers it.
   lockWin = new BrowserWindow({
     ...baseWindowOptions(),
-    x: 0,
-    y: 0,
+    x,
+    y,
     width,
     height,
     show: false,
@@ -218,7 +232,7 @@ function createLockWindow(): void {
   loadInto(lockWin)
   lockWin.once('ready-to-show', () => {
     if (hidden || captureMode) return
-    lockWin?.setBounds({ x: 0, y: 0, width, height })
+    lockWin?.setBounds({ x, y, width, height })
     lockWin?.show()
     lockWin?.focus()
     lockWin?.setFullScreen(true)

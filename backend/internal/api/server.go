@@ -195,13 +195,6 @@ func (s *Server) DailyTargetMet(lang string) bool {
 	if s.DB == nil {
 		return false
 	}
-	// Time quota: reaching the configured minutes is enough to release the
-	// focus lock, even if the question count is still short.
-	if s.Config.App.DailyTimeTarget > 0 {
-		if spent, err := s.DB.GetTodayTimeSpent(lang); err == nil && spent >= s.Config.App.DailyTimeTarget {
-			return true
-		}
-	}
 	reviewed, err := s.DB.GetUniqueSubjectsReviewed(lang)
 	if err != nil {
 		return false

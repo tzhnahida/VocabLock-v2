@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -35,12 +36,38 @@ func (s *Server) handleQuizStudyCards(w http.ResponseWriter, r *http.Request) {
 		if word.NextReviewAt != nil || strings.TrimSpace(word.Meaning) == "" {
 			continue
 		}
+		// Lexical extras come from the word detail JSON; packs provide a
+		// fallback example sentence when the detail is empty.
+		detail := map[string]interface{}{}
+		if word.Detail != "" {
+			_ = json.Unmarshal([]byte(word.Detail), &detail)
+		}
+		str := func(key string) string {
+			if v, ok := detail[key].(string); ok {
+				return v
+			}
+			return ""
+		}
+		example := str("example_sentence")
+		if example == "" && s.Content != nil {
+			if entry := s.Content.Lookup(lang, word.Word); entry != nil {
+				for _, sense := range entry.Senses {
+					if len(sense.Examples) > 0 {
+						example = sense.Examples[0].Text
+						break
+					}
+				}
+			}
+		}
 		cards = append(cards, map[string]interface{}{
 			"id":      word.ID,
 			"word":    word.Word,
 			"reading": word.Reading,
 			"meaning": word.Meaning,
 			"pos":     word.POS,
+			"example": example,
+			"forms":   str("morphology"),
+			"pitch":   str("pitch_accent"),
 		})
 		if len(cards) >= count {
 			break

@@ -57,7 +57,16 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T
 }
 
-export type StudyCard = { id: number; word: string; reading: string; meaning: string; pos: string }
+export type StudyCard = {
+  id: number
+  word: string
+  reading: string
+  meaning: string
+  pos: string
+  example?: string
+  forms?: string
+  pitch?: string
+}
 
 export function loadStudyCards(language: string, count = 8): Promise<StudyCard[]> {
   return call<{ cards: StudyCard[] }>(

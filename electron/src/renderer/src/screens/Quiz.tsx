@@ -324,7 +324,12 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
             {card.reading}
           </div>
           <div className="studymeaning">{card.meaning}</div>
-          <div className="studyhint">{copy.studyHint}</div>
+          <div className="studymeta">
+            {card.pos ? <span className="posbadge">{card.pos}</span> : null}
+            {card.pitch ? <span>{card.pitch}</span> : null}
+            {card.forms ? <span>{card.forms}</span> : null}
+          </div>
+          {card.example ? <div className="studyexample">{card.example}</div> : null}
           <div className="studyread">
             <button
               className="btn ghost"
@@ -358,9 +363,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
               <span className="studyneed">{copy.recordFailed(recorder.error)}</span>
             ) : studyRead ? (
               <span className="studyok">{copy.studyReadDone}</span>
-            ) : (
-              <span className="studyneed">{copy.studyNeedRead}</span>
-            )}
+            ) : null}
           </div>
           {assessing ? (
             <p className="pronfb">{copy.pronAssessing}</p>

@@ -494,3 +494,7 @@ html[data-theme="dark"] .opt:hover{background:rgba(255,255,255,.05)}
 .pronfb.warn .pronhead b{color:var(--amber)}
 
 html[data-theme="dark"]{--muted:#B8B8D0;--faint:#9090A8}
+
+.studymeta{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:10px;font-size:var(--fs-small);color:var(--muted)}
+.posbadge{padding:2px 8px;border-radius:999px;border:1px solid var(--border);background:var(--soft);color:var(--text);font-size:var(--fs-tiny)}
+.studyexample{margin-top:12px;padding:10px 12px;border-left:2px solid var(--accent);background:var(--panel2);border-radius:0 8px 8px 0;font-size:var(--fs-body);line-height:1.6}
