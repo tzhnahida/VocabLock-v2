@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"sort"
+
 	"github.com/tzhnahida/VocabLock/internal/clock"
 
 	"github.com/tzhnahida/VocabLock/internal/ai"
@@ -286,6 +288,29 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
+// earlyTypes keeps the first minutes to recognition only. Sentence production
+// (grammar, fill, reading_comp, dialogue) waits until the learner is warmed up.
+func earlyTypes(reviewed int, available []engine.QuestionType) []engine.QuestionType {
+	if reviewed >= 6 {
+		return available
+	}
+	allowed := map[engine.QuestionType]bool{engine.TypeChoice: true, engine.TypeMeaning: true}
+	if reviewed >= 3 {
+		allowed[engine.TypePronounce] = true
+		allowed[engine.TypeReadWord] = true
+	}
+	out := make([]engine.QuestionType, 0, len(available))
+	for _, t := range available {
+		if allowed[t] {
+			out = append(out, t)
+		}
+	}
+	if len(out) == 0 {
+		return available
+	}
+	return out
+}
+
 func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
 		mock.HandleQuizNext(w, r, s.Config.App.ActiveLang)
@@ -309,6 +334,7 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	// session could serve 80+ questions when SM-2 accumulates many due
 	// items on the same day.
 	reviewed, err := s.DB.GetUniqueSubjectsReviewed(lang)
+	stageTypes := earlyTypes(reviewed, available)
 	if err != nil {
 		log.Warn("quiz", "get unique subjects for next: %v", err)
 	} else if s.DailyTargetMet(lang) {
@@ -365,11 +391,33 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 500, "get review words: "+err.Error())
 		return
 	}
+	// Serve the words that were just previewed as study cards first, in order.
+	if queue := s.studyQueueSnapshot(); len(queue) > 0 {
+		rank := make(map[int64]int, len(queue))
+		for i, id := range queue {
+			rank[id] = i
+		}
+		sort.SliceStable(words, func(i, j int) bool {
+			ri, iok := rank[words[i].ID]
+			rj, jok := rank[words[j].ID]
+			if iok != jok {
+				return iok
+			}
+			if iok && jok {
+				return ri < rj
+			}
+			return false
+		})
+	}
 
 	grammarPoints, err := s.DB.GetReviewGrammarPoints(lang, 5)
 	if err != nil {
 		writeError(w, 500, "get review grammar: "+err.Error())
 		return
+	}
+	if reviewed < 6 || len(s.studyQueueSnapshot()) > 0 {
+		// No grammar/sentence tasks during the recognition warm-up.
+		grammarPoints = nil
 	}
 	// Prioritize grammar points matching the plan's grammar_focus
 	prioritizeGrammarByPlan(grammarPoints, s.sessionBudget.getGrammarFocus())
@@ -434,12 +482,13 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			s.markWordServed(word.ID)
+			s.takeStudyWord(word.ID)
 			info := wordToInfo(word)
 			distractors := s.buildDistractors(word, words[wi:], lang)
 
 			qType := engine.SelectQuestionTypeWithWeights(
 				word.NextReviewAt, word.EasinessFactor, word.Interval, word.Repetitions,
-				langQuestionTypes(lang, s.Config), s.AI() != nil, s.HasPronounce(), s.HasASR(),
+				stageTypes, s.AI() != nil, s.HasPronounce(), s.HasASR(),
 				s.sessionBudget.getTypeWeights(),
 			)
 
@@ -455,7 +504,7 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 				if chosen == "" {
-					for _, t := range available {
+					for _, t := range stageTypes {
 						if s.sessionBudget.typeAvailable(string(t)) {
 							chosen = t
 							break
@@ -1340,10 +1389,10 @@ func (s *Server) handleReadAloudSubmit(w http.ResponseWriter, r *http.Request, q
 		return
 	}
 
-	// Score thresholds: 0.5 for word, 0.4 for sentence
-	threshold := 0.5
+	// Score thresholds: 0.4 for word, 0.35 for sentence (same pass line as UI)
+	threshold := 0.4
 	if qtype == "read_sentence" {
-		threshold = 0.4
+		threshold = 0.35
 	}
 	correct := result.Score >= threshold
 	s.writeReadAloudResult(w, stype, sid, qtype, correct, result.Score, result.Phonemes, targetText, "pronounce", study)
@@ -1372,7 +1421,7 @@ func (s *Server) writeReadAloudResult(w http.ResponseWriter, stype string, sid i
 			parts := make([]string, len(phonemes))
 			for i, p := range phonemes {
 				mark := "+"
-				if p.Score < 0.45 {
+				if p.Score < 0.4 {
 					mark = "-"
 				}
 				parts[i] = fmt.Sprintf("%s:%.0f%s", p.Phoneme, p.Score*100, mark)

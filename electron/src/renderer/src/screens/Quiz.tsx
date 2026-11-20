@@ -104,6 +104,13 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
     const card = studyCards[studyIdx]
     if (phase !== 'study' || !card || recordingCard !== card.id) return
     if (recorder.state !== 'ready' || !recorder.audio) return
+    if (recorder.seconds < 1) {
+      setRecordingCard(null)
+      setStudyRead(false)
+      setAssessing(false)
+      setPron({ status: 'error', score: 0, error: 'too_short' })
+      return
+    }
     setStudyRead(true)
     setPron(null)
     setAssessing(true)
@@ -384,19 +391,19 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
             <p className="pronfb">{copy.pronAssessing}</p>
           ) : pron ? (
             pron.status === 'ok' ? (
-              <div className={'pronfb ' + (Math.round(pron.score <= 1 ? pron.score * 100 : pron.score) >= 50 ? 'ok' : 'warn')}>
+              <div className={'pronfb ' + (Math.round(pron.score <= 1 ? pron.score * 100 : pron.score) >= 40 ? 'ok' : 'warn')}>
                 <div className="pronhead">
                   <b>
-                    {Math.round(pron.score <= 1 ? pron.score * 100 : pron.score) >= 50
+                    {Math.round(pron.score <= 1 ? pron.score * 100 : pron.score) >= 40
                       ? copy.pronPass
                       : copy.pronNeedWork}
                   </b>
-                  <span>{copy.pronScoreLine(Math.round(pron.score <= 1 ? pron.score * 100 : pron.score), 50)}</span>
+                  <span>{copy.pronScoreLine(Math.round(pron.score <= 1 ? pron.score * 100 : pron.score), 40)}</span>
                 </div>
                 {(pron.phonemes ?? []).length > 0 ? (
                   <div className="phonemes">
                     {(pron.phonemes ?? []).map((p, i) => (
-                      <span key={i} className={p.score >= 0.45 ? 'p-ok' : 'p-bad'}>
+                      <span key={i} className={p.score >= 0.4 ? 'p-ok' : 'p-bad'}>
                         {p.phoneme}
                         <em>{Math.round(p.score * 100)}%</em>
                       </span>
@@ -406,7 +413,13 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
               </div>
             ) : (
               <div className="pronfb">
-                <span>{pron.status === 'not_configured' ? copy.pronUnavailable : copy.pronError}</span>
+                <span>
+                  {pron.status === 'not_configured'
+                    ? copy.pronUnavailable
+                    : pron.error === 'too_short'
+                      ? copy.pronTooShort
+                      : copy.pronError}
+                </span>
               </div>
             )
           ) : null}
@@ -687,7 +700,13 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
               ? result?.correct
                 ? copy.shellCorrect
                 : copy.shellWrong
-              : copy.shellAnswer}
+              : phase === 'question' && question
+                ? question.options && question.options.length > 0
+                  ? copy.shellAnswer
+                  : AUDIO_TYPES.includes(question.type)
+                    ? copy.shellRecord
+                    : copy.shellInput
+                : copy.shellAnswer}
         </span>
         <button className="btn quiznext" disabled={phase !== 'feedback'} onClick={() => void loadNext()}>
           <i>{t(lang, 'next')}</i>

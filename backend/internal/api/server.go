@@ -84,6 +84,10 @@ type Server struct {
 	// Bounds how many TTS pre-warm subprocesses run at once.
 	ttsWarm chan struct{}
 
+	// New words shown as study cards; served first by the question loop.
+	studyMu    sync.Mutex
+	studyQueue []int64
+
 	// Silent once-a-day AI plan tuning (summary + tomorrow plan).
 	tuneMu      sync.Mutex
 	tuneRunning bool
@@ -114,6 +118,30 @@ type Server struct {
 	// Pronounce re-init). It does NOT kill/restart the Flutter process —
 	// the comment on the old code claimed otherwise.
 	RestartFunc func()
+}
+
+func (s *Server) setStudyQueue(ids []int64) {
+	s.studyMu.Lock()
+	defer s.studyMu.Unlock()
+	s.studyQueue = append([]int64(nil), ids...)
+}
+
+func (s *Server) studyQueueSnapshot() []int64 {
+	s.studyMu.Lock()
+	defer s.studyMu.Unlock()
+	return append([]int64(nil), s.studyQueue...)
+}
+
+func (s *Server) takeStudyWord(id int64) {
+	s.studyMu.Lock()
+	defer s.studyMu.Unlock()
+	out := s.studyQueue[:0]
+	for _, q := range s.studyQueue {
+		if q != id {
+			out = append(out, q)
+		}
+	}
+	s.studyQueue = out
 }
 
 // fixedQuestionSeconds is the time credited for one answer, regardless of how

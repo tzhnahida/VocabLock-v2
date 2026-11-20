@@ -75,6 +75,13 @@ func (s *Server) handleQuizStudyCards(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
+	ids := make([]int64, 0, len(cards))
+	for _, card := range cards {
+		if id, ok := card["id"].(int64); ok {
+			ids = append(ids, id)
+		}
+	}
+	s.setStudyQueue(ids)
 	writeJSON(w, map[string]interface{}{"cards": cards})
 }
 
