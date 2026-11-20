@@ -145,27 +145,10 @@ func fixedQuestionSeconds(questionType string) int {
 	return w * 10
 }
 
-// questionTimeCredit is the fixed time credited to one answer. It is a share
-// of the daily time quota (quota / planned questions), capped by whatever is
-// left, so 30 grammar questions cannot stretch a 20-minute quota to 25.
+// questionTimeCredit is the fixed time credited to one answer. It is purely
+// type-based; wall-clock duration is irrelevant.
 func (s *Server) questionTimeCredit(questionType string) int {
-	per := fixedQuestionSeconds(questionType)
-	target := s.Config.App.DailyTimeTarget * 60
-	if target <= 0 || s.DB == nil {
-		return per
-	}
-	spent, err := s.DB.GetTodayTimeSpentSec(s.Config.App.ActiveLang)
-	if err != nil {
-		return per
-	}
-	remaining := target - spent
-	if remaining <= 0 {
-		return 0
-	}
-	if per > remaining {
-		return remaining
-	}
-	return per
+	return fixedQuestionSeconds(questionType)
 }
 
 // consumeActivityElapsed returns the seconds since the last activity,
