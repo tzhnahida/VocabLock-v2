@@ -1155,6 +1155,11 @@ func (s *Server) handleQuizComplete(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Adjust tomorrow's plan from today's performance, in the background.
+	if reviewed > 0 {
+		s.autoTune(lang)
+	}
+
 	writeJSON(w, map[string]interface{}{
 		"completed":        targetMet,
 		"daily_target_met": targetMet,

@@ -1,7 +1,6 @@
 import { t, dyn, typeName, ago, type Lang } from '../i18n'
 import { daysUntil, type Dashboard } from '../api'
 import AssignmentCard from '../components/Assignment'
-import PlanTune from '../components/PlanTune'
 
 type Props = {
   dash: Dashboard
@@ -10,7 +9,6 @@ type Props = {
   onLibrary: () => void
   onStats: () => void
   onLock: () => void
-  onRefresh: () => void
 }
 
 function lastSeven(heatmap: Record<string, number>): Array<{ key: string; count: number; weekday: number }> {
@@ -40,7 +38,7 @@ function dateLine(lang: Lang): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ` · ${wdLabel}`
 }
 
-export default function Home({ dash, lang, onStart, onLibrary, onStats, onLock, onRefresh }: Props) {
+export default function Home({ dash, lang, onStart, onLibrary, onStats, onLock }: Props) {
   const pct = dash.dailyTarget > 0 ? Math.min(1, dash.reviewedToday / dash.dailyTarget) : 0
   const week = lastSeven(dash.heatmap)
   const weekTotal = week.reduce((sum, d) => sum + d.count, 0)
@@ -211,7 +209,6 @@ export default function Home({ dash, lang, onStart, onLibrary, onStats, onLock, 
               </button>
             </div>
           </section>
-          <PlanTune lang={lang} onApplied={onRefresh} />
         </div>
       </div>
     </div>

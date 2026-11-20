@@ -191,15 +191,7 @@ export default function App() {
         <Sidebar dash={dash} screen={screen} lang={lang} onNavigate={go} />
         <main>
           <section className="screen s-home">
-            <Home
-              dash={dash}
-              lang={lang}
-              onStart={() => go('quiz')}
-              onLibrary={() => go('library')}
-              onStats={() => go('stats')}
-              onLock={() => setLocked(true)}
-              onRefresh={refresh}
-            />
+            <Home dash={dash} lang={lang} onStart={() => go('quiz')} onLibrary={() => go('library')} onStats={() => go('stats')} onLock={() => setLocked(true)} />
           </section>
           <section className="screen s-library">
             <Library dash={dash} lang={lang} onChanged={refresh} />

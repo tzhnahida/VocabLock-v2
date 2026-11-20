@@ -84,6 +84,11 @@ type Server struct {
 	// Bounds how many TTS pre-warm subprocesses run at once.
 	ttsWarm chan struct{}
 
+	// Silent once-a-day AI plan tuning (summary + tomorrow plan).
+	tuneMu      sync.Mutex
+	tuneRunning bool
+	tuneDate    string
+
 	// Session budget tracks time/type usage for the current day
 	sessionBudget sessionBudget
 

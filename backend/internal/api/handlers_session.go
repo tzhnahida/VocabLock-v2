@@ -9,6 +9,7 @@ import (
 
 	"github.com/tzhnahida/VocabLock/internal/ai"
 	"github.com/tzhnahida/VocabLock/internal/api/mock"
+	"github.com/tzhnahida/VocabLock/internal/clock"
 	"github.com/tzhnahida/VocabLock/internal/db"
 	"github.com/tzhnahida/VocabLock/internal/log"
 )
@@ -245,6 +246,64 @@ func (s *Server) runSummarize(ctx context.Context, lang, stats, yesterdayPlan st
 		return nil, fmt.Errorf("parse AI response: %w", err)
 	}
 	return result, nil
+}
+
+// autoTune runs the summary + plan generator in the background once per day.
+// It is deliberately silent: no request waits for it and no UI blocks on it.
+func (s *Server) autoTune(lang string) {
+	if s.AI() == nil || s.DB == nil {
+		return
+	}
+	today := clock.Today()
+	s.tuneMu.Lock()
+	if s.tuneRunning || s.tuneDate == today {
+		s.tuneMu.Unlock()
+		return
+	}
+	s.tuneRunning = true
+	s.tuneMu.Unlock()
+
+	go func() {
+		defer func() {
+			s.tuneMu.Lock()
+			s.tuneRunning = false
+			s.tuneMu.Unlock()
+		}()
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+		defer cancel()
+
+		logs, err := s.DB.GetSessionLogs(lang, 200)
+		if err != nil || len(logs) < 3 {
+			return
+		}
+		stats := buildSessionStats(logs)
+		summary, err := s.runSummarize(ctx, lang, stats, s.getYesterdayPlan(lang))
+		if err != nil {
+			log.Warn("plan", "auto tune summarize: %v", err)
+			return
+		}
+		plan, err := s.runPlan(ctx, lang, stats, summary)
+		if err != nil {
+			log.Warn("plan", "auto tune plan: %v", err)
+			return
+		}
+		words := 0
+		if tomorrow, ok := plan["tomorrow"].(map[string]interface{}); ok {
+			if wc, ok := tomorrow["word_count"].(float64); ok && wc > 0 {
+				words = int(wc)
+				if words != s.Config.App.DailyTarget {
+					s.Config.App.DailyTarget = words
+					if err := s.Config.SaveAppConfig(s.ConfigDir); err != nil {
+						log.Warn("plan", "auto tune save target: %v", err)
+					}
+				}
+			}
+		}
+		s.tuneMu.Lock()
+		s.tuneDate = today
+		s.tuneMu.Unlock()
+		log.Info("plan", "auto tune applied for %s: tomorrow words=%d", today, words)
+	}()
 }
 
 func (s *Server) runPlan(ctx context.Context, lang, stats string, summary map[string]interface{}) (map[string]interface{}, error) {
