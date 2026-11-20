@@ -568,7 +568,7 @@
 
 ### 做了什么
 
-## 直接启动界面外壳的误用修复（2026-11-20 晚）
-- 现象：双击 `vocablock-desktop.exe`（Electron 外壳）时没有 Go 服务，renderer 回落到 demoDashboard，界面显示“英语 · demo”和英文示例词。
-- 修复：打包版 Electron 启动时若 argv 没有 `--api-port`，弹窗提示“请通过 VocabLock.exe 启动”并退出；桌面新建 `VocabLock.lnk` 指向 `vocablock.exe`。
-- 真正入口始终是 `vocablock.exe`（Go 服务负责端口/token/SQLite，再拉起 Electron）。
+## 向导触发条件修正（2026-11-20 晚）
+- 现象：已有词库但从未跑过向导的安装，启动后直接进主页，用户以为初始化没触发。
+- 修正：只要 `GET /profile` 返回 `onboarding_done=false` 就进入向导，不再要求“词库为空”；已有词库保留，向导完成只写 profile/方案，不删词。
+- release 重新部署后验证：窗口首屏为“开始之前，先认识一下你 / 1 / 3”，日语显示 3 个 pack + placement。

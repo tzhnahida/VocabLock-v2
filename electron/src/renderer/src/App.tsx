@@ -66,7 +66,7 @@ export default function App() {
       if (cancelled) return
 
       let needsOnboarding = false
-      if (loaded.online && loaded.totalWords === 0) {
+      if (loaded.online) {
         try {
           const profile = await loadProfile()
           needsOnboarding = !profile.onboarding_done
