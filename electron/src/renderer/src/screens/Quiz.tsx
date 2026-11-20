@@ -47,6 +47,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   const [studyCards, setStudyCards] = useState<StudyCard[]>([])
   const [studyIdx, setStudyIdx] = useState(0)
   const [studyRead, setStudyRead] = useState(false)
+  const [recordingCard, setRecordingCard] = useState<number | null>(null)
   const [pron, setPron] = useState<PronounceResult | null>(null)
   const [assessing, setAssessing] = useState(false)
   const [disputed, setDisputed] = useState(false)
@@ -90,6 +91,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   // session time budget on the server.
   useEffect(() => {
     setStudyRead(false)
+    setRecordingCard(null)
     setPron(null)
     setAssessing(false)
     recorder.reset()
@@ -100,7 +102,8 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   // audio bytes are the identity: a new take produces a new base64 string.
   useEffect(() => {
     const card = studyCards[studyIdx]
-    if (phase !== 'study' || !card || recorder.state !== 'ready' || !recorder.audio) return
+    if (phase !== 'study' || !card || recordingCard !== card.id) return
+    if (recorder.state !== 'ready' || !recorder.audio) return
     setStudyRead(true)
     setPron(null)
     setAssessing(true)
@@ -109,7 +112,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
       .then((r) => setPron(r))
       .catch(() => setPron({ status: 'error', score: 0 }))
       .finally(() => setAssessing(false))
-  }, [phase, studyCards, studyIdx, recorder.state, recorder.seconds, recorder.audio])
+  }, [phase, studyCards, studyIdx, recordingCard, recorder.state, recorder.seconds, recorder.audio])
 
   useEffect(() => {
     let cancelled = false
@@ -350,6 +353,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
                   recorder.stop()
                 } else {
                   setPron(null)
+                  setRecordingCard(card.id)
                   void recorder.start()
                 }
               }}
