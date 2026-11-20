@@ -95,17 +95,20 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- card change only
   }, [studyIdx])
 
+  // Every completed recording (including a re-record) is scored again. The
+  // audio bytes are the identity: a new take produces a new base64 string.
   useEffect(() => {
     const card = studyCards[studyIdx]
-    if (phase !== 'study' || !card || studyRead || recorder.state !== 'ready') return
+    if (phase !== 'study' || !card || recorder.state !== 'ready' || !recorder.audio) return
     setStudyRead(true)
-    void recordStudyTime(Math.max(1, recorder.seconds), card.id).catch(() => {})
+    setPron(null)
     setAssessing(true)
+    void recordStudyTime(Math.max(1, recorder.seconds), card.id).catch(() => {})
     void assessPronounce(recorder.audio, card.id)
       .then((r) => setPron(r))
       .catch(() => setPron({ status: 'error', score: 0 }))
       .finally(() => setAssessing(false))
-  }, [phase, studyCards, studyIdx, studyRead, recorder.state, recorder.seconds, recorder.audio])
+  }, [phase, studyCards, studyIdx, recorder.state, recorder.seconds, recorder.audio])
 
   useEffect(() => {
     let cancelled = false
