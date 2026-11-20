@@ -6,12 +6,6 @@ let app: RealApp | undefined
 let browser: Browser
 let page: Page
 
-async function lockPage(browser: Browser): Promise<Page | null> {
-  for (const p of browser.contexts()[0].pages()) {
-    if (await p.locator('#lock-study').count()) return p
-  }
-  return null
-}
 
 test.describe('real backend flows', () => {
   test.beforeAll(async () => {
@@ -38,17 +32,6 @@ test.describe('real backend flows', () => {
     }
   })
 
-  test('lock screen -> start studying enters the quiz', async () => {
-    await page.evaluate(() => window.vocablock.requestLock())
-    let lock: Page | null = null
-    for (let i = 0; i < 40 && !lock; i++) {
-      lock = await lockPage(browser)
-      if (!lock) await page.waitForTimeout(250)
-    }
-    expect(lock, 'lock window did not appear').toBeTruthy()
-    await lock!.locator('#lock-study').click()
-    await expect(page.locator('.s-quiz')).toBeVisible({ timeout: 20_000 })
-  })
 
   test('settings save round-trips through the API', async () => {
     await page.locator('.sidebar').getByText('设置', { exact: true }).click()

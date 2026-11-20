@@ -8,7 +8,6 @@ import Stats from './screens/Stats'
 import Settings from './screens/Settings'
 import Listening from './screens/Listening'
 import Chat from './screens/Chat'
-import Lock from './screens/Lock'
 import Onboarding from './screens/Onboarding'
 import { apiContext, configureApi, loadDashboard, loadProfile, unlockSystem, demoDashboard, type Dashboard } from './api'
 import { courseLabel, type Lang } from './i18n'
@@ -39,9 +38,7 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('home')
   const [theme, setTheme] = useState<'light' | 'dark'>('dark')
   const [lang, setLang] = useState<Lang>('zh')
-  const [locked, setLocked] = useState(false)
   // True only in the dedicated kiosk window; there the server owns the lock.
-  const [lockWindow, setLockWindow] = useState(false)
   const [onboarding, setOnboarding] = useState(false)
 
   useEffect(() => {
@@ -88,9 +85,6 @@ export default function App() {
         runtime.screen === 'chat'
       ) {
         setScreen(runtime.screen)
-      } else if (runtime.screen === 'lock') {
-        setLockWindow(true)
-        setLocked(true)
       }
       if (needsOnboarding) {
         // The service may have locked at startup because the vault already has
@@ -111,38 +105,22 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
-    document.body.dataset.screen = locked ? '' : screen
-    // design.css shows the lock overlay through body.locked; without the class
-    // the kiosk window renders an empty shell (sidebar only, black content).
-    document.body.classList.toggle('locked', locked)
+    document.body.dataset.screen = screen
     document.body.style.fontFamily = fonts[lang]
     document.documentElement.lang = lang === 'zh' ? 'zh-CN' : lang
     localStorage.setItem('vl-lang', lang)
     localStorage.setItem('vl-theme', theme)
-  }, [theme, lang, screen, locked])
+  }, [theme, lang, screen])
 
   useEffect(() => {
     function onKey(e: KeyboardEvent): void {
-      if (e.key === 'Escape') {
-        // Inside the kiosk lock window the server owns the lock state, so
-        // dismiss it through the bridge instead of only hiding the overlay.
-        if (lockWindow) {
-          window.vocablock.dismissLock()
-          setLocked(false)
-        } else if (locked) setLocked(false)
-        else if (screen === 'quiz') setScreen('home')
-      }
-      if (!locked && e.key === 'l' && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault()
-        setLocked(true)
-      }
+      if (e.key === 'Escape' && screen === 'quiz') setScreen('home')
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [locked, screen, lockWindow])
+  }, [screen])
 
   const go = useCallback((next: Screen) => {
-    setLocked(false)
     setScreen(next)
   }, [])
 
@@ -170,7 +148,6 @@ export default function App() {
         onLang={setLang}
         onDone={() => {
           setOnboarding(false)
-          setLocked(false)
           setScreen('home')
           void refresh()
         }}
@@ -185,13 +162,13 @@ export default function App() {
         theme={theme}
         onTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')}
         crumb={`${courseLabel(dash.activeLang, lang)}${dash.online ? '' : ' · demo'}`}
-        onLock={() => setLocked(true)}
+        onLock={() => go('quiz')}
       />
       <div className="body">
         <Sidebar dash={dash} screen={screen} lang={lang} onNavigate={go} />
         <main>
           <section className="screen s-home">
-            <Home dash={dash} lang={lang} onStart={() => go('quiz')} onLibrary={() => go('library')} onStats={() => go('stats')} onLock={() => setLocked(true)} />
+            <Home dash={dash} lang={lang} onStart={() => go('quiz')} onLibrary={() => go('library')} onStats={() => go('stats')} onLock={() => go('quiz')} />
           </section>
           <section className="screen s-library">
             <Library dash={dash} lang={lang} onChanged={refresh} />
@@ -219,20 +196,6 @@ export default function App() {
           </section>
         </main>
       </div>
-      {locked && (
-        <Lock
-          dash={dash}
-          lang={lang}
-          onStudy={() => {
-            if (lockWindow) {
-              window.vocablock.startStudy()
-            } else {
-              setLocked(false)
-              go('quiz')
-            }
-          }}
-        />
-      )}
     </div>
   )
 }

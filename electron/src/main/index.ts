@@ -137,6 +137,9 @@ function createWindow(): void {
     show: !captureMode && !hidden
   })
   loadInto(win)
+  win.once('ready-to-show', () => {
+    if (!captureMode && !hidden) win?.maximize()
+  })
 
   // Renderer errors otherwise vanish in a packaged build (no devtools). Forward
   // them to the service log so a blank screen can be diagnosed from stderr.
@@ -207,42 +210,9 @@ function captureScreenshot(path: string): void {
  * shell decides *how* — the old Win32 lock window only knew about Flutter.
  */
 function createLockWindow(): void {
-  if (lockWin) return
-  const display = targetDisplay()
-  const { x, y, width, height } = display.bounds
-  // kiosk+fullscreen together were clamped to the work area, leaving the
-  // taskbar clickable; a frameless window sized to the display covers it.
-  lockWin = new BrowserWindow({
-    ...baseWindowOptions(),
-    x,
-    y,
-    width,
-    height,
-    show: false,
-    alwaysOnTop: true,
-    skipTaskbar: true,
-    closable: false,
-    minimizable: false,
-    maximizable: false,
-    movable: false,
-    resizable: false
-  })
-  lockWin.setAlwaysOnTop(true, 'screen-saver')
-  lockWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
-  loadInto(lockWin)
-  lockWin.once('ready-to-show', () => {
-    if (hidden || captureMode) return
-    lockWin?.setBounds({ x, y, width, height })
-    lockWin?.show()
-    lockWin?.focus()
-    lockWin?.setFullScreen(true)
-    lockWin?.setAlwaysOnTop(true, 'screen-saver')
-  })
-  lockWin.on('closed', () => {
-    lockWin = null
-  })
+  // Focus mode is enforced by blocking close/quit until the quota is met.
+  // There is deliberately no separate lock screen or kiosk window.
 }
-
 function destroyLockWindow(): void {
   if (!lockWin) return
   const target = lockWin
@@ -358,7 +328,9 @@ ipcMain.on('lock:study', () => {
   if (!locked) return
   lockWin?.hide()
   if (win) {
+    if (win.isMinimized()) win.restore()
     win.show()
+    win.moveTop()
     win.focus()
     win.webContents.send('navigate', 'quiz')
   }

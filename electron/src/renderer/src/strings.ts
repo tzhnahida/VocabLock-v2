@@ -45,7 +45,7 @@ const zh = {
     prefs: { visual: '视觉（词卡）', auditory: '听觉（多听）', kinesthetic: '动手（多写）', mixed: '都可以' }
   },
   lockGate: {
-    gate: '答对上面的词，才能继续',
+    gate: '完成今日目标后自动解锁',
     answerFirst: '先答对上面的题'
   },
   homePath: {
@@ -289,7 +289,7 @@ const en: typeof zh = {
     prefs: { visual: 'Visual (cards)', auditory: 'Auditory (listening)', kinesthetic: 'Hands-on (writing)', mixed: 'Anything' }
   },
   lockGate: {
-    gate: 'Answer the word above to continue',
+    gate: 'Unlocks automatically when today’s goal is complete',
     answerFirst: 'Answer first'
   },
   homePath: {
@@ -533,7 +533,7 @@ const ja: typeof zh = {
     prefs: { visual: '視覚（カード）', auditory: '聴覚（聞く）', kinesthetic: '手を動かす（書く）', mixed: 'どれでも' }
   },
   lockGate: {
-    gate: '上の問題に正解すると進めます',
+    gate: '今日の目標を達成すると自動で解除されます',
     answerFirst: 'まず正解してください'
   },
   homePath: {
