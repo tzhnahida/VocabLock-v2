@@ -238,6 +238,7 @@ export default function Onboarding({ lang, activeLang, onLang, onDone }: Props) 
                   )
                 })}
               </div>
+              <p className="onboard-note">{copy.languageHint}</p>
               <p className="onboard-note">{copy.moreLangs}</p>
             </section>
           </>
@@ -252,6 +253,7 @@ export default function Onboarding({ lang, activeLang, onLang, onDone }: Props) 
                   {copy.switchManual}
                 </button>
               </div>
+              <p className="onboard-note">{copy.interviewFor(labelFor(learning, lang))}</p>
               <div className="chat-log">
                 {messages.map((m, i) => (
                   <div key={i} className={'bubble ' + (m.role === 'user' ? 'user' : 'ai')}>

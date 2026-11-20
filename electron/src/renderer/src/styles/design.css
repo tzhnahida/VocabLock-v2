@@ -302,3 +302,14 @@ button.option:hover{border-color:var(--faint)}
 .chat-input{display:flex;gap:8px;align-items:center}
 .chat-input input{flex:1}
 .chat-input .btn{flex:none;height:36px}
+
+/* Keep the wizard inside narrow windows (option cards and chat must wrap). */
+.onboard-wrap{display:block;padding:40px 20px}
+.onboard-card{width:100%;max-width:880px;margin:0 auto;min-width:0}
+.onboard-section{min-width:0}
+.onboard-head{flex-wrap:wrap;gap:12px}
+.chat-input{flex-wrap:wrap}
+.chat-input input{min-width:0}
+.chat-input .btn{flex:none;height:36px}
+.onboard-actions{flex-wrap:wrap;gap:10px}
+.option-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
