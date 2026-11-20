@@ -796,12 +796,13 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 	logID, _ := s.DB.InsertReviewLog(logEntry)
 
-	// Update daily stats for heatmap / streak
+	// Update daily stats for heatmap / streak. Time credit is fixed by type,
+	// not measured: a 2-second answer still consumes the type's budget.
 	correctCount := 0
 	if result.Correct {
 		correctCount = 1
 	}
-	s.DB.UpsertDailyStats(now.Format("2006-01-02"), s.Config.App.ActiveLang, 1, correctCount, s.consumeActivityElapsed())
+	s.DB.UpsertDailyStats(now.Format("2006-01-02"), s.Config.App.ActiveLang, 1, correctCount, fixedQuestionSeconds(qType))
 
 	var nextReviewAt *time.Time
 	if word != nil {
@@ -1040,7 +1041,7 @@ func (s *Server) writeDialogueResult(w http.ResponseWriter, word *db.Word, qtype
 	if result.Correct {
 		correctCount = 1
 	}
-	s.DB.UpsertDailyStats(now.Format("2006-01-02"), s.Config.App.ActiveLang, 1, correctCount, s.consumeActivityElapsed())
+	s.DB.UpsertDailyStats(now.Format("2006-01-02"), s.Config.App.ActiveLang, 1, correctCount, fixedQuestionSeconds(qtype))
 
 	if s.System != nil && result.Correct {
 		if s.DailyTargetMet(s.Config.App.ActiveLang) {
@@ -1442,7 +1443,7 @@ func (s *Server) writeReadAloudResult(w http.ResponseWriter, stype string, sid i
 	if correct {
 		correctCount = 1
 	}
-	s.DB.UpsertDailyStats(now.Format("2006-01-02"), s.Config.App.ActiveLang, 1, correctCount, s.consumeActivityElapsed())
+	s.DB.UpsertDailyStats(now.Format("2006-01-02"), s.Config.App.ActiveLang, 1, correctCount, fixedQuestionSeconds(qtype))
 
 	// Auto-unlock if daily target met (count- OR time-based)
 	if s.System != nil && correct {

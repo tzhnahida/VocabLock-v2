@@ -93,9 +93,11 @@ func (s *Server) handleQuizStudyTime(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, "seconds must be between 1 and 300")
 		return
 	}
-	used := s.sessionBudget.recordStudyTime(req.Seconds)
+	// A study card is a fixed-cost activity too (30s), not the recording length.
+	const studyCardSeconds = 30
+	used := s.sessionBudget.recordStudyTime(studyCardSeconds)
 	if s.DB != nil {
-		_ = s.DB.UpsertDailyStats(clock.Today(), s.Config.App.ActiveLang, 0, 0, req.Seconds)
+		_ = s.DB.UpsertDailyStats(clock.Today(), s.Config.App.ActiveLang, 0, 0, studyCardSeconds)
 	}
 	writeJSON(w, map[string]interface{}{"ok": true, "time_used": used})
 }

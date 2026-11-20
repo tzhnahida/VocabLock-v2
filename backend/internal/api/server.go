@@ -135,6 +135,16 @@ func (s *Server) markActivity() {
 	s.lastActivityAt = time.Now()
 }
 
+// fixedQuestionSeconds is the time credited for one answer, regardless of how
+// long the learner actually took. 1 TimeWeights unit is 10 seconds.
+func fixedQuestionSeconds(questionType string) int {
+	w := engine.TimeWeights[questionType]
+	if w <= 0 {
+		w = 1
+	}
+	return w * 10
+}
+
 // consumeActivityElapsed returns the seconds since the last activity,
 // clamped to sessionGapCapSec, and resets the clock. Returns 0 if the
 // clock was never started (e.g. submit without session/start).
