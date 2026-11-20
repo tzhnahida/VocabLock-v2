@@ -166,14 +166,7 @@ func TestDailyTargetMetUsesAttemptAccuracy(t *testing.T) {
 
 	insert(true)
 	insert(false)
-	if s.DailyTargetMet("en") {
-		t.Fatal("1 correct out of 2 attempts must not satisfy accuracy 0.8")
-	}
-
-	for i := 0; i < 4; i++ {
-		insert(true)
-	}
 	if !s.DailyTargetMet("en") {
-		t.Fatal("5 correct out of 6 attempts must satisfy accuracy 0.8")
+		t.Fatal("meeting the planned question count must release, regardless of accuracy")
 	}
 }

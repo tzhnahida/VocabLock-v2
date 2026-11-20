@@ -802,7 +802,7 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 	if result.Correct {
 		correctCount = 1
 	}
-	s.DB.UpsertDailyStats(now.Format("2006-01-02"), s.Config.App.ActiveLang, 1, correctCount, fixedQuestionSeconds(qType))
+	s.DB.UpsertDailyStats(now.Format("2006-01-02"), s.Config.App.ActiveLang, 1, correctCount, s.questionTimeCredit(qType))
 
 	var nextReviewAt *time.Time
 	if word != nil {
@@ -1041,7 +1041,7 @@ func (s *Server) writeDialogueResult(w http.ResponseWriter, word *db.Word, qtype
 	if result.Correct {
 		correctCount = 1
 	}
-	s.DB.UpsertDailyStats(now.Format("2006-01-02"), s.Config.App.ActiveLang, 1, correctCount, fixedQuestionSeconds(qtype))
+	s.DB.UpsertDailyStats(now.Format("2006-01-02"), s.Config.App.ActiveLang, 1, correctCount, s.questionTimeCredit(qtype))
 
 	if s.System != nil && result.Correct {
 		if s.DailyTargetMet(s.Config.App.ActiveLang) {
@@ -1443,7 +1443,7 @@ func (s *Server) writeReadAloudResult(w http.ResponseWriter, stype string, sid i
 	if correct {
 		correctCount = 1
 	}
-	s.DB.UpsertDailyStats(now.Format("2006-01-02"), s.Config.App.ActiveLang, 1, correctCount, fixedQuestionSeconds(qtype))
+	s.DB.UpsertDailyStats(now.Format("2006-01-02"), s.Config.App.ActiveLang, 1, correctCount, s.questionTimeCredit(qtype))
 
 	// Auto-unlock if daily target met (count- OR time-based)
 	if s.System != nil && correct {

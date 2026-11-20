@@ -145,6 +145,29 @@ func fixedQuestionSeconds(questionType string) int {
 	return w * 10
 }
 
+// questionTimeCredit is the fixed time credited to one answer. It is a share
+// of the daily time quota (quota / planned questions), capped by whatever is
+// left, so 30 grammar questions cannot stretch a 20-minute quota to 25.
+func (s *Server) questionTimeCredit(questionType string) int {
+	per := fixedQuestionSeconds(questionType)
+	target := s.Config.App.DailyTimeTarget * 60
+	if target <= 0 || s.DB == nil {
+		return per
+	}
+	spent, err := s.DB.GetTodayTimeSpentSec(s.Config.App.ActiveLang)
+	if err != nil {
+		return per
+	}
+	remaining := target - spent
+	if remaining <= 0 {
+		return 0
+	}
+	if per > remaining {
+		return remaining
+	}
+	return per
+}
+
 // consumeActivityElapsed returns the seconds since the last activity,
 // clamped to sessionGapCapSec, and resets the clock. Returns 0 if the
 // clock was never started (e.g. submit without session/start).
@@ -205,34 +228,28 @@ func (s *Server) DailyTargetMet(lang string) bool {
 	if s.DB == nil {
 		return false
 	}
-	// The daily quota is TIME when configured: the close lock stays until the
-	// learner has actually spent that many minutes today.
-	if s.Config.App.DailyTimeTarget > 0 {
-		spent, err := s.DB.GetTodayTimeSpent(lang)
-		if err != nil {
-			return false
-		}
-		return spent >= s.Config.App.DailyTimeTarget
+	// Release on EITHER completion: the planned question count OR the fixed
+	// time quota. The plan is trimmed to fit the time budget before the
+	// session, so both cannot require an unreasonable physical duration.
+	planned := s.sessionBudget.plannedTotal()
+	if planned <= 0 {
+		planned = s.Config.App.DailyTarget
 	}
 	reviewed, err := s.DB.GetUniqueSubjectsReviewed(lang)
 	if err != nil {
 		return false
 	}
-	if reviewed < s.Config.App.DailyTarget {
-		return false
-	}
-	// Accuracy is attempts-based: a word answered twice counts as two attempts.
-	// Using unique subjects as the denominator let one correct retry push the
-	// ratio above 1.0 and bypass the accuracy gate.
-	attempts, correct, err := s.DB.GetTodayStats(lang)
-	if err != nil {
-		return false
-	}
-	if attempts == 0 {
+	if reviewed >= planned {
 		return true
 	}
-	accuracy := float64(correct) / float64(attempts)
-	return accuracy >= s.Config.App.MinAccuracy
+	if s.Config.App.DailyTimeTarget > 0 {
+		spent, err := s.DB.GetTodayTimeSpentSec(lang)
+		if err != nil {
+			return false
+		}
+		return spent >= s.Config.App.DailyTimeTarget*60
+	}
+	return false
 }
 
 // langHasGrammarType reports whether the language's question types include
@@ -555,6 +572,13 @@ type sessionBudget struct {
 	planTotal  int
 	planQuotas map[string]int
 	planServed map[string]int
+}
+
+func (b *sessionBudget) plannedTotal() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.rolloverLocked()
+	return b.planTotal
 }
 
 func (b *sessionBudget) reset() {
