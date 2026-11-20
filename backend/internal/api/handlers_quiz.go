@@ -383,10 +383,15 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(words) == 0 && len(grammarPoints) == 0 {
+		// Nothing left to generate. Releasing the lock is the only humane
+		// outcome: otherwise a generation failure becomes an unclosable app.
+		log.Warn("quiz", "no items available — releasing focus lock")
+		s.exitNativeLock()
 		writeJSON(w, map[string]interface{}{
 			"completed":           true,
-			"message":             "No items to review",
+			"message":             "No items to review — focus lock released",
 			"grammar_unavailable": grammarUnavailable,
+			"session_exhausted":   true,
 		})
 		return
 	}
@@ -400,7 +405,13 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	for q == nil {
 		// Both exhausted - nothing left to serve
 		if wi >= len(words) && gi >= len(grammarPoints) {
-			writeError(w, 409, "no reviewable items available")
+			log.Warn("quiz", "generation exhausted without a question — releasing focus lock")
+			s.exitNativeLock()
+			writeJSON(w, map[string]interface{}{
+				"completed":         true,
+				"message":           "Could not generate a question — focus lock released",
+				"session_exhausted": true,
+			})
 			return
 		}
 		// Pick the higher-priority item
