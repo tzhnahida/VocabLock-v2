@@ -7,6 +7,28 @@
 import type { Lang } from './i18n'
 
 const zh = {
+  onboarding: {
+    title: '开始之前，先认识一下你',
+    intro: '这些选择决定初始词表、每日节奏和题型，之后可以在设置里修改。',
+    interfaceLang: '界面语言',
+    learningLang: '想学的语言',
+    goal: '学习目标',
+    level: '当前水平',
+    levelAuto: '不确定（之后可自评/定位）',
+    minutes: '每天能学多久（分钟）',
+    preferences: '学习偏好',
+    next: '下一步',
+    back: '上一步',
+    finish: '开始学习',
+    saving: '正在初始化…',
+    plan: '学习方案',
+    planHint: '按目标、每日时长和已安装内容一键设定；不可用的方案会说明原因。',
+    noPack: '暂无内容包：可以用 AI 生成或导入词表',
+    summary: (langLabel: string, minutes: number, goalLabel: string) => '将设置：' + langLabel + ' · 每天 ' + minutes + ' 分钟 · ' + goalLabel,
+    failed: '保存失败：',
+    goals: { exam: '考试', conversation: '日常交流', work: '工作', interest: '兴趣' },
+    prefs: { visual: '视觉（词卡）', auditory: '听觉（多听）', kinesthetic: '动手（多写）', mixed: '都可以' }
+  },
   quiz: {
     record: '录音',
     recordStop: '停止录音',
@@ -160,6 +182,28 @@ const zh = {
   }
 }
 const en: typeof zh = {
+  onboarding: {
+    title: 'A quick setup before you start',
+    intro: 'These choices shape the starter word list, daily rhythm and question types. You can change them later in Settings.',
+    interfaceLang: 'Interface language',
+    learningLang: 'Learning language',
+    goal: 'Goal',
+    level: 'Current level',
+    levelAuto: 'Not sure (later self-check / placement)',
+    minutes: 'Minutes per day',
+    preferences: 'Learning style',
+    next: 'Next',
+    back: 'Back',
+    finish: 'Start learning',
+    saving: 'Initialising…',
+    plan: 'Study plan',
+    planHint: 'Sets goal, daily minutes and installed content in one go; unavailable plans explain why.',
+    noPack: 'No content pack yet: use AI generation or import a word list',
+    summary: (langLabel: string, minutes: number, goalLabel: string) => 'Will set: ' + langLabel + ' · ' + minutes + ' min/day · ' + goalLabel,
+    failed: 'Save failed: ',
+    goals: { exam: 'Exam', conversation: 'Conversation', work: 'Work', interest: 'Interest' },
+    prefs: { visual: 'Visual (cards)', auditory: 'Auditory (listening)', kinesthetic: 'Hands-on (writing)', mixed: 'Anything' }
+  },
   quiz: {
     record: 'Record',
     recordStop: 'Stop',
@@ -313,6 +357,28 @@ const en: typeof zh = {
   }
 }
 const ja: typeof zh = {
+  onboarding: {
+    title: 'はじめる前に、少しだけ',
+    intro: 'ここでの選択が初期単語・1日のペース・問題タイプを決めます。後から設定で変更できます。',
+    interfaceLang: '表示言語',
+    learningLang: '学ぶ言語',
+    goal: '学習目標',
+    level: '現在のレベル',
+    levelAuto: 'わからない（後で自己評価/レベル判定）',
+    minutes: '1日の学習時間（分）',
+    preferences: '学習スタイル',
+    next: '次へ',
+    back: '戻る',
+    finish: '学習を開始',
+    saving: '初期化中…',
+    plan: '学習プラン',
+    planHint: '目標・1日の時間・インストール済みコンテンツをまとめて設定。使えないプランは理由を表示します。',
+    noPack: 'コンテンツパックなし：AI 生成か単語リストのインポートが使えます',
+    summary: (langLabel: string, minutes: number, goalLabel: string) => '設定内容：' + langLabel + ' · 1日 ' + minutes + ' 分 · ' + goalLabel,
+    failed: '保存に失敗しました：',
+    goals: { exam: '試験', conversation: '日常会話', work: '仕事', interest: '趣味' },
+    prefs: { visual: '視覚（カード）', auditory: '聴覚（聞く）', kinesthetic: '手を動かす（書く）', mixed: 'どれでも' }
+  },
   quiz: {
     record: '録音',
     recordStop: '停止',

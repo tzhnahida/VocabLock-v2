@@ -568,11 +568,9 @@
 
 ### 做了什么
 
-## Phase 1：能力层 + 一键方案 + Profile（2026-11-20）
-- 新增 `GET /api/v1/capabilities`：按语言返回 packs/levels/placement/tts/dict/asr/pronounce/可用题型，全部来自真实资产检查，不读配置声明。
-- 新增 `GET /api/v1/presets?language=` 与 `PUT /api/v1/config/preset`：节奏方案（考试冲刺/日常会话/兴趣阅读/轻度复习）语言无关；内容绑定方案（JLPT）缺 pack 时标记 unavailable，通用节奏仍可应用，并返回 applied/skipped。
-- 新增 `GET/PUT /api/v1/profile`：goal/level/daily_minutes/preferences/onboarding_done 单一来源，daily_target 由分钟数推导；保存到 app.yaml。
-- 新增 `languages/en.yaml`（英语基础题型 + edge-tts en 语音）；英语无内容包时 capabilities 显示 placement=false、packs=[]。
-- 设置页新增“一键方案”卡片与语言状态行；缺内容包时按钮禁用并显示原因。UI 文案 zh/en/ja 三套。
-- 覆盖：`internal/api` 48.2%，总量 43.4%；CI 门槛 47% / 43%。
-- 未做（下一阶段）：AI 访谈式 onboarding、英语内容包 en-cefr、`dict/en_lookup.py`、CEFR 定位测试。
+## 首次启动向导（2026-11-20 晚）
+- 新增 Electron `Onboarding` 三屏：界面/学习语言（带 pack/定位状态）→ 目标/水平/每日分钟/偏好 → 方案选择（缺内容包禁用并说明）。
+- 完成时写 `PUT /profile`（goal/level/daily_minutes/preferences/onboarding_done），必要时 `POST /config/language/init` 切课程，再应用 `PUT /config/preset`。
+- App 仅在 `totalWords === 0 && !onboarding_done` 时进入向导；已有词库的安装不受影响。mock/离线后端失败时跳过向导。
+- E2E fixture 的 app.yaml 写入 `onboarding_done: true`，保持既有 5 条 E2E 覆盖主界面；新增组件测试覆盖向导保存流程。
+- release 已重新打包部署；前端 12 个单测、typecheck、lint 通过。

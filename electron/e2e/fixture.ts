@@ -71,6 +71,7 @@ export async function startRealApp(): Promise<RealApp> {
       'auto_start: false',
       'auto_expand_words: false',
       'passive_enabled: false',
+      'onboarding_done: true',
       'content_dir: ' + JSON.stringify(join(root, 'content')),
       'ai:',
       '  base_url: ""',

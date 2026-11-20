@@ -9,7 +9,8 @@ import Settings from './screens/Settings'
 import Listening from './screens/Listening'
 import Chat from './screens/Chat'
 import Lock from './screens/Lock'
-import { apiContext, configureApi, loadDashboard, demoDashboard, type Dashboard } from './api'
+import Onboarding from './screens/Onboarding'
+import { apiContext, configureApi, loadDashboard, loadProfile, demoDashboard, type Dashboard } from './api'
 import { courseLabel, type Lang } from './i18n'
 
 export type Screen = 'home' | 'library' | 'quiz' | 'stats' | 'settings' | 'listening' | 'chat'
@@ -41,6 +42,7 @@ export default function App() {
   const [locked, setLocked] = useState(false)
   // True only in the dedicated kiosk window; there the server owns the lock.
   const [lockWindow, setLockWindow] = useState(false)
+  const [onboarding, setOnboarding] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -63,6 +65,17 @@ export default function App() {
       const loaded = await loadDashboard(ctx)
       if (cancelled) return
 
+      let needsOnboarding = false
+      if (loaded.online && loaded.totalWords === 0) {
+        try {
+          const profile = await loadProfile()
+          needsOnboarding = !profile.onboarding_done
+        } catch {
+          // Mock/offline backends may not expose the profile endpoint.
+          needsOnboarding = false
+        }
+      }
+
       setLang(nextLang)
       setTheme(nextTheme)
       setDash(loaded)
@@ -79,6 +92,7 @@ export default function App() {
         setLockWindow(true)
         setLocked(true)
       }
+      setOnboarding(needsOnboarding)
       setReady(true)
     })()
     return () => {
@@ -138,6 +152,20 @@ export default function App() {
   }, [])
 
   if (!ready) return <div className="boot">Loading…</div>
+
+  if (onboarding) {
+    return (
+      <Onboarding
+        lang={lang}
+        activeLang={dash.activeLang}
+        onLang={setLang}
+        onDone={() => {
+          setOnboarding(false)
+          void refresh()
+        }}
+      />
+    )
+  }
 
   return (
     <div className="app">
