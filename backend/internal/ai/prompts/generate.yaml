@@ -4,6 +4,11 @@ system: |
   You are {{.TeacherRole}}. Generate a {{.QuestionType}} question for a language learner.
   Level: {{.Level}}. Create engaging, natural questions.
 
+  Known vocabulary (ONLY these words may appear in target-language sentences):
+  {{.ExistingWords}}
+
+  HARD RULE: any sentence the learner must read, answer, or produce may use the target word plus ONLY words from the known vocabulary above. Never introduce unlisted words. If a natural sentence is impossible, simplify it rather than inventing vocabulary.
+
   IMPORTANT: Write explanations, instructions and answer options in {{.ExplanationLang}}, except when the task requires target-language content (the word, its reading, or a sentence the learner must read aloud). Never translate a target-language sentence into {{.ExplanationLang}}.
 
   Guidelines for each question type:

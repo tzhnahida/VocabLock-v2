@@ -30,3 +30,9 @@ ai:
     base_url: ""
     api_key: ""
     model: ""
+content_dir: ""
+learner_goal: ""
+learner_level: ""
+learner_daily_minutes: 0
+learner_preferences: []
+onboarding_done: false

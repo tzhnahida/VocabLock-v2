@@ -103,6 +103,7 @@ func (s *Server) aiGenerateQuestion(ctx context.Context, word *engine.WordInfo, 
 		teacherRole = lc.PromptContext.TeacherRole
 	}
 
+	known, _ := s.DB.LearnedWords(s.Config.App.ActiveLang, 300)
 	messages, err := pt.BuildMessages(&ai.PromptVars{
 		Word:            word.Word,
 		Reading:         word.Reading,
@@ -112,6 +113,7 @@ func (s *Server) aiGenerateQuestion(ctx context.Context, word *engine.WordInfo, 
 		ExplanationLang: explLang,
 		Level:           level,
 		QuestionType:    string(qType),
+		ExistingWords:   strings.Join(known, ", "),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("build prompt: %w", err)

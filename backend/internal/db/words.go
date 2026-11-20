@@ -135,6 +135,11 @@ func (d *Database) KnownWords(language string, limit int) ([]string, error) {
 	return d.wordStrings(language, "status = 'known'", limit)
 }
 
+// LearnedWords lists words with review history or explicitly marked known.
+func (d *Database) LearnedWords(language string, limit int) ([]string, error) {
+	return d.wordStrings(language, "(repetitions > 0 OR status = 'known')", limit)
+}
+
 // UnknownWords lists active words that have never been reviewed. Example
 // sentences containing them are rejected when picking an i+1 sentence: the
 // target is supposed to be the only unknown word.

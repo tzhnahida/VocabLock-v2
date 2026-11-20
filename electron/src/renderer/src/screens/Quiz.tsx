@@ -31,6 +31,26 @@ function formatClock(seconds: number): string {
   return Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0')
 }
 
+/** 16-bit PCM WAV: reject silence, not short words. */
+function audioHasSpeech(base64: string): boolean {
+  try {
+    const raw = atob(base64)
+    const bytes = new Uint8Array(raw.length)
+    for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i)
+    let sum = 0
+    let n = 0
+    for (let i = 44; i + 1 < bytes.length; i += 2) {
+      const sample = ((bytes[i] | (bytes[i + 1] << 8)) << 16) >> 16
+      sum += sample * sample
+      n++
+    }
+    if (n === 0) return false
+    return Math.sqrt(sum / n) > 300
+  } catch {
+    return true
+  }
+}
+
 /**
  * M1 quiz loop against the real service: session/start → next → submit → next.
  * Judging, SM-2 and the review log all happen on the Go side; this screen only
@@ -104,11 +124,11 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
     const card = studyCards[studyIdx]
     if (phase !== 'study' || !card || recordingCard !== card.id) return
     if (recorder.state !== 'ready' || !recorder.audio) return
-    if (recorder.seconds < 1) {
+    if (!audioHasSpeech(recorder.audio)) {
       setRecordingCard(null)
       setStudyRead(false)
       setAssessing(false)
-      setPron({ status: 'error', score: 0, error: 'too_short' })
+      setPron({ status: 'error', score: 0, error: 'no_speech' })
       return
     }
     setStudyRead(true)
@@ -416,8 +436,8 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
                 <span>
                   {pron.status === 'not_configured'
                     ? copy.pronUnavailable
-                    : pron.error === 'too_short'
-                      ? copy.pronTooShort
+                    : pron.error === 'no_speech'
+                      ? copy.pronNoSpeech
                       : copy.pronError}
                 </span>
               </div>
@@ -429,8 +449,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
             </button>
             <button className="btn" onClick={nextStudyCard} disabled={!studyRead} title={!studyRead ? copy.studyNeedRead : undefined}>
               {last ? copy.studyStart : copy.studyNext}
-              <kbd>Space</kbd>
-            </button>
+                </button>
           </div>
         </section>
       )
@@ -449,7 +468,6 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
         <audio ref={audioRef} preload="auto" />
         <div className="qhead">
           <span className="tag">{typeName(question.type, lang)}</span>
-          <span className="hint">{options.length > 0 ? dyn[lang].quizHint : dyn[lang].inputHint}</span>
         </div>
         {question.type === 'listening' ? (
           <div className="listen-prompt">
@@ -564,7 +582,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
               onKeyDown={(e) => {
                 if (e.key === 'Enter') void submit(answer)
               }}
-              placeholder={dyn[lang].inputHint}
+              placeholder={copy.answerPlaceholder}
             />
             <button className="btn" disabled={phase === 'feedback'} onClick={() => void submit(answer)}>
               {dyn[lang].submit}
@@ -693,24 +711,8 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
       </div>
 
       {(phase as Phase) !== 'study' ? <div className="quizbar">
-        <span className="quizbarhint">
-          {phase === 'study'
-            ? copy.shellStudy
-            : phase === 'feedback'
-              ? result?.correct
-                ? copy.shellCorrect
-                : copy.shellWrong
-              : phase === 'question' && question
-                ? question.options && question.options.length > 0
-                  ? copy.shellAnswer
-                  : AUDIO_TYPES.includes(question.type)
-                    ? copy.shellRecord
-                    : copy.shellInput
-                : copy.shellAnswer}
-        </span>
         <button className="btn quiznext" disabled={phase !== 'feedback'} onClick={() => void loadNext()}>
           <i>{t(lang, 'next')}</i>
-          <kbd>Space</kbd>
         </button>
       </div> : null}
     </div>
