@@ -24,6 +24,37 @@ type seedWord struct {
 // loadSeedWords reads seed words from configs/languages/seeds/<lang>.json and
 // inserts any that do not already exist in the database. Returns the number of
 // newly inserted words.
+// loadPackSeedWords seeds the first course words from the installed content
+// pack, in curated order (basics first), before any AI expansion.
+func (s *Server) loadPackSeedWords(lang string, limit int) int {
+	if s.Content == nil || s.DB == nil {
+		return 0
+	}
+	inserted := 0
+	for _, e := range s.Content.SeedEntries(lang, limit) {
+		exists, err := s.DB.WordExists(lang, e.Word)
+		if err != nil || exists {
+			continue
+		}
+		meaning := ""
+		if len(e.Senses) > 0 && len(e.Senses[0].Glosses) > 0 {
+			meaning = e.Senses[0].Glosses[0]
+		}
+		pos := ""
+		if len(e.POS) > 0 {
+			pos = e.POS[0]
+		}
+		if _, err := s.DB.InsertWord(&db.Word{
+			Word: e.Word, Reading: e.Reading, Meaning: meaning, POS: pos,
+			Level: e.Level, Language: lang, Source: "content-pack", Status: "active",
+		}); err != nil {
+			continue
+		}
+		inserted++
+	}
+	return inserted
+}
+
 func loadSeedWords(s *Server, lang string) (int, error) {
 	safe, ok := config.SafeLanguageCode(lang)
 	if !ok {
@@ -98,6 +129,12 @@ func (s *Server) EnsureBootstrap(lang string) {
 	}
 
 	if total == 0 {
+		// Prefer the curated content pack: basics first, before any AI topics.
+		if n := s.loadPackSeedWords(lang, s.Config.App.DailyTarget); n > 0 {
+			log.Info("bootstrap", "loaded %d pack words for %s", n, lang)
+			s.markBootstrapDone()
+			return
+		}
 		if s.AI() != nil && s.DictProvider != nil {
 			// AI available 閳?generate initial words from plan direction
 			expandCount, extraCtx := s.planExpandParams(lang)

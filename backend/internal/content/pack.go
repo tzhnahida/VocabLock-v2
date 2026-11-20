@@ -332,6 +332,32 @@ func levelOrder(level string) int {
 
 // Root reports where packs were loaded from (for the API and logs).
 // Levels returns the sorted level labels present for a language.
+// SeedEntries returns pack entries in file order, for initial course seeding.
+// This keeps the first words aligned with the pack's curated basics instead of
+// letting AI expansion start with random topics.
+func (l *Library) SeedEntries(language string, limit int) []*Entry {
+	if l == nil || limit <= 0 {
+		return nil
+	}
+	out := make([]*Entry, 0, limit)
+	for _, p := range l.packs {
+		if p.Language != language {
+			continue
+		}
+		for i := range p.Entries {
+			e := &p.Entries[i]
+			if len(e.Senses) == 0 || len(e.Senses[0].Glosses) == 0 {
+				continue
+			}
+			out = append(out, e)
+			if len(out) >= limit {
+				return out
+			}
+		}
+	}
+	return out
+}
+
 func (l *Library) Levels(language string) []string {
 	if l == nil {
 		return nil
