@@ -291,22 +291,30 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 // earlyTypes keeps the first minutes to recognition only. Sentence production
 // (grammar, fill, reading_comp, dialogue) waits until the learner is warmed up.
 func earlyTypes(reviewed int, available []engine.QuestionType) []engine.QuestionType {
-	if reviewed >= 6 {
-		return available
-	}
-	allowed := map[engine.QuestionType]bool{engine.TypeChoice: true, engine.TypeMeaning: true}
-	if reviewed >= 3 {
+	allowed := map[engine.QuestionType]bool{}
+	if reviewed < 3 {
+		allowed[engine.TypeChoice] = true
+		allowed[engine.TypeMeaning] = true
+	} else if reviewed < 6 {
+		allowed[engine.TypeChoice] = true
+		allowed[engine.TypeMeaning] = true
 		allowed[engine.TypePronounce] = true
 		allowed[engine.TypeReadWord] = true
+	} else {
+		for _, t := range available {
+			allowed[t] = true
+		}
 	}
 	out := make([]engine.QuestionType, 0, len(available))
 	for _, t := range available {
+		// Grammar is only served from grammar points, never invented around a
+		// random vocabulary word ("蜂 是名词，下面哪个句子…" was this bug).
+		if t == engine.TypeGrammar {
+			continue
+		}
 		if allowed[t] {
 			out = append(out, t)
 		}
-	}
-	if len(out) == 0 {
-		return available
 	}
 	return out
 }

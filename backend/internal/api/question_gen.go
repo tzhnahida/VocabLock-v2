@@ -15,6 +15,27 @@ import (
 
 // aiGenerateQuestion calls the AI to generate a question of the given type for the word.
 // Returns nil, error on failure (caller should fall back to a vocabulary question).
+// answerUsesKnown rejects a target-language sentence that contains words the
+// learner has never reviewed. The target word itself is always allowed.
+func (s *Server) answerUsesKnown(answer, target string) bool {
+	if s.DB == nil || strings.TrimSpace(answer) == "" {
+		return true
+	}
+	unknown, err := s.DB.UnknownWords(s.Config.App.ActiveLang, 500)
+	if err != nil {
+		return true
+	}
+	for _, u := range unknown {
+		if u == target || len([]rune(u)) < 2 {
+			continue
+		}
+		if strings.Contains(answer, u) {
+			return false
+		}
+	}
+	return true
+}
+
 // aiGenerateGrammarQuestion calls the AI to generate a question for a grammar point.
 func (s *Server) aiGenerateGrammarQuestion(ctx context.Context, gp *db.GrammarPoint) (*engine.Question, error) {
 	if s.AI() == nil {
@@ -142,6 +163,37 @@ func (s *Server) aiGenerateQuestion(ctx context.Context, word *engine.WordInfo, 
 	}
 	if result.Question.Answer == "" {
 		return nil, fmt.Errorf("AI returned empty answer")
+	}
+
+	// Sentence-like answers must not smuggle in unlearned vocabulary. One
+	// corrective retry, then fall back to a template question.
+	sentenceLike := qType == engine.TypeReadSentence ||
+		qType == engine.TypeDialogueWrite ||
+		qType == engine.TypeDialogueSpeak
+	if sentenceLike && !s.answerUsesKnown(result.Question.Answer, word.Word) {
+		feedback := "The learner has not studied all words in your answer. Rewrite the answer using ONLY the target word and words the learner already knows; simplify the sentence instead of introducing new vocabulary."
+		retryMessages := append(append([]ai.Message{}, messages...), ai.Message{Role: "system", Content: feedback})
+		retry, err := s.AI().Chat(timeoutCtx, retryMessages, pt.Temperature)
+		if err != nil {
+			return nil, fmt.Errorf("AI retry: %w", err)
+		}
+		var retryResult struct {
+			Question struct {
+				Type    string   `json:"type"`
+				Word    string   `json:"word"`
+				Reading string   `json:"reading"`
+				Prompt  string   `json:"prompt"`
+				Options []string `json:"options"`
+				Answer  string   `json:"answer"`
+			} `json:"question"`
+		}
+		if err := json.Unmarshal([]byte(extractJSON(retry)), &retryResult); err != nil {
+			return nil, fmt.Errorf("parse AI retry: %w", err)
+		}
+		if !s.answerUsesKnown(retryResult.Question.Answer, word.Word) {
+			return nil, fmt.Errorf("AI answer still uses unlearned words")
+		}
+		result = retryResult
 	}
 
 	q := &engine.Question{
