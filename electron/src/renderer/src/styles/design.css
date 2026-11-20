@@ -313,3 +313,43 @@ button.option:hover{border-color:var(--faint)}
 .chat-input .btn{flex:none;height:36px}
 .onboard-actions{flex-wrap:wrap;gap:10px}
 .option-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+
+/* Study preview before the quiz and a feedback block that reads at a glance. */
+.studycard .studyword{font-size:64px;font-weight:600;line-height:1.15;margin:20px 0 4px}
+.studycard .studyre{color:var(--muted);font-size:15px}
+.studycard .studymeaning{font-size:22px;margin:20px 0 6px}
+.studycard .studyhint{color:var(--faint);font-size:12px}
+.qcard .fb{margin-top:18px;padding:16px 18px;border-radius:12px;gap:14px;align-items:center;border-style:solid;border-width:1px}
+.qcard .fb .ic{width:34px;height:34px;font-size:18px;font-weight:700;flex:none}
+.qcard .fb .l1{font-size:15px;font-weight:650}
+.qcard .fb .l2{font-size:12.5px;margin-top:3px}
+.qcard .fb.ok{box-shadow:0 0 0 3px rgba(91,214,138,.08)}
+.qcard .fb.bad{box-shadow:0 0 0 3px rgba(220,80,80,.08)}
+.opt{cursor:pointer}
+
+/* Motion pass: the UI should feel responsive, not like static HTML. */
+:root{--ease:cubic-bezier(.22,1,.36,1);--fast:140ms;--med:220ms}
+@keyframes vlFadeUp{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+@keyframes vlPop{0%{opacity:0;transform:scale(.96)}100%{opacity:1;transform:scale(1)}}
+.btn,.opt,.option,.linkbtn,.iconbtn{transition:transform var(--fast) var(--ease),background var(--fast) var(--ease),border-color var(--fast) var(--ease),color var(--fast) var(--ease),box-shadow var(--fast) var(--ease),filter var(--fast) var(--ease)}
+.btn:hover{filter:brightness(1.06)}
+.btn:active{transform:scale(.965)}
+.opt:hover{border-color:var(--faint);transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.14)}
+.opt:active{transform:scale(.995)}
+.option:hover{transform:translateY(-1px)}
+.option:active{transform:scale(.995)}
+.onboard-section{animation:vlFadeUp var(--med) var(--ease) both}
+.onboard-section:nth-of-type(2){animation-delay:40ms}
+.onboard-section:nth-of-type(3){animation-delay:80ms}
+.onboard-card{animation:vlFadeUp var(--med) var(--ease) both}
+.chat-log{scroll-behavior:smooth}
+.bubble{animation:vlFadeUp 180ms var(--ease) both}
+.qcard{animation:vlFadeUp 180ms var(--ease) both}
+.studyword{animation:vlPop 220ms var(--ease) both}
+.fb{animation:vlPop 200ms var(--ease) both}
+.fb .ic{animation:vlPop 260ms var(--ease) both}
+.progress i,.rbar i,.bar i{transition:width 360ms var(--ease)}
+.content{animation:vlFadeUp 200ms var(--ease) both}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+}

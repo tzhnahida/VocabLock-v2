@@ -4,10 +4,12 @@ import type { Dashboard } from '../api'
 import {
   completeSession,
   disputeAnswer,
+  loadStudyCards,
   nextQuestion,
   startSession,
   submitAnswer,
   type Question,
+  type StudyCard,
   type SubmitResult
 } from '../quizApi'
 import { useRecorder } from '../audio/useRecorder'
@@ -16,7 +18,7 @@ import { st } from '../strings'
 
 type Props = { dash: Dashboard; lang: Lang; onExit: () => void; onAnswered: () => void }
 
-type Phase = 'starting' | 'question' | 'feedback' | 'done' | 'preparing' | 'empty' | 'error'
+type Phase = 'starting' | 'study' | 'question' | 'feedback' | 'done' | 'preparing' | 'empty' | 'error'
 
 /** Types the service grades from a recording, not from typed text. */
 const AUDIO_TYPES = ['read_word', 'read_sentence', 'dialogue_speak']
@@ -33,6 +35,8 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   const [answer, setAnswer] = useState('')
   const [error, setError] = useState('')
   const [answered, setAnswered] = useState(0)
+  const [studyCards, setStudyCards] = useState<StudyCard[]>([])
+  const [studyIdx, setStudyIdx] = useState(0)
   const [disputed, setDisputed] = useState(false)
   const inputRef = useRef<HTMLInputElement | null>(null)
   const recorder = useRecorder()
@@ -64,6 +68,11 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
     }
   }, [language])
 
+  const nextStudyCard = useCallback(() => {
+    if (studyIdx + 1 < studyCards.length) setStudyIdx(studyIdx + 1)
+    else void loadNext()
+  }, [studyIdx, studyCards.length, loadNext])
+
   useEffect(() => {
     let cancelled = false
     void (async () => {
@@ -73,6 +82,19 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
         if (started.preparing) return setPhase('preparing')
         if (started.daily_completed) return setPhase('done')
         if (started.empty) return setPhase('empty')
+        // Study-before-test: show the session's new words before asking.
+        try {
+          const cards = await loadStudyCards(language, 8)
+          if (cancelled) return
+          if (cards.length > 0) {
+            setStudyCards(cards)
+            setStudyIdx(0)
+            setPhase('study')
+            return
+          }
+        } catch {
+          // Preview is optional; fall through to the questions.
+        }
         await loadNext()
       } catch (e) {
         if (cancelled) return
@@ -143,7 +165,9 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   useEffect(() => {
     if (!question) return
     if (question.subject_type !== 'word') return
-    if (question.type !== 'listening' && question.type !== 'choice') return
+    // Only listening exists to be heard; auto-playing choice questions made the
+    // app speak a word the moment a quiz opened.
+    if (question.type !== 'listening') return
     void playQuestionAudio(question)
   }, [question, playQuestionAudio])
 
@@ -162,6 +186,10 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
           void submit(options[Number(e.key) - 1])
         }
       }
+      if (phase === 'study' && (e.key === ' ' || e.key === 'Enter')) {
+        e.preventDefault()
+        nextStudyCard()
+      }
       if (phase === 'feedback' && e.key === ' ') {
         e.preventDefault()
         void loadNext()
@@ -169,7 +197,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [phase, question, submit, loadNext])
+  }, [phase, question, submit, loadNext, nextStudyCard])
 
   useEffect(() => {
     recorder.reset()
@@ -203,6 +231,31 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
             {dyn[lang].retry}
           </button>
         </div>
+      )
+    }
+    if (phase === 'study' && studyCards.length > 0) {
+      const card = studyCards[studyIdx]
+      const last = studyIdx >= studyCards.length - 1
+      return (
+        <section className="card qcard studycard">
+          <div className="qhead">
+            <span className="tag">{copy.studyPhase}</span>
+            <span className="hint">{studyIdx + 1} / {studyCards.length}</span>
+          </div>
+          <div className="studyword">{card.word}</div>
+          {card.reading ? <div className="studyre">{card.reading}</div> : null}
+          <div className="studymeaning">{card.meaning}</div>
+          <div className="studyhint">{copy.studyHint}</div>
+          <div className="qfoot">
+            <button className="link" onClick={() => void loadNext()}>
+              {copy.studySkip}
+            </button>
+            <button className="btn" onClick={nextStudyCard}>
+              {last ? copy.studyStart : copy.studyNext}
+              <kbd>Space</kbd>
+            </button>
+          </div>
+        </section>
       )
     }
     if (!question) return <div className="emptystate">{dyn[lang].loading}</div>
@@ -313,7 +366,9 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
                 <div
                   key={i}
                   className={`opt${isCorrect || showRight ? ' good' : ''}${isWrongPick ? ' bad' : ''}`}
-                  onClick={() => void submit(opt)}
+                  onClick={() => {
+                    if (phase === 'question') void submit(opt)
+                  }}
                 >
                   <span className="k">{i + 1}</span>
                   <span>{opt}</span>
@@ -377,17 +432,6 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
         ) : null}
 
         <div className="qfoot">
-          <div className="keys">
-            <span>
-              <kbd>Esc</kbd> <i>{t(lang, 'keys.exit')}</i>
-            </span>
-            <span>
-              <kbd>1</kbd>–<kbd>4</kbd> <i>{t(lang, 'keys.choose')}</i>
-            </span>
-            <span>
-              <kbd>R</kbd> <i>{t(lang, 'keys.replay')}</i>
-            </span>
-          </div>
           <button className="btn" onClick={() => void loadNext()} disabled={phase !== 'feedback'}>
             <i>{t(lang, 'next')}</i>
             <kbd>Space</kbd>

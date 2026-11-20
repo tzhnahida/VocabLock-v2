@@ -41,7 +41,7 @@ const zh = {
     manualTitle: '手动填写学习档案',
 
     failed: '保存失败：',
-    goals: { exam: '考试', conversation: '日常交流', work: '工作', interest: '兴趣' },
+    goals: { exam: '考试', conversation: '日常交流', work: '工作', interest: '兴趣', reading: '兴趣阅读', general: '轻度复习' },
     prefs: { visual: '视觉（词卡）', auditory: '听觉（多听）', kinesthetic: '动手（多写）', mixed: '都可以' }
   },
   quiz: {
@@ -55,6 +55,13 @@ const zh = {
     recordPermission: '需要麦克风权限：请在系统设置里允许本应用使用麦克风',
     recordFailed: (e: string) => '录音失败：' + e,
     recordSeconds: (n: number) => '录音中 ' + n + 's',
+    correctBanner: '回答正确',
+    wrongBanner: '回答错误',
+    studyPhase: '先学后测',
+    studyHint: '先看一遍词义，答题时更容易记住',
+    studySkip: '跳过，直接答题',
+    studyStart: '开始答题',
+    studyNext: '下一个',
     replayAudio: '重听',
     listenFirst: '先听音频，再选答案',
     ttsUnavailable: 'TTS 未配置，无法播放音频'
@@ -231,7 +238,7 @@ const en: typeof zh = {
     manualTitle: 'Fill the profile manually',
 
     failed: 'Save failed: ',
-    goals: { exam: 'Exam', conversation: 'Conversation', work: 'Work', interest: 'Interest' },
+    goals: { exam: 'Exam', conversation: 'Conversation', work: 'Work', interest: 'Interest', reading: 'Reading', general: 'Light review' },
     prefs: { visual: 'Visual (cards)', auditory: 'Auditory (listening)', kinesthetic: 'Hands-on (writing)', mixed: 'Anything' }
   },
   quiz: {
@@ -245,6 +252,13 @@ const en: typeof zh = {
     recordPermission: 'Microphone permission is required - allow this app to use the microphone',
     recordFailed: (e: string) => 'Recording failed: ' + e,
     recordSeconds: (n: number) => 'Recording ' + n + 's',
+    correctBanner: 'Correct',
+    wrongBanner: 'Incorrect',
+    studyPhase: 'Study first',
+    studyHint: 'Read the meaning once before the questions',
+    studySkip: 'Skip to questions',
+    studyStart: 'Start questions',
+    studyNext: 'Next word',
     replayAudio: 'Replay',
     listenFirst: 'Listen first, then choose',
     ttsUnavailable: 'TTS is not configured, so the audio cannot play'
@@ -421,7 +435,7 @@ const ja: typeof zh = {
     manualTitle: '手動でプロファイルを入力',
 
     failed: '保存に失敗しました：',
-    goals: { exam: '試験', conversation: '日常会話', work: '仕事', interest: '趣味' },
+    goals: { exam: '試験', conversation: '日常会話', work: '仕事', interest: '趣味', reading: '読解', general: '軽い復習' },
     prefs: { visual: '視覚（カード）', auditory: '聴覚（聞く）', kinesthetic: '手を動かす（書く）', mixed: 'どれでも' }
   },
   quiz: {
@@ -435,6 +449,13 @@ const ja: typeof zh = {
     recordPermission: 'マイクの許可が必要です',
     recordFailed: (e: string) => '録音に失敗: ' + e,
     recordSeconds: (n: number) => '録音中 ' + n + '秒',
+    correctBanner: '正解',
+    wrongBanner: '不正解',
+    studyPhase: '先に学習',
+    studyHint: '意味を一度確認してから問題へ',
+    studySkip: 'スキップして問題へ',
+    studyStart: '問題を開始',
+    studyNext: '次の単語',
     replayAudio: 'もう一度',
     listenFirst: '音声を聴いてから選んでください',
     ttsUnavailable: 'TTS 未設定のため再生できません'

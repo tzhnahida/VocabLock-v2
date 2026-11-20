@@ -23,6 +23,12 @@ type Props = {
 
 const BUILTIN = ['ja', 'en', 'zh', 'ko']
 const GOALS = ['exam', 'conversation', 'work', 'interest'] as const
+const GOAL_PLAN: Record<string, string> = {
+  exam: 'exam_sprint',
+  conversation: 'conversation',
+  work: 'conversation',
+  interest: 'reading'
+}
 const PREFS = ['visual', 'auditory', 'kinesthetic', 'mixed'] as const
 const LEVELS: Record<string, string[]> = {
   ja: ['N5', 'N4', 'N3', 'N2', 'N1'],
@@ -75,11 +81,12 @@ export default function Onboarding({ lang, activeLang, onLang, onDone }: Props) 
     void loadPresets(learning)
       .then((r) => {
         setPresets(r.presets)
+        const preferred = r.presets.find((p) => p.id === GOAL_PLAN[goal] && p.available)
         const first = r.presets.find((p) => p.available)
-        setPlan(first ? first.id : '')
+        setPlan(preferred ? preferred.id : first ? first.id : '')
       })
       .catch(() => {})
-  }, [learning])
+  }, [learning, goal])
 
   useEffect(() => {
     if (step === 1 && mode === 'ai' && messages.length === 0) {

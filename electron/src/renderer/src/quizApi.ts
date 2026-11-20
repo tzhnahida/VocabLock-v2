@@ -57,6 +57,14 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T
 }
 
+export type StudyCard = { id: number; word: string; reading: string; meaning: string; pos: string }
+
+export function loadStudyCards(language: string, count = 8): Promise<StudyCard[]> {
+  return call<{ cards: StudyCard[] }>(
+    '/api/v1/quiz/study-cards?count=' + count + '&language=' + encodeURIComponent(language)
+  ).then((r) => r.cards ?? [])
+}
+
 export function startSession(language: string): Promise<SessionStart> {
   return call<SessionStart>('/api/v1/quiz/session/start', {
     method: 'POST',
