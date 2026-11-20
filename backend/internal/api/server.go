@@ -81,6 +81,8 @@ type Server struct {
 	// Key: cacheKey (MD5 of provider:voice:text), Value: chan struct{} closed when done.
 	ttsInFlight   map[string]chan struct{}
 	ttsInFlightMu sync.Mutex
+	// Bounds how many TTS pre-warm subprocesses run at once.
+	ttsWarm chan struct{}
 
 	// Session budget tracks time/type usage for the current day
 	sessionBudget sessionBudget
@@ -469,6 +471,7 @@ func NewServer(mock bool, cfg *config.Config, database *db.Database) *Server {
 		questionCache: make(map[string]*cachedQuestion),
 		servedWordIDs: make(map[int64]time.Time),
 		ttsInFlight:   make(map[string]chan struct{}),
+		ttsWarm:       make(chan struct{}, 2),
 	}
 	s.startCacheCleanup()
 	return s

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/tzhnahida/VocabLock/internal/proc"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -98,6 +99,7 @@ func (w *Whisper) Transcribe(ctx context.Context, audioPath string) (*Result, er
 
 func (w *Whisper) runCommand(ctx context.Context, args []string) ([]byte, []byte, error) {
 	cmd := exec.CommandContext(ctx, w.binary, args...)
+	proc.HideWindow(cmd)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

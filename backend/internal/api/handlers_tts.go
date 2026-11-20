@@ -177,7 +177,15 @@ func (s *Server) preWarmTTS(word *db.Word) {
 	if word.Reading != "" {
 		text = word.Reading
 	}
+	// Never let a bootstrap/expansion burst spawn dozens of python processes:
+	// two at a time is enough, the rest are generated on demand.
+	select {
+	case s.ttsWarm <- struct{}{}:
+	default:
+		return
+	}
 	go func() {
+		defer func() { <-s.ttsWarm }()
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		if _, err := s.TTSProvider.Generate(ctx, voice, text); err != nil {
@@ -191,6 +199,9 @@ func (s *Server) preWarmTTS(word *db.Word) {
 func (s *Server) preWarmNewWords(lang string, count int) {
 	if s.TTSProvider == nil || s.DB == nil || count <= 0 {
 		return
+	}
+	if count > 8 {
+		count = 8
 	}
 	words, err := s.DB.GetReviewWords(lang, count)
 	if err != nil {

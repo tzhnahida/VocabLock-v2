@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/tzhnahida/VocabLock/internal/proc"
 	"os"
 	"os/exec"
 	"regexp"
@@ -38,6 +39,7 @@ func (p *Provider) Lookup(ctx context.Context, word string) (*LookupResult, erro
 	args := buildDictArgs(p.cfg.Args, word)
 
 	cmd := exec.CommandContext(ctx, p.cfg.Binary, args...)
+	proc.HideWindow(cmd)
 	cmd.Env = append(os.Environ(), "PYTHONIOENCODING=utf-8", "PYTHONUTF8=1")
 
 	stdout, err := cmd.Output()

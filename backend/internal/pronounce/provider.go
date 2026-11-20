@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/tzhnahida/VocabLock/internal/proc"
 	"os/exec"
 	"strings"
 
@@ -44,6 +45,7 @@ func (p *Provider) Assess(ctx context.Context, audioPath, targetText string) (*R
 	args := buildPronounceArgs(p.cfg.Args, audioPath, targetText)
 
 	cmd := exec.CommandContext(ctx, p.cfg.Binary, args...)
+	proc.HideWindow(cmd)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

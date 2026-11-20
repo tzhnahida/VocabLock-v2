@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/md5"
 	"fmt"
+	"github.com/tzhnahida/VocabLock/internal/proc"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -47,6 +48,7 @@ func (p *Provider) Generate(ctx context.Context, voice, text string) (string, er
 	})
 
 	cmd := exec.CommandContext(ctx, p.cfg.Binary, args...)
+	proc.HideWindow(cmd)
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {

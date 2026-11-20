@@ -568,7 +568,8 @@
 
 ### 做了什么
 
-## 向导触发条件修正（2026-11-20 晚）
-- 现象：已有词库但从未跑过向导的安装，启动后直接进主页，用户以为初始化没触发。
-- 修正：只要 `GET /profile` 返回 `onboarding_done=false` 就进入向导，不再要求“词库为空”；已有词库保留，向导完成只写 profile/方案，不删词。
-- release 重新部署后验证：窗口首屏为“开始之前，先认识一下你 / 1 / 3”，日语显示 3 个 pack + placement。
+## TTS 进程风暴修复（2026-11-20 晚）
+- 现象：启动/扩词时大量 Python 控制台窗口，最终 CreateProcess 报 `0x800700e8`（资源不足）。
+- 原因：`preWarmTTS` 每个词起一个 goroutine，无并发上限；Windows 下未设置 CREATE_NO_WINDOW，每个 Python 子进程都弹控制台。启动批次可同时拉起上百个进程。
+- 修复：所有外部命令（TTS/词典/ASR/发音）统一走 `internal/proc.HideWindow`（Windows: HideWindow + CREATE_NO_WINDOW）；预暖并发限制为 2，且每批最多 8 个，其余按需生成。
+- 验证：重新部署后启动，Python 进程数 4→4（无新增），首屏正常进入向导。
