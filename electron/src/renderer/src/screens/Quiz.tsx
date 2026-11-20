@@ -42,6 +42,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   const [answer, setAnswer] = useState('')
   const [error, setError] = useState('')
   const [answered, setAnswered] = useState(0)
+  const [wrong, setWrong] = useState(0)
   const [studyCards, setStudyCards] = useState<StudyCard[]>([])
   const [studyIdx, setStudyIdx] = useState(0)
   const [studyRead, setStudyRead] = useState(false)
@@ -159,6 +160,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
         })
         setResult(res)
         setAnswered((n) => n + 1)
+        if (!res.correct) setWrong((n) => n + 1)
         setPhase('feedback')
         onAnswered()
       } catch (e) {
@@ -510,6 +512,13 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
               {!result.correct && result.expected_answer ? (
                 <div className="l2">{dyn[lang].correctAnswer(result.expected_answer)}</div>
               ) : null}
+              {question.subject_word ? (
+                <div className="fbword">
+                  <b>{question.subject_word}</b>
+                  {question.subject_reading ? <span> {question.subject_reading}</span> : null}
+                  {question.subject_meaning ? <div>{question.subject_meaning}</div> : null}
+                </div>
+              ) : null}
               {!result.correct &&
               result.source === 'ai' &&
               (result.log_id ?? 0) > 0 &&
@@ -570,6 +579,19 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
             <i style={{ width: `${progress * 100}%` }} />
           </div>
           {answered > 0 ? <div className="note">{`${t(lang, 'rail.round')} · ${answered}`}</div> : null}
+        </section>
+
+        <section className="card rcard">
+          <div className="rh">
+            <span>{t(lang, 'rail.round')}</span>
+            <span>{answered} / {dash.dailyTarget}</span>
+          </div>
+          <div className="dots">
+            {Array.from({ length: Math.max(dash.dailyTarget, answered) }).map((_, i) => (
+              <i key={i} className={i < answered ? 'd' : i === answered ? 'c' : ''} />
+            ))}
+          </div>
+          {wrong > 0 ? <div className="note">{copy.wrongCount(wrong)}</div> : null}
         </section>
 
         <section className="card rcard">
