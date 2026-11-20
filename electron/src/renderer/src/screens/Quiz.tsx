@@ -397,10 +397,16 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
           <div className="studymeaning">{card.meaning}</div>
           <div className="studymeta">
             {card.pos ? <span className="posbadge">{card.pos}</span> : null}
+            {card.level ? <span>{card.level}</span> : null}
+            {card.syllables ? <span>{card.syllables}</span> : null}
+            {card.register ? <span>{card.register}</span> : null}
             {card.pitch ? <span>{card.pitch}</span> : null}
             {card.forms ? <span>{card.forms}</span> : null}
           </div>
           {card.example ? <div className="studyexample">{card.example}</div> : null}
+          {card.morphology ? <div className="studyfield"><b>Morphology</b><span>{card.morphology}</span></div> : null}
+          {card.collocation ? <div className="studyfield"><b>Collocation</b><span>{card.collocation}</span></div> : null}
+          {card.syntax ? <div className="studyfield"><b>Syntax</b><span>{card.syntax}</span></div> : null}
           <div className="studyread">
             <button
               className="btn ghost"

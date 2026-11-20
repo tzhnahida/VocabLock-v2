@@ -62,14 +62,20 @@ func (s *Server) handleQuizStudyCards(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		cards = append(cards, map[string]interface{}{
-			"id":      word.ID,
-			"word":    word.Word,
-			"reading": word.Reading,
-			"meaning": word.Meaning,
-			"pos":     word.POS,
-			"example": example,
-			"forms":   str("morphology"),
-			"pitch":   str("pitch_accent"),
+			"id":          word.ID,
+			"word":        word.Word,
+			"reading":     word.Reading,
+			"meaning":     word.Meaning,
+			"pos":         word.POS,
+			"level":       word.Level,
+			"example":     example,
+			"forms":       str("morphology"),
+			"pitch":       str("pitch_accent"),
+			"syllables":   str("syllables"),
+			"register":    str("register"),
+			"morphology":  str("morphology"),
+			"collocation": str("collocation"),
+			"syntax":      str("syntax"),
 		})
 		if len(cards) >= count {
 			break

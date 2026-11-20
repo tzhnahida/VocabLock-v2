@@ -63,9 +63,15 @@ export type StudyCard = {
   reading: string
   meaning: string
   pos: string
+  level?: string
   example?: string
   forms?: string
   pitch?: string
+  syllables?: string
+  register?: string
+  morphology?: string
+  collocation?: string
+  syntax?: string
 }
 
 export type GrammarCard = { id: number; title: string; explanation: string; example: string; detail: string }
