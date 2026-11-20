@@ -171,19 +171,22 @@ func (s *Server) DailyTargetMet(lang string) bool {
 	if s.DB == nil {
 		return false
 	}
-	// Release on EITHER completion: the planned question count OR the fixed
-	// time quota. The plan is trimmed to fit the time budget before the
-	// session, so both cannot require an unreasonable physical duration.
-	planned := s.sessionBudget.plannedTotal()
-	if planned <= 0 {
-		planned = s.Config.App.DailyTarget
-	}
+	// Release on EITHER completion: the configured daily question count OR
+	// the fixed time quota. A plan trimmed below the count releases via the
+	// plan-exhausted path in handleQuizNext.
 	reviewed, err := s.DB.GetUniqueSubjectsReviewed(lang)
 	if err != nil {
 		return false
 	}
-	if reviewed >= planned {
-		return true
+	if reviewed >= s.Config.App.DailyTarget {
+		attempts, correct, err := s.DB.GetTodayStats(lang)
+		if err != nil {
+			return false
+		}
+		if attempts == 0 {
+			return true
+		}
+		return float64(correct)/float64(attempts) >= s.Config.App.MinAccuracy
 	}
 	if s.Config.App.DailyTimeTarget > 0 {
 		spent, err := s.DB.GetTodayTimeSpentSec(lang)

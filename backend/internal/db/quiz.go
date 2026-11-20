@@ -54,7 +54,7 @@ func (d *Database) GetReviewLogs(subjectType string, subjectID int64, limit int)
 }
 
 // GetTodayTimeSpent returns today's accumulated time in minutes.
-func (d *Database) GetTodayTimeSpent(language string) (int, error) {
+func (d *Database) GetTodayTimeSpentSec(language string) (int, error) {
 	var timeSec int
 	err := d.DB.QueryRow(`
 		SELECT COALESCE(time_spent_sec, 0) FROM daily_stats
@@ -63,7 +63,12 @@ func (d *Database) GetTodayTimeSpent(language string) (int, error) {
 	if err != nil {
 		return 0, nil
 	}
-	return timeSec / 60, nil
+	return timeSec, nil
+}
+
+func (d *Database) GetTodayTimeSpent(language string) (int, error) {
+	sec, err := d.GetTodayTimeSpentSec(language)
+	return sec / 60, err
 }
 
 func (d *Database) GetTodayStats(language string) (reviewed, correct int, err error) {
