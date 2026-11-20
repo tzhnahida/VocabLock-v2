@@ -198,6 +198,26 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
     []
   )
 
+  const playStudyAudio = useCallback(async (wordId: number) => {
+    const audio = audioRef.current
+    if (!audio) return
+    setAudioState('loading')
+    try {
+      const res = await wordAudio(wordId)
+      if (res.status !== 'ok' || !res.url) {
+        setAudioState(res.status === 'not_configured' ? 'unavailable' : 'error')
+        return
+      }
+      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current)
+      audioUrlRef.current = await audioObjectUrl(res.url)
+      audio.src = audioUrlRef.current
+      await audio.play()
+      setAudioState('playing')
+    } catch {
+      setAudioState('error')
+    }
+  }, [])
+
   // Auto-play on question change: listening exists only to be heard, and the
   // reference Flutter app also plays choice questions as a study aid.
   useEffect(() => {
@@ -283,12 +303,26 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
       const last = studyIdx >= studyCards.length - 1
       return (
         <section className="card qcard studycard">
+          <audio ref={audioRef} preload="auto" />
           <div className="qhead">
             <span className="tag">{copy.studyPhase}</span>
             <span className="hint">{studyIdx + 1} / {studyCards.length}</span>
           </div>
           <div className="studyword">{card.word}</div>
-          {card.reading ? <div className="studyre">{card.reading}</div> : null}
+          <div className="studyre">
+            <button
+              type="button"
+              className="play"
+              onClick={() => void playStudyAudio(card.id)}
+              disabled={audioState === 'loading'}
+              title={copy.replayAudio}
+            >
+              <svg viewBox="0 0 24 24">
+                <path d="M6 4l10 8-10 8z" fill="currentColor" />
+              </svg>
+            </button>
+            {card.reading}
+          </div>
           <div className="studymeaning">{card.meaning}</div>
           <div className="studyhint">{copy.studyHint}</div>
           <div className="studyread">
@@ -359,7 +393,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
             )
           ) : null}
           <div className="qfoot">
-            <button className="link" onClick={() => void loadNext()}>
+            <button className="skipbtn" onClick={() => void loadNext()}>
               {copy.studySkip}
             </button>
             <button className="btn" onClick={nextStudyCard} disabled={!studyRead} title={!studyRead ? copy.studyNeedRead : undefined}>
@@ -625,9 +659,6 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
           </div>
         </section>
 
-        <div className="hintbox">
-          <kbd>Ctrl</kbd>+<kbd>K</kbd> <span>{t(lang, 'hint.cmd')}</span> · <kbd>Ctrl</kbd>+<kbd>L</kbd> <span>{t(lang, 'hint.lock')}</span>
-        </div>
       </div>
 
       {(phase as Phase) !== 'study' ? <div className="quizbar">

@@ -44,6 +44,10 @@ const zh = {
     goals: { exam: '考试', conversation: '日常交流', work: '工作', interest: '兴趣', reading: '兴趣阅读', general: '轻度复习' },
     prefs: { visual: '视觉（词卡）', auditory: '听觉（多听）', kinesthetic: '动手（多写）', mixed: '都可以' }
   },
+  lockGate: {
+    gate: '答对上面的词，才能继续',
+    answerFirst: '先答对上面的题'
+  },
   homePath: {
     title: '今日路径',
     study: '学习卡',
@@ -102,7 +106,7 @@ const zh = {
     pronScoreLine: (score: number, pass: number) => '发音 ' + score + '/100（通过线 ' + pass + '）',
     studyPhase: '先学后测',
     studyHint: '先看一遍词义，答题时更容易记住',
-    studySkip: '跳过，直接答题',
+    studySkip: '先跳过这个词',
     studyStart: '开始答题',
     studyNext: '下一个',
     replayAudio: '重听',
@@ -284,6 +288,10 @@ const en: typeof zh = {
     goals: { exam: 'Exam', conversation: 'Conversation', work: 'Work', interest: 'Interest', reading: 'Reading', general: 'Light review' },
     prefs: { visual: 'Visual (cards)', auditory: 'Auditory (listening)', kinesthetic: 'Hands-on (writing)', mixed: 'Anything' }
   },
+  lockGate: {
+    gate: 'Answer the word above to continue',
+    answerFirst: 'Answer first'
+  },
   homePath: {
     title: "Today's path",
     study: 'Study cards',
@@ -342,7 +350,7 @@ const en: typeof zh = {
     pronScoreLine: (score: number, pass: number) => score + '/100 (pass line ' + pass + ')',
     studyPhase: 'Study first',
     studyHint: 'Read the meaning once before the questions',
-    studySkip: 'Skip to questions',
+    studySkip: 'Skip this word',
     studyStart: 'Start questions',
     studyNext: 'Next word',
     replayAudio: 'Replay',
@@ -524,6 +532,10 @@ const ja: typeof zh = {
     goals: { exam: '試験', conversation: '日常会話', work: '仕事', interest: '趣味', reading: '読解', general: '軽い復習' },
     prefs: { visual: '視覚（カード）', auditory: '聴覚（聞く）', kinesthetic: '手を動かす（書く）', mixed: 'どれでも' }
   },
+  lockGate: {
+    gate: '上の問題に正解すると進めます',
+    answerFirst: 'まず正解してください'
+  },
   homePath: {
     title: '今日のルート',
     study: '学習カード',
@@ -582,7 +594,7 @@ const ja: typeof zh = {
     pronScoreLine: (score: number, pass: number) => '発音 ' + score + '/100（合格ライン ' + pass + '）',
     studyPhase: '先に学習',
     studyHint: '意味を一度確認してから問題へ',
-    studySkip: 'スキップして問題へ',
+    studySkip: 'この単語をスキップ',
     studyStart: '問題を開始',
     studyNext: '次の単語',
     replayAudio: 'もう一度',

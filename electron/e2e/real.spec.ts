@@ -46,6 +46,8 @@ test.describe('real backend flows', () => {
       if (!lock) await page.waitForTimeout(250)
     }
     expect(lock, 'lock window did not appear').toBeTruthy()
+    const correct = lock!.locator('.opt[data-correct="true"]')
+    if (await correct.count()) await correct.first().click()
     await lock!.locator('#lock-study').click()
     await expect(page.locator('.s-quiz')).toBeVisible({ timeout: 20_000 })
   })

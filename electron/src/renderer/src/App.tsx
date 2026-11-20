@@ -223,7 +223,6 @@ export default function App() {
         <Lock
           dash={dash}
           lang={lang}
-          onExit={() => setLocked(false)}
           onStudy={() => {
             if (lockWindow) {
               window.vocablock.startStudy()

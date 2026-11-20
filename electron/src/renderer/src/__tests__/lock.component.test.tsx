@@ -17,13 +17,14 @@ const dash = {
 describe('Lock component', () => {
   it('calls onStudy when the start button is pressed', async () => {
     const onStudy = vi.fn()
-    render(<Lock dash={dash} lang="zh" onExit={vi.fn()} onStudy={onStudy} />)
+    const { container } = render(<Lock dash={dash} lang="zh" onStudy={onStudy} />)
+    await userEvent.click(container.querySelector('.opt[data-correct="true"]') as HTMLElement)
     await userEvent.click(screen.getByRole('button', { name: '开始学习' }))
     expect(onStudy).toHaveBeenCalledTimes(1)
   })
 
   it('marks the correct option after a pick', async () => {
-    render(<Lock dash={dash} lang="zh" onExit={vi.fn()} onStudy={vi.fn()} />)
+    render(<Lock dash={dash} lang="zh" onStudy={vi.fn()} />)
     await userEvent.click(screen.getByText('游泳'))
     expect(screen.getByText('游泳').closest('.opt')?.textContent).toContain('✓')
   })

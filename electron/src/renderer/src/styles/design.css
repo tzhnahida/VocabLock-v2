@@ -485,3 +485,12 @@ html[data-theme="dark"] .opt:hover{background:rgba(255,255,255,.05)}
 .phonemes span em{font-style:normal;font-size:var(--fs-tiny);font-weight:400;color:inherit;opacity:.85}
 .phonemes .p-ok{border-color:var(--green-border);color:var(--green);background:rgba(91,214,138,.08)}
 .phonemes .p-bad{border-color:rgba(220,80,80,.35);color:#D45C5C;background:rgba(220,80,80,.08)}
+
+.skipbtn{background:none;border:0;padding:0;color:var(--faint);font-family:inherit;font-size:var(--fs-tiny);cursor:pointer}
+.skipbtn:hover{color:var(--muted);text-decoration:underline}
+.studyhint{color:var(--muted)}
+.studyneed{color:var(--muted)}
+.pronfb.warn{border-color:var(--amber-border);background:var(--amber-soft)}
+.pronfb.warn .pronhead b{color:var(--amber)}
+
+html[data-theme="dark"]{--muted:#B8B8D0;--faint:#9090A8}
