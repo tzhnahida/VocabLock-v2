@@ -754,6 +754,22 @@ func (b *sessionBudget) allowType(typeName string, timeBudgetMinutes int, maxSlo
 	return true
 }
 
+// recordStudyTime adds preview/read-along time to the daily budget. Study cards
+// are not questions, but the time spent on them still consumes the session.
+func (b *sessionBudget) recordStudyTime(seconds int) int {
+	if seconds <= 0 {
+		return 0
+	}
+	if seconds > 300 {
+		seconds = 300
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.rolloverLocked()
+	b.timeUsed += (seconds + 9) / 10
+	return b.timeUsed
+}
+
 func (b *sessionBudget) recordType(typeName string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()

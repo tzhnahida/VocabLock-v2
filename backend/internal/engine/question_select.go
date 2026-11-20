@@ -14,7 +14,9 @@ import (
 //	tier 2: cued + free recall (fill, spelling — production)
 //	tier 3: sentence-level production + comprehension
 var tierTypes = map[int][]QuestionType{
-	0: {TypeChoice, TypePronounce, TypeMeaning, TypeReadWord},
+	// Never-reviewed words get recognition only. Production (reading aloud,
+	// spelling, fill) waits until the word has a review history.
+	0: {TypeChoice, TypeMeaning},
 	1: {TypeChoice, TypePronounce, TypeMeaning, TypeReadWord},
 	2: {TypeFill, TypePronounce, TypeMeaning, TypeSpelling, TypeReadWord, TypeDialogueWrite},
 	3: {TypePronounce, TypeMeaning, TypeSpelling, TypeReadWord, TypeListening, TypeGrammar, TypeReadSentence, TypeReadingComp, TypeDialogueWrite, TypeDialogueSpeak},

@@ -65,6 +65,13 @@ export function loadStudyCards(language: string, count = 8): Promise<StudyCard[]
   ).then((r) => r.cards ?? [])
 }
 
+export function recordStudyTime(seconds: number, wordId: number): Promise<{ ok: boolean; time_used: number }> {
+  return call<{ ok: boolean; time_used: number }>('/api/v1/quiz/study-time', {
+    method: 'POST',
+    body: JSON.stringify({ seconds, word_id: wordId })
+  })
+}
+
 export function startSession(language: string): Promise<SessionStart> {
   return call<SessionStart>('/api/v1/quiz/session/start', {
     method: 'POST',

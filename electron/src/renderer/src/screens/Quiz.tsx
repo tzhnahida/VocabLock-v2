@@ -6,6 +6,7 @@ import {
   disputeAnswer,
   loadStudyCards,
   nextQuestion,
+  recordStudyTime,
   startSession,
   submitAnswer,
   type Question,
@@ -37,6 +38,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   const [answered, setAnswered] = useState(0)
   const [studyCards, setStudyCards] = useState<StudyCard[]>([])
   const [studyIdx, setStudyIdx] = useState(0)
+  const [studyRead, setStudyRead] = useState(false)
   const [disputed, setDisputed] = useState(false)
   const inputRef = useRef<HTMLInputElement | null>(null)
   const recorder = useRecorder()
@@ -69,9 +71,25 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   }, [language])
 
   const nextStudyCard = useCallback(() => {
+    if (!studyRead) return
     if (studyIdx + 1 < studyCards.length) setStudyIdx(studyIdx + 1)
     else void loadNext()
-  }, [studyIdx, studyCards.length, loadNext])
+  }, [studyRead, studyIdx, studyCards.length, loadNext])
+
+  // Each study card requires one read-aloud; its duration is credited to the
+  // session time budget on the server.
+  useEffect(() => {
+    setStudyRead(false)
+    recorder.reset()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- card change only
+  }, [studyIdx])
+
+  useEffect(() => {
+    const card = studyCards[studyIdx]
+    if (phase !== 'study' || !card || studyRead || recorder.state !== 'ready') return
+    setStudyRead(true)
+    void recordStudyTime(Math.max(1, recorder.seconds), card.id).catch(() => {})
+  }, [phase, studyCards, studyIdx, studyRead, recorder.state, recorder.seconds])
 
   useEffect(() => {
     let cancelled = false
@@ -246,11 +264,34 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
           {card.reading ? <div className="studyre">{card.reading}</div> : null}
           <div className="studymeaning">{card.meaning}</div>
           <div className="studyhint">{copy.studyHint}</div>
+          <div className="studyread">
+            <button
+              className="btn ghost"
+              disabled={recorder.state === 'requesting'}
+              onClick={() => {
+                if (recorder.state === 'recording') recorder.stop()
+                else void recorder.start()
+              }}
+            >
+              {recorder.state === 'recording'
+                ? copy.studyReading(recorder.seconds)
+                : studyRead
+                  ? copy.studyReadAgain
+                  : copy.studyRead}
+            </button>
+            {recorder.error ? (
+              <span className="studyneed">{copy.recordFailed(recorder.error)}</span>
+            ) : studyRead ? (
+              <span className="studyok">{copy.studyReadDone}</span>
+            ) : (
+              <span className="studyneed">{copy.studyNeedRead}</span>
+            )}
+          </div>
           <div className="qfoot">
             <button className="link" onClick={() => void loadNext()}>
               {copy.studySkip}
             </button>
-            <button className="btn" onClick={nextStudyCard}>
+            <button className="btn" onClick={nextStudyCard} disabled={!studyRead} title={!studyRead ? copy.studyNeedRead : undefined}>
               {last ? copy.studyStart : copy.studyNext}
               <kbd>Space</kbd>
             </button>

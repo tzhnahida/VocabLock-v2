@@ -6,12 +6,10 @@ import (
 )
 
 func TestSelectQuestionType_NewWord(t *testing.T) {
-	// New word, never reviewed → tier 0 (recognition + shadowing).
-	// The pick is randomized (rand.Intn over candidates), so the old
-	// "must be choice" assertion was flaky by design — assert the
-	// sampled set belongs to tier 0 and shows variety instead.
-	types := []QuestionType{TypeChoice, TypeFill, TypePronounce, TypeSpelling, TypeListening, TypeReadingComp, TypeGrammar}
-	tier0 := map[QuestionType]bool{TypeChoice: true, TypePronounce: true, TypeMeaning: true, TypeReadWord: true}
+	// New words get recognition only: production types wait for a review.
+	// Include meaning so the sampler has two valid candidates.
+	types := []QuestionType{TypeChoice, TypeMeaning, TypeFill, TypePronounce, TypeSpelling, TypeListening, TypeReadingComp, TypeGrammar}
+	tier0 := map[QuestionType]bool{TypeChoice: true, TypeMeaning: true}
 	seen := make(map[QuestionType]int)
 	for i := 0; i < 50; i++ {
 		qt := SelectQuestionType(nil, 2.5, 0, 0, types, true, false, false)

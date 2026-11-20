@@ -353,3 +353,7 @@ button.option:hover{border-color:var(--faint)}
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
 }
+
+.studyread{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px}
+.studyok{color:var(--green);font-size:12px}
+.studyneed{color:var(--faint);font-size:12px}

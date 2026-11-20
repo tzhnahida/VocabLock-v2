@@ -48,3 +48,22 @@ func (s *Server) handleQuizStudyCards(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, map[string]interface{}{"cards": cards})
 }
+
+// handleQuizStudyTime credits read-along time from a study card to the session
+// budget. The audio itself is not graded here.
+func (s *Server) handleQuizStudyTime(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Seconds int   `json:"seconds"`
+		WordID  int64 `json:"word_id"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.Seconds <= 0 || req.Seconds > 300 {
+		writeError(w, 400, "seconds must be between 1 and 300")
+		return
+	}
+	used := s.sessionBudget.recordStudyTime(req.Seconds)
+	writeJSON(w, map[string]interface{}{"ok": true, "time_used": used})
+}
