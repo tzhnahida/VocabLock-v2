@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { courseLabel, type Lang } from '../i18n'
 import { st } from '../strings'
+import { sendChat, type ChatMessage } from '../aiApi'
 import {
   applyPreset,
   initCourseLanguage,
@@ -8,6 +9,7 @@ import {
   loadLanguages,
   loadPresets,
   saveProfile,
+  unlockSystem,
   type Capabilities,
   type Preset
 } from '../api'
@@ -48,6 +50,12 @@ export default function Onboarding({ lang, activeLang, onLang, onDone }: Props) 
   const [plan, setPlan] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const [mode, setMode] = useState<'ai' | 'manual'>('ai')
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [chatInput, setChatInput] = useState('')
+  const [chatBusy, setChatBusy] = useState(false)
+  const [extracting, setExtracting] = useState(false)
+  const [aiError, setAiError] = useState('')
 
   useEffect(() => {
     void loadCapabilities()
@@ -73,6 +81,71 @@ export default function Onboarding({ lang, activeLang, onLang, onDone }: Props) 
       .catch(() => {})
   }, [learning])
 
+  useEffect(() => {
+    if (step === 1 && mode === 'ai' && messages.length === 0) {
+      setMessages([{ role: 'assistant', content: copy.interviewIntro }])
+    }
+  }, [step, mode, messages.length, copy.interviewIntro])
+
+  async function send(): Promise<void> {
+    const text = chatInput.trim()
+    if (!text || chatBusy) return
+    setChatBusy(true)
+    setAiError('')
+    const history = messages
+    const next: ChatMessage[] = [...history, { role: 'user', content: text }]
+    setMessages(next)
+    setChatInput('')
+    try {
+      const r = await sendChat(text, history)
+      setMessages([...next, { role: 'assistant', content: r.reply }])
+    } catch {
+      setAiError(copy.interviewFailed)
+    } finally {
+      setChatBusy(false)
+    }
+  }
+
+  function parseProfile(text: string): { goal: (typeof GOALS)[number]; level: string; minutes: number; prefs: string[] } | null {
+    const m = text.match(/\{[\s\S]*\}/)
+    if (!m) return null
+    try {
+      const o = JSON.parse(m[0]) as Record<string, unknown>
+      const goal = GOALS.includes(o.goal as (typeof GOALS)[number]) ? (o.goal as (typeof GOALS)[number]) : 'conversation'
+      const minutes = Math.min(240, Math.max(5, Number(o.daily_minutes) || 20))
+      const prefs = Array.isArray(o.preferences)
+        ? (o.preferences as string[]).filter((p) => PREFS.includes(p as (typeof PREFS)[number]))
+        : []
+      const level = typeof o.level === 'string' ? o.level : ''
+      return { goal, level, minutes, prefs: prefs.length ? prefs : ['mixed'] }
+    } catch {
+      return null
+    }
+  }
+
+  async function buildProfile(): Promise<void> {
+    if (extracting) return
+    setExtracting(true)
+    setAiError('')
+    try {
+      const r = await sendChat(copy.extractPrompt, messages)
+      const p = parseProfile(r.reply)
+      if (!p) {
+        setAiError(copy.interviewFailed)
+        return
+      }
+      setGoal(p.goal)
+      setLevel(p.level)
+      setMinutes(p.minutes)
+      setPrefs(p.prefs)
+      setStep(2)
+    } catch {
+      setAiError(copy.interviewFailed)
+    } finally {
+      setExtracting(false)
+    }
+  }
+
   function togglePref(p: string): void {
     setPrefs((cur) => (cur.includes(p) ? cur.filter((x) => x !== p) : [...cur, p]))
   }
@@ -96,6 +169,13 @@ export default function Onboarding({ lang, activeLang, onLang, onDone }: Props) 
         } catch {
           // Preset is optional; settings still carry the profile.
         }
+      }
+      // A brand-new install with seeded words can be locked before the wizard
+      // finishes; never drop the user straight into the focus lock.
+      try {
+        await unlockSystem()
+      } catch {
+        // The lock can still be dismissed from the shell.
       }
       onDone()
     } catch (e) {
@@ -164,57 +244,104 @@ export default function Onboarding({ lang, activeLang, onLang, onDone }: Props) 
         ) : null}
 
         {step === 1 ? (
-          <>
+          mode === 'ai' ? (
             <section className="onboard-section">
-              <h3>{copy.goal}</h3>
-              <div className="option-grid">
-                {GOALS.map((g) => (
-                  <button key={g} className={'option' + (goal === g ? ' on' : '')} onClick={() => setGoal(g)}>
-                    {copy.goals[g]}
-                  </button>
+              <div className="onboard-row">
+                <h3>{copy.interviewTitle}</h3>
+                <button className="linkbtn" onClick={() => setMode('manual')}>
+                  {copy.switchManual}
+                </button>
+              </div>
+              <div className="chat-log">
+                {messages.map((m, i) => (
+                  <div key={i} className={'bubble ' + (m.role === 'user' ? 'user' : 'ai')}>
+                    {m.content}
+                  </div>
                 ))}
               </div>
-            </section>
-
-            <section className="onboard-section">
-              <h3>{copy.level}</h3>
-              <select id="onboard-level" value={level} onChange={(e) => setLevel(e.target.value)}>
-                <option value="">{copy.levelAuto}</option>
-                {levels.map((lv) => (
-                  <option key={lv} value={lv}>
-                    {lv}
-                  </option>
-                ))}
-              </select>
-            </section>
-
-            <section className="onboard-section">
-              <h3>{copy.minutes}</h3>
-              <input
-                id="onboard-minutes"
-                type="number"
-                min={5}
-                max={240}
-                value={minutes}
-                onChange={(e) => setMinutes(Number(e.target.value))}
-              />
-            </section>
-
-            <section className="onboard-section">
-              <h3>{copy.preferences}</h3>
-              <div className="option-grid">
-                {PREFS.map((p) => (
-                  <button
-                    key={p}
-                    className={'option' + (prefs.includes(p) ? ' on' : '')}
-                    onClick={() => togglePref(p)}
-                  >
-                    {copy.prefs[p]}
-                  </button>
-                ))}
+              <div className="chat-input">
+                <input
+                  value={chatInput}
+                  placeholder={copy.interviewPlaceholder}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') void send()
+                  }}
+                />
+                <button className="btn" disabled={chatBusy || !chatInput.trim()} onClick={() => void send()}>
+                  {chatBusy ? copy.saving : copy.interviewSend}
+                </button>
+              </div>
+              {aiError ? <p className="onboard-note">{aiError}</p> : null}
+              <div className="onboard-actions" style={{ marginTop: 10 }}>
+                <span />
+                <button
+                  className="btn"
+                  disabled={extracting || chatBusy || messages.every((m) => m.role !== 'user')}
+                  onClick={() => void buildProfile()}
+                >
+                  {extracting ? copy.saving : copy.interviewExtract}
+                </button>
               </div>
             </section>
-          </>
+          ) : (
+            <>
+              <section className="onboard-section">
+                <div className="onboard-row">
+                  <h3>{copy.manualTitle}</h3>
+                  <button className="linkbtn" onClick={() => setMode('ai')}>
+                    {copy.switchAI}
+                  </button>
+                </div>
+                <div className="option-grid">
+                  {GOALS.map((g) => (
+                    <button key={g} className={'option' + (goal === g ? ' on' : '')} onClick={() => setGoal(g)}>
+                      {copy.goals[g]}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className="onboard-section">
+                <h3>{copy.level}</h3>
+                <select id="onboard-level" value={level} onChange={(e) => setLevel(e.target.value)}>
+                  <option value="">{copy.levelAuto}</option>
+                  {levels.map((lv) => (
+                    <option key={lv} value={lv}>
+                      {lv}
+                    </option>
+                  ))}
+                </select>
+              </section>
+
+              <section className="onboard-section">
+                <h3>{copy.minutes}</h3>
+                <input
+                  id="onboard-minutes"
+                  type="number"
+                  min={5}
+                  max={240}
+                  value={minutes}
+                  onChange={(e) => setMinutes(Number(e.target.value))}
+                />
+              </section>
+
+              <section className="onboard-section">
+                <h3>{copy.preferences}</h3>
+                <div className="option-grid">
+                  {PREFS.map((p) => (
+                    <button
+                      key={p}
+                      className={'option' + (prefs.includes(p) ? ' on' : '')}
+                      onClick={() => togglePref(p)}
+                    >
+                      {copy.prefs[p]}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            </>
+          )
         ) : null}
 
         {step === 2 ? (
@@ -230,7 +357,11 @@ export default function Onboarding({ lang, activeLang, onLang, onDone }: Props) 
                   onClick={() => setPlan(p.id)}
                 >
                   {settings.presetNames[p.id] ?? p.name}
-                  <small>{p.available ? copy.summary(labelFor(learning, lang), p.minutes, copy.goals[goal]) : p.reason}</small>
+                  <small>
+                    {p.available
+                      ? p.daily_target + ' 题 · ' + p.minutes + ' 分钟 · ' + (copy.goals[p.goal as (typeof GOALS)[number]] ?? p.goal)
+                      : p.reason}
+                  </small>
                 </button>
               ))}
             </div>

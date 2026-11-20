@@ -400,6 +400,10 @@ export type Preset = {
   reason?: string
 }
 
+export function unlockSystem(): Promise<unknown> {
+  return jsonCall('/api/v1/system/unlock', { method: 'POST', body: JSON.stringify({}) })
+}
+
 export function loadLanguages(): Promise<{ value: string[] }> {
   return jsonCall('/api/v1/config/languages', { method: 'GET' })
 }

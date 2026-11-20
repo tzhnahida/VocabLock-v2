@@ -10,7 +10,7 @@ import Listening from './screens/Listening'
 import Chat from './screens/Chat'
 import Lock from './screens/Lock'
 import Onboarding from './screens/Onboarding'
-import { apiContext, configureApi, loadDashboard, loadProfile, demoDashboard, type Dashboard } from './api'
+import { apiContext, configureApi, loadDashboard, loadProfile, unlockSystem, demoDashboard, type Dashboard } from './api'
 import { courseLabel, type Lang } from './i18n'
 
 export type Screen = 'home' | 'library' | 'quiz' | 'stats' | 'settings' | 'listening' | 'chat'
@@ -92,6 +92,15 @@ export default function App() {
         setLockWindow(true)
         setLocked(true)
       }
+      if (needsOnboarding) {
+        // The service may have locked at startup because the vault already has
+        // words; do not let the focus lock cover the first-run wizard.
+        try {
+          await unlockSystem()
+        } catch {
+          // Best effort; the wizard still works if the lock API is unavailable.
+        }
+      }
       setOnboarding(needsOnboarding)
       setReady(true)
     })()
@@ -161,6 +170,8 @@ export default function App() {
         onLang={setLang}
         onDone={() => {
           setOnboarding(false)
+          setLocked(false)
+          setScreen('home')
           void refresh()
         }}
       />
