@@ -41,7 +41,6 @@ export default function App() {
   const [lang, setLang] = useState<Lang>('zh')
   // True only in the dedicated kiosk window; there the server owns the lock.
   const [onboarding, setOnboarding] = useState(false)
-  const [focusLocked, setFocusLocked] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -97,9 +96,6 @@ export default function App() {
           // Best effort; the wizard still works if the lock API is unavailable.
         }
       }
-      if (runtime.locked && !needsOnboarding) {
-        setFocusLocked(true)
-      }
       setOnboarding(needsOnboarding)
       setReady(true)
     })()
@@ -125,19 +121,9 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [screen])
 
-  useEffect(() => {
-    window.vocablock.onLockState?.((value) => {
-      setFocusLocked(value)
-    })
+  const go = useCallback((next: Screen) => {
+    setScreen(next)
   }, [])
-
-  const go = useCallback(
-    (next: Screen) => {
-      if (focusLocked && next !== 'quiz') return
-      setScreen(next)
-    },
-    [focusLocked]
-  )
 
   // The lock window's "start studying" button tells the main window where to
   // go once the kiosk closes.
