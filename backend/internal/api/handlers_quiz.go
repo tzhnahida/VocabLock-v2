@@ -1153,6 +1153,14 @@ func (s *Server) handleQuizComplete(w http.ResponseWriter, r *http.Request) {
 			log.Info("quiz", "complete: target met — unlocking")
 			s.exitNativeLock()
 		}
+	} else if reviewed > 0 {
+		// The plan is exhausted (or the user accepted the session as done).
+		// Never leave the shell locked with nothing left to answer.
+		s.sessionBudget.markSessionDone()
+		if s.System != nil {
+			log.Info("quiz", "complete: session finished — unlocking")
+			s.exitNativeLock()
+		}
 	}
 
 	// Adjust tomorrow's plan from today's performance, in the background.
