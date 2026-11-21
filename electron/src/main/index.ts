@@ -134,21 +134,30 @@ function createWindow(): void {
   // it without activation so the user keeps focus on whatever they are doing.
   win = new BrowserWindow({
     ...baseWindowOptions(),
-    width,
-    height,
-    x: captureMode ? -32000 : display.workArea.x + Math.round((areaW - width) / 2),
-    y: captureMode ? -32000 : display.workArea.y + Math.round((areaH - height) / 2),
+    ...(captureMode
+      ? { width, height, x: -32000, y: -32000 }
+      : {
+          x: display.bounds.x,
+          y: display.bounds.y,
+          width: display.bounds.width,
+          height: display.bounds.height,
+          fullscreen: true,
+          fullscreenable: true
+        }),
     show: false
   })
-  win.once('ready-to-show', () => {
+  win.once('ready-to-show', async () => {
     if (!win) return
     if (captureMode) {
       win.showInactive()
       return
     }
     if (hidden) return
-    win.maximize()
+    // Constructed fullscreen on the target display; show it that way rather
+    // than showing a window and waiting for a later maximize click.
+    await pollLockState()
     win.show()
+    if (locked) applyFocusWindow(true)
   })
   loadInto(win)
 
@@ -247,8 +256,9 @@ function applyFocusWindow(lock: boolean): void {
       /* not in kiosk */
     }
     win.setBounds(bounds)
+    // Do not setBounds again after entering fullscreen: on Windows the second
+    // bounds write can cancel the fullscreen transition.
     win.setFullScreen(true)
-    win.setBounds(bounds)
     win.show()
     win.focus()
   } else {
@@ -412,6 +422,11 @@ if (singleInstance) {
       setLocked(true)
     } else {
       setInterval(() => void pollLockState(), 2000)
+    // Windows can ignore setFullScreen while the window is still being shown.
+    // Re-assert it once the window is visible so a locked launch needs no click.
+    setInterval(() => {
+      if (locked && win && !win.isDestroyed() && !win.isFullScreen()) applyFocusWindow(true)
+    }, 2500)
     }
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
