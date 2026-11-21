@@ -18,7 +18,7 @@ export const dyn = {
   zh: {
     remain: (n: number, min: number) => `还剩 ${n} 题 · 约 ${min} 分钟`,
     unitQuestions: (n: number) => `/ ${n} 题`,
-    done: (pct: number) => `已完成 ${pct}% · 预计还需 ${Math.max(1, Math.round((100 - pct) / 10))} 分钟`,
+    done: (pct: number) => `已完成 ${pct}%`,
     weekTotal: (n: number) => `共 ${n} 题`,
     dueSub: (n: number) => `今天到期 ${n} 词`,
     streakSub: (days: number) => `本周 ${days}/7 天达标`,
@@ -66,7 +66,7 @@ export const dyn = {
   en: {
     remain: (n: number, min: number) => `${n} left · about ${min} min`,
     unitQuestions: (n: number) => `/ ${n}`,
-    done: (pct: number) => `${pct}% done · about ${Math.max(1, Math.round((100 - pct) / 10))} min left`,
+    done: (pct: number) => `${pct}% done`,
     weekTotal: (n: number) => `${n} questions`,
     dueSub: (n: number) => `${n} due today`,
     streakSub: (days: number) => `${days}/7 days this week`,
@@ -114,7 +114,7 @@ export const dyn = {
   ja: {
     remain: (n: number, min: number) => `残り ${n} 問 · 約 ${min} 分`,
     unitQuestions: (n: number) => `/ ${n} 問`,
-    done: (pct: number) => `${pct}% 完了 · 残り約 ${Math.max(1, Math.round((100 - pct) / 10))} 分`,
+    done: (pct: number) => `${pct}% 完了`,
     weekTotal: (n: number) => `計 ${n} 問`,
     dueSub: (n: number) => `今日は ${n} 語が期限`,
     streakSub: (days: number) => `今週 ${days}/7 日達成`,
