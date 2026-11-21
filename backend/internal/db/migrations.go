@@ -150,6 +150,19 @@ func (d *Database) migrate() error {
 	}
 
 	if _, err := d.DB.Exec(`
+		CREATE TABLE IF NOT EXISTS session_progress (
+			date TEXT NOT NULL,
+			language TEXT NOT NULL,
+			study_index INTEGER NOT NULL DEFAULT 0,
+			study_done INTEGER NOT NULL DEFAULT 0,
+			updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+			PRIMARY KEY (date, language)
+		)
+	`); err != nil {
+		return fmt.Errorf("create session_progress table: %w", err)
+	}
+
+	if _, err := d.DB.Exec(`
 		CREATE TABLE IF NOT EXISTS unknown_word_hits (
 			language TEXT NOT NULL,
 			word TEXT NOT NULL,

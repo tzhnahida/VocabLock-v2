@@ -116,6 +116,7 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 	lang := s.Config.App.ActiveLang
 	// Fix the session size BEFORE any study card or question is served.
 	s.ensureSessionPlan(lang)
+	s.restoreSessionProgress(lang)
 	nw, ng, rw, rg, err := s.DB.SessionCounts(lang)
 	if err != nil {
 		writeError(w, 500, "session counts: "+err.Error())
@@ -332,6 +333,7 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	lang := s.Config.App.ActiveLang
 	budget := s.Config.App.SessionTimeBudget
 	s.ensureSessionPlan(lang)
+	s.restoreSessionProgress(lang)
 	available := planTypes(langQuestionTypes(lang, s.Config), s.AI() != nil, s.HasPronounce(), s.HasASR())
 
 	log.Debug("quiz", "next question: lang=%s", lang)

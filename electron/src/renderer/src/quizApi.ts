@@ -83,6 +83,19 @@ export function evictTTS(text: string): Promise<{ evicted: boolean }> {
   })
 }
 
+export type SessionProgress = { study_index: number; study_done: boolean }
+
+export function loadSessionProgress(): Promise<SessionProgress> {
+  return call<SessionProgress>('/api/v1/quiz/session/progress')
+}
+
+export function saveSessionProgress(studyIndex: number, studyDone: boolean): Promise<{ ok: boolean }> {
+  return call<{ ok: boolean }>('/api/v1/quiz/session/progress', {
+    method: 'POST',
+    body: JSON.stringify({ study_index: studyIndex, study_done: studyDone })
+  })
+}
+
 export function loadStudyCards(language: string, count = 8): Promise<{ cards: StudyCard[]; grammar: GrammarCard[] }> {
   return call<{ cards: StudyCard[]; grammar?: GrammarCard[] }>(
     '/api/v1/quiz/study-cards?count=' + count + '&language=' + encodeURIComponent(language)

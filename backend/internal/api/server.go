@@ -551,6 +551,21 @@ type sessionBudget struct {
 // ensureSessionPlan computes the session size and per-type quotas once, before
 // the first study card is shown. The key-based cache in ensurePlan keeps the
 // next-question path idempotent.
+func (s *Server) restoreSessionProgress(lang string) {
+	if s.DB == nil {
+		return
+	}
+	counts, err := s.DB.TodayQuestionTypeCounts(lang)
+	if err != nil {
+		return
+	}
+	total := 0
+	for _, n := range counts {
+		total += n
+	}
+	s.sessionBudget.restoreProgress(total, counts)
+}
+
 func (s *Server) ensureSessionPlan(lang string) {
 	budget := s.Config.App.SessionTimeBudget
 	if budget <= 0 {
@@ -559,6 +574,21 @@ func (s *Server) ensureSessionPlan(lang string) {
 	}
 	available := planTypes(langQuestionTypes(lang, s.Config), s.AI() != nil, s.HasPronounce(), s.HasASR())
 	s.sessionBudget.ensurePlan(s.Config.App.DailyTarget, budget, s.sessionBudget.getTypeWeights(), available)
+}
+
+// restoreProgress rebuilds the in-memory plan counters after a restart so the
+// practice phase resumes at today's answered count instead of question 1.
+func (b *sessionBudget) restoreProgress(answered int, byType map[string]int) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.rolloverLocked()
+	if b.totalCount == 0 && answered > 0 {
+		b.totalCount = answered
+		b.planServed = make(map[string]int, len(byType))
+		for t, n := range byType {
+			b.planServed[t] = n
+		}
+	}
 }
 
 func (b *sessionBudget) plannedTotal() int {

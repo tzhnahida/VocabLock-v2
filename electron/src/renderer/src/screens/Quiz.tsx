@@ -14,6 +14,8 @@ import {
   type PronounceResult,
   type Question,
   evictTTS,
+  loadSessionProgress,
+  saveSessionProgress,
   type GrammarCard,
   type StudyCard,
   type SubmitResult
@@ -118,6 +120,12 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
     }
   }, [language])
 
+  const skipStudy = useCallback(() => {
+    const total = studyCards.length + grammarCards.length
+    void saveSessionProgress(total, true).catch(() => {})
+    void loadNext()
+  }, [studyCards.length, grammarCards.length, loadNext])
+
   const nextStudyCard = useCallback(() => {
     const total = studyCards.length + grammarCards.length
     // Grammar cards are read-only study material; only word cards require the
@@ -128,8 +136,13 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
     const grammarCard = grammarCards[studyIdx - studyCards.length]
     if (wordCard?.example) void evictTTS(wordCard.example)
     if (grammarCard?.example) void evictTTS(grammarCard.example)
-    if (studyIdx + 1 < total) setStudyIdx(studyIdx + 1)
-    else void loadNext()
+    if (studyIdx + 1 < total) {
+      void saveSessionProgress(studyIdx + 1, false).catch(() => {})
+      setStudyIdx(studyIdx + 1)
+    } else {
+      void saveSessionProgress(total, true).catch(() => {})
+      void loadNext()
+    }
   }, [studyRead, studyIdx, studyCards.length, grammarCards.length, loadNext])
 
   // Each study card requires one read-aloud; its duration is credited to the
@@ -177,12 +190,22 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
         if (started.empty) return setPhase('empty')
         // Study-before-test: show the session's new words before asking.
         try {
+          const progress = await loadSessionProgress().catch(() => ({ study_index: 0, study_done: false }))
+          if (cancelled) return
+          if (progress.study_done) {
+            await loadNext()
+            return
+          }
           const preview = await loadStudyCards(language, 8)
           if (cancelled) return
           if (preview.cards.length > 0 || preview.grammar.length > 0) {
             setStudyCards(preview.cards)
             setGrammarCards(preview.grammar)
-            setStudyIdx(0)
+            if (progress.study_index >= preview.cards.length + preview.grammar.length) {
+              await loadNext()
+              return
+            }
+            setStudyIdx(progress.study_index)
             const questions = (started.new_words ?? 0) + (started.review_words ?? 0) + (started.new_grammar ?? 0) + (started.review_grammar ?? 0)
             setIntro({ words: preview.cards.length, questions: Math.max(questions, preview.cards.length), minutes: Math.max(1, Math.round(Math.max(questions, preview.cards.length) * 0.75)) })
             setPhase('intro')
@@ -402,7 +425,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
             {grammar.explanation ? <div className="studymeaning">{grammar.explanation}</div> : null}
             {grammar.example ? <div className="studyexample">{grammar.example}</div> : null}
             <div className="qfoot">
-              <button className="skipbtn" onClick={() => void loadNext()}>
+              <button className="skipbtn" onClick={skipStudy}>
                 {copy.studySkip}
               </button>
               <button className="btn" onClick={nextStudyCard}>
@@ -520,7 +543,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
             )
           ) : null}
           <div className="qfoot">
-            <button className="skipbtn" onClick={() => void loadNext()}>
+            <button className="skipbtn" onClick={skipStudy}>
               {copy.studySkip}
             </button>
             <button className="btn" onClick={nextStudyCard} disabled={!studyRead} title={!studyRead ? copy.studyNeedRead : undefined}>

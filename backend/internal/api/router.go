@@ -13,6 +13,8 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	prefix := "/api/v1"
 
 	// Quiz
+	mux.HandleFunc("GET "+prefix+"/quiz/session/progress", s.handleQuizSessionProgress)
+	mux.HandleFunc("POST "+prefix+"/quiz/session/progress", s.handleQuizSessionProgress)
 	mux.HandleFunc("POST "+prefix+"/quiz/session/start", s.handleQuizSessionStart)
 	mux.HandleFunc("POST "+prefix+"/quiz/session/continue", s.handleQuizSessionContinue)
 	mux.HandleFunc("POST "+prefix+"/quiz/placement/start", s.handlePlacementStart)
