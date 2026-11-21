@@ -96,10 +96,29 @@ func (s *Server) handleQuizProgress(w http.ResponseWriter, r *http.Request) {
 		log.Debug("quiz", "progress: target met (reviewed=%d time_min=%d)", reviewed, s.Config.App.DailyTimeTarget)
 	}
 
+	// Report the achievable target: a 15-question setting over a 12-word pool
+	// is a 12/12 day, not "12/15, keep going".
+	effectiveTarget := s.Config.App.DailyTarget
+	if nw, ng, rw, rg, err := s.DB.SessionCounts(lang); err == nil {
+		available := nw + ng + rw + rg
+		if reviewed > 0 && available == 0 {
+			effectiveTarget = reviewed
+		} else if available > 0 && reviewed+available < effectiveTarget {
+			effectiveTarget = reviewed + available
+		}
+	}
+	if effectiveTarget <= 0 {
+		effectiveTarget = s.Config.App.DailyTarget
+	}
+	remaining = effectiveTarget - reviewed
+	if remaining < 0 {
+		remaining = 0
+	}
+
 	writeJSON(w, map[string]interface{}{
 		"reviewed_today": reviewed,
 		"remaining":      remaining,
-		"daily_target":   s.Config.App.DailyTarget,
+		"daily_target":   effectiveTarget,
 	})
 }
 
@@ -222,6 +241,17 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 	//                          legitimate spinner: words are being made)
 	//   totalAvailable == 0 + no AI → "empty": true (frontend shows an
 	//                          empty-state CTA: import words / configure AI)
+	// The pool can be exhausted before the configured target. That is a
+	// finished day, not an empty vault: never ask the user to import words.
+	if totalAvailable == 0 && reviewed > 0 {
+		s.sessionBudget.capPlan(reviewed)
+		s.exitNativeLock()
+		writeJSON(w, map[string]interface{}{
+			"new_words": 0, "new_grammar": 0, "review_words": 0, "review_grammar": 0,
+			"daily_completed": true, "reviewed": reviewed,
+		})
+		return
+	}
 	if totalAvailable == 0 {
 		if s.AI() != nil && reviewed == 0 {
 			if s.tryStartExpanding() {
@@ -266,6 +296,7 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 	// Daily-target framing for the session overview: the UI must show the
 	// REAL requirement (remaining to unlock) not the whole due pool — a
 	// 76-due review queue would otherwise render as "90 questions today".
+	s.sessionBudget.capPlan(reviewed + totalAvailable)
 	dailyRem := s.Config.App.DailyTarget - reviewed
 	if dailyRem < 0 {
 		dailyRem = 0

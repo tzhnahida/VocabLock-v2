@@ -591,6 +591,18 @@ func (b *sessionBudget) restoreProgress(answered int, byType map[string]int) {
 	}
 }
 
+// capPlan trims the planned count to the number of items actually available
+// today, so a 15-question plan over a 12-word pool ends as 12/12 instead of
+// handing the user a spurious empty-vault screen.
+func (b *sessionBudget) capPlan(available int) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.rolloverLocked()
+	if available > 0 && b.planTotal > available {
+		b.planTotal = available
+	}
+}
+
 func (b *sessionBudget) plannedTotal() int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
