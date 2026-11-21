@@ -284,13 +284,34 @@ func (d *Database) ResetWord(id int64) error {
 	return nil
 }
 
+// RecordUnknownHit counts a word the AI had to use in a rejected sentence but
+// the learner has not studied. Repeated hits promote it to the new-word front.
+func (d *Database) RecordUnknownHit(language, word string) error {
+	if language == "" || word == "" {
+		return nil
+	}
+	_, err := d.DB.Exec(`
+		INSERT INTO unknown_word_hits (language, word, hits, first_seen_at, last_seen_at)
+		VALUES (?, ?, 1, datetime('now','localtime'), datetime('now','localtime'))
+		ON CONFLICT(language, word) DO UPDATE SET
+			hits = hits + 1,
+			last_seen_at = datetime('now','localtime')
+	`, language, word)
+	return err
+}
+
 func (d *Database) GetReviewWords(language string, limit int) ([]*Word, error) {
 	rows, err := d.DB.Query(`
 		SELECT `+wordColumns+`
 		FROM words
 		WHERE language = ? AND status = 'active'
 		  AND (next_review_at IS NULL OR next_review_at <= ?)
-		ORDER BY next_review_at ASC NULLS FIRST
+		ORDER BY
+			CASE WHEN (SELECT hits FROM unknown_word_hits h
+			            WHERE h.language = words.language AND h.word = words.word) >= 3 THEN 0 ELSE 1 END,
+			COALESCE((SELECT hits FROM unknown_word_hits h
+			            WHERE h.language = words.language AND h.word = words.word), 0) DESC,
+			next_review_at ASC NULLS FIRST
 		LIMIT ?
 	`, language, clock.TodayTS(), limit)
 	if err != nil {

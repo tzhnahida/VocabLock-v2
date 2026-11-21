@@ -149,6 +149,19 @@ func (d *Database) migrate() error {
 		return fmt.Errorf("create grammar_points table: %w", err)
 	}
 
+	if _, err := d.DB.Exec(`
+		CREATE TABLE IF NOT EXISTS unknown_word_hits (
+			language TEXT NOT NULL,
+			word TEXT NOT NULL,
+			hits INTEGER NOT NULL DEFAULT 0,
+			first_seen_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+			last_seen_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+			PRIMARY KEY (language, word)
+		)
+	`); err != nil {
+		return fmt.Errorf("create unknown_word_hits table: %w", err)
+	}
+
 	_, _ = d.DB.Exec(`CREATE INDEX IF NOT EXISTS idx_grammar_points_next_review ON grammar_points(next_review_at)`)
 	_, _ = d.DB.Exec(`CREATE INDEX IF NOT EXISTS idx_grammar_points_language ON grammar_points(language)`)
 	_, _ = d.DB.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_words_word_lang ON words(word, language)`)

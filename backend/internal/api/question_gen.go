@@ -30,6 +30,9 @@ func (s *Server) answerUsesKnown(answer, target string) bool {
 			continue
 		}
 		if strings.Contains(answer, u) {
+			// Closed loop: count words the model keeps needing but the learner
+			// has not studied; three hits promote the word to the new-word front.
+			_ = s.DB.RecordUnknownHit(s.Config.App.ActiveLang, u)
 			return false
 		}
 	}
