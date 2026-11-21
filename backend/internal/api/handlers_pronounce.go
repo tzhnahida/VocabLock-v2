@@ -46,9 +46,11 @@ func (s *Server) handlePronounceAssess(w http.ResponseWriter, r *http.Request) {
 	if targetText == "" && req.WordID > 0 && s.DB != nil {
 		word, err := s.DB.GetWord(req.WordID)
 		if err == nil && word != nil {
-			targetText = word.Word
+			// Assess the reading: Julius dictionary entries are kana, and
+			// kanji surface forms often miss the dictionary.
+			targetText = word.Reading
 			if targetText == "" {
-				targetText = word.Reading
+				targetText = word.Word
 			}
 		}
 	}
