@@ -319,6 +319,40 @@ func earlyTypes(reviewed int, available []engine.QuestionType) []engine.Question
 	return out
 }
 
+func isHeavyQuestion(t engine.QuestionType) bool {
+	switch t {
+	case engine.TypeReadSentence, engine.TypeListening, engine.TypeReadingComp,
+		engine.TypeDialogueWrite, engine.TypeDialogueSpeak, engine.TypeGrammar:
+		return true
+	}
+	return false
+}
+
+// wordQuestionTypes keeps early/new words to recognition and cued recall.
+// Reading comprehension, listening, sentence production and dialogue are
+// mid/late-stage types; they must never appear through plan-quota fallback.
+func wordQuestionTypes(word *db.Word, reviewed int, available []engine.QuestionType) []engine.QuestionType {
+	out := make([]engine.QuestionType, 0, len(available))
+	for _, t := range available {
+		if t == engine.TypeGrammar {
+			continue
+		}
+		if (t == engine.TypeFill || t == engine.TypeSpelling) && reviewed < 4 {
+			continue
+		}
+		if isHeavyQuestion(t) {
+			if reviewed < 10 || word.Repetitions < 2 {
+				continue
+			}
+		}
+		out = append(out, t)
+	}
+	if len(out) == 0 {
+		out = append(out, engine.TypeChoice)
+	}
+	return out
+}
+
 func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
 		mock.HandleQuizNext(w, r, s.Config.App.ActiveLang)
@@ -496,7 +530,7 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 
 			qType := engine.SelectQuestionTypeWithWeights(
 				word.NextReviewAt, word.EasinessFactor, word.Interval, word.Repetitions,
-				stageTypes, s.AI() != nil, s.HasPronounce(), s.HasASR(),
+				wordQuestionTypes(word, reviewed, stageTypes), s.AI() != nil, s.HasPronounce(), s.HasASR(),
 				s.sessionBudget.getTypeWeights(),
 			)
 
@@ -512,7 +546,7 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 				if chosen == "" {
-					for _, t := range stageTypes {
+					for _, t := range wordQuestionTypes(word, reviewed, stageTypes) {
 						if s.sessionBudget.typeAvailable(string(t)) {
 							chosen = t
 							break
