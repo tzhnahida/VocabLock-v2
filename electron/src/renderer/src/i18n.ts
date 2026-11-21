@@ -193,8 +193,8 @@ const typeNames: Record<string, Record<Lang, string>> = {
   reading_comp: { zh: '阅读理解', en: 'Comprehension', ja: '読解' },
   listening: { zh: '听力', en: 'Listening', ja: '聴解' },
   grammar: { zh: '语法', en: 'Grammar', ja: '文法' },
-  pronounce: { zh: '发音', en: 'Pronunciation', ja: '発音' },
-  read_word: { zh: '发音', en: 'Pronunciation', ja: '発音' },
+  pronounce: { zh: '读音', en: 'Reading', ja: '読み方' },
+  read_word: { zh: '朗读', en: 'Read aloud', ja: '音読' },
   read_sentence: { zh: '朗读', en: 'Read aloud', ja: '音読' },
   dialogue_write: { zh: '造句', en: 'Writing', ja: '作文' },
   dialogue_speak: { zh: '口头造句', en: 'Speaking', ja: '発話' }
