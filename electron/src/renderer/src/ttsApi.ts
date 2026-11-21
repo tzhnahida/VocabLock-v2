@@ -30,6 +30,13 @@ export function wordAudio(wordId: number): Promise<TTSResult> {
   return call<TTSResult>(`/api/v1/tts/word/${wordId}`)
 }
 
+export function evictTTS(text: string): Promise<{ evicted: boolean }> {
+  return call<{ evicted: boolean }>('/api/v1/tts/evict', {
+    method: 'POST',
+    body: JSON.stringify({ text })
+  })
+}
+
 export function textAudio(text: string): Promise<TTSResult> {
   return call<TTSResult>('/api/v1/tts/text', { method: 'POST', body: JSON.stringify({ text }) })
 }

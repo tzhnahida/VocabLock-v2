@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { dyn, type Lang } from '../i18n'
 import { st } from '../strings'
 import type { Dashboard } from '../api'
-import { audioObjectUrl, textAudio, wordAudio } from '../ttsApi'
+import { audioObjectUrl, evictTTS, textAudio, wordAudio } from '../ttsApi'
 
 type Props = { dash: Dashboard; lang: Lang; onStudy: () => void }
 
@@ -78,6 +78,8 @@ export default function Listening({ dash, lang, onStudy }: Props) {
         return
       }
       await play(res.url)
+      // Sentence audio is one-shot: after it has been heard, drop it.
+      void evictTTS(text)
     } catch (e) {
       setStatus(copy.failed + (e instanceof Error ? e.message : String(e)))
     }
