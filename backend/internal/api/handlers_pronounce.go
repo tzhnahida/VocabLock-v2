@@ -102,6 +102,16 @@ func (s *Server) handlePronounceAssess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Some Julius paths return per-phoneme scores but a zero overall score.
+	// Keep the headline number consistent with what the learner can see.
+	if result.Score <= 0 && len(result.Phonemes) > 0 {
+		sum := 0.0
+		for _, p := range result.Phonemes {
+			sum += p.Score
+		}
+		result.Score = sum / float64(len(result.Phonemes))
+	}
+
 	writeJSON(w, map[string]interface{}{
 		"status":   "ok",
 		"score":    result.Score,
