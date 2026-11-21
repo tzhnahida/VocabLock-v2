@@ -123,7 +123,6 @@ export default function Home({ dash, lang, onStart, onLibrary, onStats, onLock }
             </div>
             <button className="btn pathcta" onClick={onStart}>
               <span>{dash.reviewedToday > 0 ? path.cta : path.ctaStart}</span>
-              <kbd>Enter</kbd>
             </button>
           </section>
 

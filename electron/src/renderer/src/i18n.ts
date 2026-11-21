@@ -16,7 +16,7 @@ export function t(lang: Lang, key: string): string {
  */
 export const dyn = {
   zh: {
-    remain: (n: number, min: number) => `还剩 ${n} 题 · 约 ${min} 分钟`,
+    remain: (n: number) => `还剩 ${n} 题`,
     unitQuestions: (n: number) => `/ ${n} 题`,
     done: (pct: number) => `已完成 ${pct}%`,
     weekTotal: (n: number) => `共 ${n} 题`,
@@ -64,7 +64,7 @@ export const dyn = {
     resetHint: '重置进度并加入今日复习？'
   },
   en: {
-    remain: (n: number, min: number) => `${n} left · about ${min} min`,
+    remain: (n: number) => `${n} left`,
     unitQuestions: (n: number) => `/ ${n}`,
     done: (pct: number) => `${pct}% done`,
     weekTotal: (n: number) => `${n} questions`,
@@ -112,7 +112,7 @@ export const dyn = {
     resetHint: 'Reset progress and review today?'
   },
   ja: {
-    remain: (n: number, min: number) => `残り ${n} 問 · 約 ${min} 分`,
+    remain: (n: number) => `残り ${n} 問`,
     unitQuestions: (n: number) => `/ ${n} 問`,
     done: (pct: number) => `${pct}% 完了`,
     weekTotal: (n: number) => `計 ${n} 問`,

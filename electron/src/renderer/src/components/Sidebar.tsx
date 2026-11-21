@@ -42,14 +42,13 @@ export default function Sidebar({ dash, screen, lang, onNavigate }: Props) {
   const dashLen = 94.2
   const remaining = Math.max(0, dash.dailyTarget - dash.reviewedToday)
   // ~40 s per question is the pace the design's "约 15 分钟 / 20 题" implies
-  const minutes = Math.max(1, Math.round((remaining * 40) / 60))
 
-  const items: Array<{ key: string; label: string; d: string; target?: Screen; disabled?: boolean }> = [
-    { key: '1', label: t(lang, 'nav.learn'), d: ICONS.learn, target: 'home' },
-    { key: '2', label: t(lang, 'nav.words'), d: ICONS.words, target: 'library' },
-    { key: '3', label: t(lang, 'nav.audio'), d: ICONS.audio, target: 'listening' },
-    { key: '4', label: t(lang, 'nav.stats'), d: ICONS.stats, target: 'stats' },
-    { key: '5', label: t(lang, 'nav.settings'), d: ICONS.settings, target: 'settings' }
+  const items: Array<{ label: string; d: string; target?: Screen; disabled?: boolean }> = [
+    { label: t(lang, 'nav.learn'), d: ICONS.learn, target: 'home' },
+    { label: t(lang, 'nav.words'), d: ICONS.words, target: 'library' },
+    { label: t(lang, 'nav.audio'), d: ICONS.audio, target: 'listening' },
+    { label: t(lang, 'nav.stats'), d: ICONS.stats, target: 'stats' },
+    { label: t(lang, 'nav.settings'), d: ICONS.settings, target: 'settings' }
   ]
 
   return (
@@ -75,7 +74,7 @@ export default function Sidebar({ dash, screen, lang, onNavigate }: Props) {
         </div>
         <div>
           <div className="t1">{t(lang, 'today.title')}</div>
-          <div className="t2">{remaining > 0 ? dyn[lang].remain(remaining, minutes) : dyn[lang].done(100)}</div>
+          <div className="t2">{remaining > 0 ? dyn[lang].remain(remaining) : dyn[lang].done(100)}</div>
         </div>
       </div>
 
@@ -84,14 +83,13 @@ export default function Sidebar({ dash, screen, lang, onNavigate }: Props) {
           const active = item.target === screen
           return (
             <div
-              key={item.key}
+              key={item.label}
               className={`nav${active ? ' on' : ''}${item.disabled ? ' disabled' : ''}`}
               title={item.disabled ? 'M2' : undefined}
               onClick={() => item.target && onNavigate(item.target)}
             >
               <NavIcon d={item.d} />
               <span>{item.label}</span>
-              <span className="k">{item.key}</span>
             </div>
           )
         })}
@@ -102,7 +100,6 @@ export default function Sidebar({ dash, screen, lang, onNavigate }: Props) {
         >
           <NavIcon d={ICONS.ai} />
           <span>{t(lang, 'nav.ai')}</span>
-          <span className="k">6</span>
         </div>
       </nav>
 
