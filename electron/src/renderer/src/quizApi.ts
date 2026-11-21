@@ -76,6 +76,13 @@ export type StudyCard = {
 
 export type GrammarCard = { id: number; title: string; explanation: string; example: string; detail: string }
 
+export function evictTTS(text: string): Promise<{ evicted: boolean }> {
+  return call<{ evicted: boolean }>('/api/v1/tts/evict', {
+    method: 'POST',
+    body: JSON.stringify({ text })
+  })
+}
+
 export function loadStudyCards(language: string, count = 8): Promise<{ cards: StudyCard[]; grammar: GrammarCard[] }> {
   return call<{ cards: StudyCard[]; grammar?: GrammarCard[] }>(
     '/api/v1/quiz/study-cards?count=' + count + '&language=' + encodeURIComponent(language)

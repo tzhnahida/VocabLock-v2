@@ -70,6 +70,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	// TTS
 	mux.HandleFunc("GET "+prefix+"/tts/word/{id}", s.handleTTSWord)
 	mux.HandleFunc("POST "+prefix+"/tts/text", s.handleTTSText)
+	mux.HandleFunc("POST "+prefix+"/tts/evict", s.handleTTSEvict)
 
 	// Pronounce
 	mux.HandleFunc("POST "+prefix+"/pronounce/assess", s.handlePronounceAssess)

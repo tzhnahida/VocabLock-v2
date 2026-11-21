@@ -163,6 +163,33 @@ func (s *Server) handleTTSText(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleTTSEvict removes a cached sentence after the learner has finished it.
+func (s *Server) handleTTSEvict(w http.ResponseWriter, r *http.Request) {
+	if s.TTSProvider == nil {
+		writeJSON(w, map[string]interface{}{"evicted": false})
+		return
+	}
+	var req struct {
+		Text  string `json:"text"`
+		Voice string `json:"voice"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeError(w, 400, "invalid request body")
+		return
+	}
+	if req.Text == "" {
+		writeError(w, 400, "text is required")
+		return
+	}
+	if req.Voice == "" {
+		if lc, ok := s.Config.Languages[s.Config.App.ActiveLang]; ok {
+			req.Voice = lc.TTS.Voice
+		}
+	}
+	evicted := s.TTSProvider.Delete(req.Voice, req.Text)
+	writeJSON(w, map[string]interface{}{"evicted": evicted})
+}
+
 // preWarmTTS pre-generates TTS audio for a word's pronunciation in a background
 // goroutine, so subsequent handleTTSWord calls serve instantly from cache.
 func (s *Server) preWarmTTS(word *db.Word) {

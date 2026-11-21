@@ -13,6 +13,7 @@ import {
   submitAnswer,
   type PronounceResult,
   type Question,
+  evictTTS,
   type GrammarCard,
   type StudyCard,
   type SubmitResult
@@ -122,6 +123,11 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
     // Grammar cards are read-only study material; only word cards require the
     // read-aloud take first.
     if (studyIdx < studyCards.length && !studyRead) return
+    // Sentence audio is disposable: drop it once this card is finished.
+    const wordCard = studyCards[studyIdx]
+    const grammarCard = grammarCards[studyIdx - studyCards.length]
+    if (wordCard?.example) void evictTTS(wordCard.example)
+    if (grammarCard?.example) void evictTTS(grammarCard.example)
     if (studyIdx + 1 < total) setStudyIdx(studyIdx + 1)
     else void loadNext()
   }, [studyRead, studyIdx, studyCards.length, grammarCards.length, loadNext])

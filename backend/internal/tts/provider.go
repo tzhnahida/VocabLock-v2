@@ -61,6 +61,11 @@ func (p *Provider) Generate(ctx context.Context, voice, text string) (string, er
 	return filename, nil
 }
 
+// Delete drops a cached utterance, used to retire sentence audio after learning.
+func (p *Provider) Delete(voice, text string) bool {
+	return p.cache.Delete(cacheKey(p.name, voice, text))
+}
+
 func cacheKey(provider, voice, text string) string {
 	h := md5.Sum([]byte(provider + ":" + voice + ":" + text))
 	return fmt.Sprintf("%x", h)
