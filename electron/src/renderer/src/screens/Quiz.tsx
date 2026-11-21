@@ -68,6 +68,13 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   const [studyCards, setStudyCards] = useState<StudyCard[]>([])
   const [grammarCards, setGrammarCards] = useState<GrammarCard[]>([])
   const [intro, setIntro] = useState({ words: 0, questions: 0, minutes: 0 })
+  const introCopy =
+    lang === 'zh'
+      ? { title: '今日学习', sub: 'SM-2 智能复习 + 精选新词', words: '个新词', questions: '题目', minutes: '预计', start: '开始学习' }
+      : lang === 'ja'
+        ? { title: '今日の学習', sub: 'SM-2 復習 + 厳選された新語', words: '個の新語', questions: '問題', minutes: '予想', start: '学習開始' }
+        : { title: "Today's Study", sub: 'SM-2 smart review + curated new words', words: 'new words', questions: 'Questions', minutes: 'Estimated', start: 'Start Learning' }
+
   const [studyIdx, setStudyIdx] = useState(0)
   const [studyRead, setStudyRead] = useState(false)
   const [recordingCard, setRecordingCard] = useState<number | null>(null)
@@ -353,17 +360,17 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
         <section className="card qcard introcard">
           <div className="qhead">
             <span className="tag">{copy.studyPhase}</span>
-            <span className="hint">{intro.words} new words</span>
+            <span className="hint">{intro.words} {introCopy.words}</span>
           </div>
-          <h1 className="introtagline">Today's Study</h1>
-          <p className="introsub">SM-2 smart review + curated new words</p>
+          <h1 className="introtagline">{introCopy.title}</h1>
+          <p className="introsub">{introCopy.sub}</p>
           <div className="introcounts">
-            <div><b>{intro.words}</b><span>New Words</span></div>
-            <div><b>{intro.questions}</b><span>Questions</span></div>
-            <div><b>~{intro.minutes} min</b><span>Estimated</span></div>
+            <div><b>{intro.words}</b><span>{introCopy.words}</span></div>
+            <div><b>{intro.questions}</b><span>{introCopy.questions}</span></div>
+            <div><b>~{intro.minutes} min</b><span>{introCopy.minutes}</span></div>
           </div>
           <button className="btn introstart" onClick={() => setPhase('study')}>
-            Start Learning
+            {introCopy.start}
           </button>
         </section>
       )
@@ -696,6 +703,15 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
     )
   }
 
+  const dayNo = Math.max(1, dash.streak)
+  const roundNo = intro.questions || answered || dash.dailyTarget
+  const topLine =
+    lang === 'zh'
+      ? `学习 · 第 ${dayNo} 天 · 本轮 ${roundNo}/${dash.dailyTarget}`
+      : lang === 'ja'
+        ? `学習 · ${dayNo}日目 · 今回 ${roundNo}/${dash.dailyTarget}`
+        : `Study · day ${dayNo} · round ${roundNo}/${dash.dailyTarget}`
+
   return (
     <div className="content quizshell">
       <div className="quizmain">
@@ -704,7 +720,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
             <a className="link" onClick={onExit}>
               {t(lang, 'quiz.back')}
             </a>{' '}
-            · <b>{t(lang, 'top.line')}</b>
+            · <b>{topLine}</b>
           </span>
           <span>{`${Math.round(dash.accuracy * 100)}%`}</span>
         </div>
