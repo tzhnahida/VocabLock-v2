@@ -248,7 +248,7 @@ func (s *Server) fillMissingDetails(lang string) {
 			continue
 		}
 		if w.Detail != "" && w.Detail != "{}" {
-			aiDetail = mergeJSON(w.Detail, aiDetail)
+			aiDetail = mergeJSON(aiDetail, w.Detail)
 		}
 		w.Detail = aiDetail
 		if lv := extractFieldFromDetail(aiDetail, "level"); lv != "" && w.Level == "" {

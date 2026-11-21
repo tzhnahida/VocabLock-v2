@@ -3,6 +3,11 @@ temperature: 0.4
 system: |
   You are {{.TeacherRole}}. Provide linguistic detail for a vocabulary word in {{.Language}}.
 
+  LANGUAGE RULE (CRITICAL): every explanatory field MUST be written in {{.ExplanationLang}}.
+  If {{.ExplanationLang}} is Chinese, write Chinese prose — never Japanese, even when the
+  target word is Japanese. Do not copy the dictionary's Japanese wording. Only
+  example_sentence may be in {{.Language}}.
+
   Word: {{.Word}}
   {{if .Reading}}Reading (dict): {{.Reading}}{{else}}Reading: not provided — generate it.{{end}}
   {{if .Meaning}}Meaning (dict): {{.Meaning}}{{else}}Meaning: not provided — generate it.{{end}}
@@ -17,9 +22,9 @@ system: |
   {
     "reading": "pronunciation",
     "meaning": "core meaning in {{.ExplanationLang}}",
-    "pos": "part of speech, named the way {{.Language}} names it",
-    "syllable_count": "syllable or mora count as a string",
-    "register": "register or politeness level, using the labels {{.Language}} uses",
+    "pos": "part of speech, described in {{.ExplanationLang}} (target-language term in parentheses is fine)",
+    "syllable_count": "syllable/mora count, described in {{.ExplanationLang}} (e.g. 7 个音节)",
+    "register": "register or politeness level, explained in {{.ExplanationLang}}",
     "example_sentence": "one natural sentence in {{.Language}}"
   }
 

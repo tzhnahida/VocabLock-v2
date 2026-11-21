@@ -105,7 +105,7 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 			dictEntry := s.lookupDict(ctx, pw.Word)
 			if dictEntry != nil {
 				aiDetail := s.generateDetail(ctx, pw.Word, dictEntry.Reading, dictEntry.Meaning, dictEntry.POS, dictEntry.Level, lang)
-				detail := mergeJSON(dictEntry.Detail, aiDetail)
+				detail := mergeJSON(aiDetail, dictEntry.Detail)
 				pw.Reading = dictEntry.Reading
 				if pw.Reading == "" {
 					pw.Reading = extractFieldFromDetail(aiDetail, "reading")
@@ -251,7 +251,7 @@ func (s *Server) expandWords(ctx context.Context, lang string, count int, extraC
 				}
 
 				// Dict detail base + AI gap-fill (dict keys take priority)
-				detail := mergeJSON(dictEntry.Detail, aiDetail)
+				detail := mergeJSON(aiDetail, dictEntry.Detail)
 
 				// Prefer a pack example that fits i+1 (target is the only
 				// unreviewed word); fall back to the AI example.
