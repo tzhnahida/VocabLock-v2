@@ -359,7 +359,6 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
       return (
         <section className="card qcard introcard">
           <div className="qhead">
-            <span className="tag">{copy.studyPhase}</span>
             <span className="hint">{intro.words} {introCopy.words}</span>
           </div>
           <h1 className="introtagline">{introCopy.title}</h1>
@@ -406,7 +405,6 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
         <section className="card qcard studycard">
           <audio ref={audioRef} preload="auto" />
           <div className="qhead">
-            <span className="tag">{copy.studyPhase}</span>
             <span className="hint">{studyIdx + 1} / {total}</span>
           </div>
           <div className="studyword">{card.word}</div>
