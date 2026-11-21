@@ -347,7 +347,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   // Correct answers advance on their own; wrong answers wait for the learner.
   useEffect(() => {
     if (phase !== 'feedback' || !result?.correct) return
-    const timer = window.setTimeout(() => void loadNext(), 900)
+    const timer = window.setTimeout(() => void loadNext(), 350)
     return () => window.clearTimeout(timer)
   }, [phase, result, loadNext])
 
@@ -698,6 +698,11 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
                 {typeof result.score === 'number' && result.score > 0 ? ` · ${Math.round(result.score * 100)}%` : ''}
                 {result.next_review_at ? ` · ${dyn[lang].nextIn(result.next_review_at.slice(0, 10))}` : ''}
               </div>
+              {answer ? (
+                <div className="l2">
+                  {lang === 'zh' ? `你选择了：${answer}` : lang === 'ja' ? `選んだ答え：${answer}` : `Your answer: ${answer}`}
+                </div>
+              ) : null}
               {!result.correct && result.expected_answer ? (
                 <div className="l2">{dyn[lang].correctAnswer(result.expected_answer)}</div>
               ) : null}

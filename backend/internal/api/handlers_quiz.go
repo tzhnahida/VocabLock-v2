@@ -320,6 +320,28 @@ func earlyTypes(reviewed int, available []engine.QuestionType) []engine.Question
 	return out
 }
 
+func typesForWord(word *db.Word, available []engine.QuestionType) []engine.QuestionType {
+	out := make([]engine.QuestionType, 0, len(available))
+	for _, t := range available {
+		// Grammar is scheduled from grammar_points, never invented around a word.
+		if t == engine.TypeGrammar {
+			continue
+		}
+		switch t {
+		case engine.TypeReadSentence, engine.TypeListening, engine.TypeReadingComp,
+			engine.TypeDialogueWrite, engine.TypeDialogueSpeak:
+			if word.Repetitions < 4 || word.Interval <= 14 {
+				continue
+			}
+		}
+		out = append(out, t)
+	}
+	if len(out) == 0 {
+		out = append(out, engine.TypeChoice)
+	}
+	return out
+}
+
 func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
 		mock.HandleQuizNext(w, r, s.Config.App.ActiveLang)
@@ -498,7 +520,7 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 
 			qType := engine.SelectQuestionTypeWithWeights(
 				word.NextReviewAt, word.EasinessFactor, word.Interval, word.Repetitions,
-				stageTypes, s.AI() != nil, s.HasPronounce(), s.HasASR(),
+				typesForWord(word, stageTypes), s.AI() != nil, s.HasPronounce(), s.HasASR(),
 				s.sessionBudget.getTypeWeights(),
 			)
 
@@ -514,7 +536,7 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 				if chosen == "" {
-					for _, t := range stageTypes {
+					for _, t := range typesForWord(word, stageTypes) {
 						if s.sessionBudget.typeAvailable(string(t)) {
 							chosen = t
 							break

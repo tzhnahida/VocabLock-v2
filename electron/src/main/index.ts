@@ -177,7 +177,7 @@ function createWindow(): void {
   })
   win.on('close', (event) => {
     // Focus mode: the window is not closable until today's quota is done.
-    if (locked && !quitting) {
+    if (!quitting && win && !win.isClosable()) {
       event.preventDefault()
       win?.show()
       win?.focus()
@@ -359,11 +359,11 @@ ipcMain.handle('app:info', () => ({
 }))
 
 ipcMain.on('window:minimize', () => {
-  if (locked) return
-  win?.minimize()
+  if (!win || !win.isMinimizable()) return
+  win.minimize()
 })
 ipcMain.on('window:maximize', () => {
-  if (!win || locked) return
+  if (!win || !win.isMaximizable()) return
   if (win.isMaximized()) win.unmaximize()
   else win.maximize()
 })
