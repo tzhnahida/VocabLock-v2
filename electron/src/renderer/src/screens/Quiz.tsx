@@ -68,6 +68,12 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   const [studyCards, setStudyCards] = useState<StudyCard[]>([])
   const [grammarCards, setGrammarCards] = useState<GrammarCard[]>([])
   const [intro, setIntro] = useState({ words: 0, questions: 0, minutes: 0 })
+  const fieldLabels =
+    lang === 'zh'
+      ? { morphology: '形态', collocation: '搭配', syntax: '句法' }
+      : lang === 'ja'
+        ? { morphology: '形態', collocation: 'コロケーション', syntax: '構文' }
+        : { morphology: 'Morphology', collocation: 'Collocation', syntax: 'Syntax' }
   const introCopy =
     lang === 'zh'
       ? { title: '今日学习', sub: 'SM-2 智能复习 + 精选新词', words: '个新词', questions: '题目', minutes: '预计', start: '开始学习' }
@@ -432,9 +438,9 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
             {card.forms ? <span>{card.forms}</span> : null}
           </div>
           {card.example ? <div className="studyexample">{card.example}</div> : null}
-          {card.morphology ? <div className="studyfield"><b>Morphology</b><span>{card.morphology}</span></div> : null}
-          {card.collocation ? <div className="studyfield"><b>Collocation</b><span>{card.collocation}</span></div> : null}
-          {card.syntax ? <div className="studyfield"><b>Syntax</b><span>{card.syntax}</span></div> : null}
+          {card.morphology ? <div className="studyfield"><b>{fieldLabels.morphology}</b><span>{card.morphology}</span></div> : null}
+          {card.collocation ? <div className="studyfield"><b>{fieldLabels.collocation}</b><span>{card.collocation}</span></div> : null}
+          {card.syntax ? <div className="studyfield"><b>{fieldLabels.syntax}</b><span>{card.syntax}</span></div> : null}
           <div className="studyread">
             <button
               className="btn ghost"
