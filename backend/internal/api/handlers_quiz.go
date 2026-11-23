@@ -85,17 +85,11 @@ func (s *Server) handleQuizProgress(w http.ResponseWriter, r *http.Request) {
 	}
 
 	lang := s.Config.App.ActiveLang
-	reviewed, remaining, err := s.DB.GetQuizProgress(lang, s.Config.App.DailyTarget)
+	reviewed, _, err := s.DB.GetQuizProgress(lang, s.Config.App.DailyTarget)
 	if err != nil {
 		writeError(w, 500, "query progress: "+err.Error())
 		return
 	}
-	// Time-based target can also complete the day.
-	if s.DailyTargetMet(lang) {
-		remaining = 0
-		log.Debug("quiz", "progress: target met (reviewed=%d time_min=%d)", reviewed, s.Config.App.DailyTimeTarget)
-	}
-
 	// Report the achievable target: a 15-question setting over a 12-word pool
 	// is a 12/12 day, not "12/15, keep going".
 	effectiveTarget := s.Config.App.DailyTarget
@@ -110,7 +104,10 @@ func (s *Server) handleQuizProgress(w http.ResponseWriter, r *http.Request) {
 	if effectiveTarget <= 0 {
 		effectiveTarget = s.Config.App.DailyTarget
 	}
-	remaining = effectiveTarget - reviewed
+	remaining := effectiveTarget - reviewed
+	if s.DailyTargetMet(lang) {
+		remaining = 0
+	}
 	if remaining < 0 {
 		remaining = 0
 	}
@@ -354,35 +351,6 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 
 // earlyTypes keeps the first minutes to recognition only. Sentence production
 // (grammar, fill, reading_comp, dialogue) waits until the learner is warmed up.
-func earlyTypes(reviewed int, available []engine.QuestionType) []engine.QuestionType {
-	allowed := map[engine.QuestionType]bool{}
-	if reviewed < 3 {
-		allowed[engine.TypeChoice] = true
-		allowed[engine.TypeMeaning] = true
-	} else if reviewed < 6 {
-		allowed[engine.TypeChoice] = true
-		allowed[engine.TypeMeaning] = true
-		allowed[engine.TypePronounce] = true
-		allowed[engine.TypeReadWord] = true
-	} else {
-		for _, t := range available {
-			allowed[t] = true
-		}
-	}
-	out := make([]engine.QuestionType, 0, len(available))
-	for _, t := range available {
-		// Grammar is only served from grammar points, never invented around a
-		// random vocabulary word ("蜂 是名词，下面哪个句子…" was this bug).
-		if t == engine.TypeGrammar {
-			continue
-		}
-		if allowed[t] {
-			out = append(out, t)
-		}
-	}
-	return out
-}
-
 func typesForWord(word *db.Word, available []engine.QuestionType) []engine.QuestionType {
 	out := make([]engine.QuestionType, 0, len(available))
 	for _, t := range available {
