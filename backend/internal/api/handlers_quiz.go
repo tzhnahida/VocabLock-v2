@@ -202,6 +202,27 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 
 	totalAvailable := nw + ng + rw + rg
 
+	// Fill the gap between the configured daily target and what is actually
+	// available. Without this, a 15-question target over a 12-word pool ends at
+	// 12 and looks like a broken quota.
+	need := s.Config.App.DailyTarget - reviewed - totalAvailable
+	if need > 0 && s.AI() != nil {
+		if s.tryStartExpanding() {
+			log.Debug("session", "TRIGGER shortage expansion: need=%d target=%d reviewed=%d available=%d", need, s.Config.App.DailyTarget, reviewed, totalAvailable)
+			go func() {
+				defer s.stopExpanding()
+				if _, _, err := s.expandWords(context.Background(), lang, need, "fill today's quota"); err != nil {
+					log.Error("session", "shortage expansion: %v", err)
+				}
+			}()
+		}
+		writeJSON(w, map[string]interface{}{
+			"new_words": nw, "new_grammar": ng, "review_words": rw, "review_grammar": rg,
+			"preparing": true, "shortage": need,
+		})
+		return
+	}
+
 	// ── Expansion guard ──────────────────────────────────────────
 	// CRITICAL: read isExpanding() ONCE and use the captured value for
 	// both the log and the blocking decision. The old code called
@@ -244,6 +265,7 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 	// The pool can be exhausted before the configured target. That is a
 	// finished day, not an empty vault: never ask the user to import words.
 	if totalAvailable == 0 && reviewed > 0 {
+		// No AI to expand the gap: the available pool is genuinely exhausted.
 		s.sessionBudget.capPlan(reviewed)
 		s.exitNativeLock()
 		writeJSON(w, map[string]interface{}{
@@ -1761,7 +1783,8 @@ func (s *Server) planExpandParams(lang string) (count int, extraCtx string) {
 		newWords, newGrammar, reviewWords, reviewGrammar, err := s.DB.SessionCounts(lang)
 		if err == nil {
 			total := newWords + newGrammar + reviewWords + reviewGrammar
-			gap = s.Config.App.DailyTarget - total
+			reviewed, _ := s.DB.GetUniqueSubjectsReviewed(lang)
+			gap = s.Config.App.DailyTarget - reviewed - total
 			if gap > 0 {
 				count = gap
 			}

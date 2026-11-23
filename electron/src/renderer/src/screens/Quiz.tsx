@@ -71,6 +71,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   const [studyCards, setStudyCards] = useState<StudyCard[]>([])
   const [grammarCards, setGrammarCards] = useState<GrammarCard[]>([])
   const [intro, setIntro] = useState({ words: 0, questions: 0, minutes: 0 })
+  const [retryTick, setRetryTick] = useState(0)
   const fieldLabels =
     lang === 'zh'
       ? { morphology: '形态', collocation: '搭配', syntax: '句法' }
@@ -185,7 +186,13 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
       try {
         const started = await startSession(language)
         if (cancelled) return
-        if (started.preparing) return setPhase('preparing')
+        if (started.preparing) {
+          setPhase('preparing')
+          window.setTimeout(() => {
+            if (!cancelled) setRetryTick((n) => n + 1)
+          }, 1500)
+          return
+        }
         if (started.daily_completed) return setPhase('done')
         if (started.empty) return setPhase('empty')
         // Study-before-test: show the session's new words before asking.
@@ -224,7 +231,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
     return () => {
       cancelled = true
     }
-  }, [language, loadNext])
+  }, [language, loadNext, retryTick])
 
   const submit = useCallback(
     async (value: string, audio?: string) => {
