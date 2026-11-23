@@ -22,6 +22,8 @@ export type SubmitResult = {
   next_review_at?: string | null
   transcript?: string
   expected_answer?: string
+  word_scores?: Array<{ text: string; score: number }>
+  pass_score?: number
   log_id?: number
 }
 
@@ -74,6 +76,8 @@ export type StudyCard = {
   morphology?: string
   collocation?: string
   syntax?: string
+  immersion?: boolean
+  meaning_target?: string
 }
 
 export type GrammarCard = { id: number; title: string; explanation: string; example: string; detail: string }

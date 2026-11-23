@@ -1566,6 +1566,92 @@ func categoryForReadAloud(source string, correct bool) string {
 	return ""
 }
 
+// sentenceWordScores approximates per-word alignment for read-aloud feedback.
+// Phonemes are assigned proportionally to segment length; this is deliberately
+// deterministic, not a second AI guess. For spaced languages words are split
+// on whitespace; for Japanese, known words are matched longest-first and
+// unmatched characters become single-character segments.
+func (s *Server) sentenceWordScores(target string, phonemes []pronounce.PhonemeScore, fallback float64) []map[string]interface{} {
+	segments := s.splitSentenceSegments(target)
+	if len(segments) == 0 {
+		return nil
+	}
+	scores := make([]float64, len(segments))
+	if len(phonemes) == 0 {
+		for i := range scores {
+			scores[i] = fallback
+		}
+	} else {
+		total := 0
+		for _, seg := range segments {
+			total += len([]rune(seg))
+		}
+		if total == 0 {
+			total = len(segments)
+		}
+		pos := 0
+		for i, seg := range segments {
+			take := int(float64(len([]rune(seg))) / float64(total) * float64(len(phonemes)))
+			if take < 1 {
+				take = 1
+			}
+			end := pos + take
+			if end > len(phonemes) {
+				end = len(phonemes)
+			}
+			if pos >= end {
+				scores[i] = fallback
+				continue
+			}
+			sum := 0.0
+			for _, p := range phonemes[pos:end] {
+				sum += p.Score
+			}
+			scores[i] = sum / float64(end-pos)
+			pos = end
+		}
+	}
+	out := make([]map[string]interface{}, len(segments))
+	for i, seg := range segments {
+		out[i] = map[string]interface{}{"text": seg, "score": scores[i]}
+	}
+	return out
+}
+
+func (s *Server) splitSentenceSegments(target string) []string {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return nil
+	}
+	if strings.ContainsAny(target, " \t") {
+		return strings.Fields(target)
+	}
+	words, _, _ := s.DB.ListWords(s.Config.App.ActiveLang, 500, 0)
+	sort.Slice(words, func(i, j int) bool { return len([]rune(words[i].Word)) > len([]rune(words[j].Word)) })
+	runes := []rune(target)
+	var out []string
+	for i := 0; i < len(runes); {
+		match := ""
+		for _, w := range words {
+			if len([]rune(w.Word)) < 2 {
+				continue
+			}
+			if strings.HasPrefix(string(runes[i:]), w.Word) {
+				match = w.Word
+				break
+			}
+		}
+		if match != "" {
+			out = append(out, match)
+			i += len([]rune(match))
+		} else {
+			out = append(out, string(runes[i]))
+			i++
+		}
+	}
+	return out
+}
+
 func (s *Server) writeReadAloudResult(w http.ResponseWriter, stype string, sid int64, qtype string, correct bool, score float64, phonemes []pronounce.PhonemeScore, targetText, source string, study bool) {
 	quality := engine.QualityFromScore(score)
 	now := clock.Now()
@@ -1586,6 +1672,12 @@ func (s *Server) writeReadAloudResult(w http.ResponseWriter, stype string, sid i
 		}
 	}
 
+	wordScores := s.sentenceWordScores(targetText, phonemes, score)
+	passScore := 0.4
+	if qtype == "read_sentence" {
+		passScore = 0.35
+	}
+
 	// Study-card read-aloud is evaluation only. It must never advance SM-2 or
 	// count toward the daily target: the card is practice, not a graded review.
 	if study {
@@ -1593,6 +1685,8 @@ func (s *Server) writeReadAloudResult(w http.ResponseWriter, stype string, sid i
 			"correct":        correct,
 			"score":          score,
 			"phonemes":       phonemes,
+			"word_scores":    wordScores,
+			"pass_score":     passScore,
 			"log_id":         0,
 			"feedback":       feedback,
 			"source":         source,
@@ -1669,6 +1763,8 @@ func (s *Server) writeReadAloudResult(w http.ResponseWriter, stype string, sid i
 		"correct":        correct,
 		"score":          score,
 		"phonemes":       phonemes,
+		"word_scores":    wordScores,
+		"pass_score":     passScore,
 		"log_id":         raLogID,
 		"feedback":       feedback,
 		"source":         source,

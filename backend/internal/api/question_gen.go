@@ -39,6 +39,22 @@ func (s *Server) answerUsesKnown(answer, target string) bool {
 	return true
 }
 
+func (s *Server) definitionUsesKnown(def, word, reading, lang string) bool {
+	unknown, err := s.DB.UnknownWords(lang, 500)
+	if err != nil {
+		return false
+	}
+	for _, u := range unknown {
+		if u == word || u == reading || len([]rune(u)) < 2 {
+			continue
+		}
+		if strings.Contains(def, u) {
+			return false
+		}
+	}
+	return true
+}
+
 // ensureTargetMeaning generates and caches a target-language definition for a
 // mature word. It is used by the per-word immersion layer only.
 func (s *Server) ensureTargetMeaning(ctx context.Context, word *db.Word, lang string) string {
@@ -78,6 +94,12 @@ func (s *Server) ensureTargetMeaning(ctx context.Context, word *db.Word, lang st
 		return ""
 	}
 	def := strings.TrimSpace(result.Definition)
+	// Strong validation: never show a target-language definition that contains
+	// words the learner has never reviewed (target/reading always allowed).
+	if len([]rune(def)) > 80 || !s.definitionUsesKnown(def, word.Word, word.Reading, lang) {
+		log.Warn("immersion", "target definition rejected for %q: %s", word.Word, def)
+		return ""
+	}
 	word.Detail = setDetailField(word.Detail, "meaning_target", def)
 	if err := s.DB.UpdateWord(word); err != nil {
 		log.Warn("immersion", "save target meaning %q: %v", word.Word, err)

@@ -21,7 +21,7 @@ import {
   type SubmitResult
 } from '../quizApi'
 import { useRecorder } from '../audio/useRecorder'
-import { audioObjectUrl, wordAudio } from '../ttsApi'
+import { audioObjectUrl, textAudio, wordAudio } from '../ttsApi'
 import { st } from '../strings'
 
 type Props = { dash: Dashboard; lang: Lang; onExit: () => void; onAnswered: () => void }
@@ -122,6 +122,18 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
     }
   }, [language])
 
+  async function speakFeedback(text: string): Promise<void> {
+    try {
+      const res = await textAudio(text)
+      if (res.status !== 'ok' || !res.url) return
+      const audio = new Audio(await audioObjectUrl(res.url))
+      audio.onended = () => void evictTTS(text).catch(() => {})
+      await audio.play()
+    } catch {
+      /* feedback audio is optional */
+    }
+  }
+
   const skipStudy = useCallback(() => {
     const total = studyCards.length + grammarCards.length
     void saveSessionProgress(total, true).catch(() => {})
@@ -152,6 +164,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   useEffect(() => {
     setStudyRead(false)
     setRecordingCard(null)
+    setRevealMeaning(false)
     setPron(null)
     setAssessing(false)
     recorder.reset()
@@ -466,7 +479,14 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
             </button>
             {card.reading}
           </div>
-          <div className="studymeaning">{card.meaning}</div>
+          <div className="studymeaning">
+            {card.immersion && card.meaning_target && !revealMeaning ? card.meaning_target : card.meaning}
+            {card.immersion && card.meaning_target ? (
+              <button className="link" onClick={() => setRevealMeaning((v) => !v)}>
+                {revealMeaning ? '显示学习语言' : '显示中文'}
+              </button>
+            ) : null}
+          </div>
           <div className="studymeta">
             {card.pos ? <span className="posbadge">{card.pos}</span> : null}
             {card.level ? <span>{card.level}</span> : null}
@@ -707,6 +727,24 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
                 {typeof result.score === 'number' && result.score > 0 ? ` · ${Math.round(result.score * 100)}%` : ''}
                 {result.next_review_at ? ` · ${dyn[lang].nextIn(result.next_review_at.slice(0, 10))}` : ''}
               </div>
+              {result.word_scores && result.word_scores.length > 0 ? (
+                <div className="wordscore-row">
+                  {result.word_scores.map((w, i) => (
+                    <span key={i} className={(result.pass_score ?? 0.4) <= w.score ? 'p-ok' : 'p-bad'}>
+                      {w.text}
+                      <em>{Math.round(w.score * 100)}</em>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              {typeof result.pass_score === 'number' ? (
+                <div className="l2">{'通过线 ' + Math.round(result.pass_score * 100) + ' / 100'}</div>
+              ) : null}
+              {result.expected_answer && question.type === 'read_sentence' ? (
+                <button className="link" onClick={() => void speakFeedback(result.expected_answer!)}>
+                  朗读参考句
+                </button>
+              ) : null}
               {answer ? (
                 <div className="l2">
                   {lang === 'zh' ? `你选择了：${answer}` : lang === 'ja' ? `選んだ答え：${answer}` : `Your answer: ${answer}`}

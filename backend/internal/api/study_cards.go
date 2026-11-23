@@ -61,21 +61,28 @@ func (s *Server) handleQuizStudyCards(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+		immersion := word.Repetitions >= 4 && word.Interval > 14
+		meaningTarget := ""
+		if immersion {
+			meaningTarget = s.ensureTargetMeaning(r.Context(), word, lang)
+		}
 		cards = append(cards, map[string]interface{}{
-			"id":          word.ID,
-			"word":        word.Word,
-			"reading":     word.Reading,
-			"meaning":     word.Meaning,
-			"pos":         word.POS,
-			"level":       word.Level,
-			"example":     example,
-			"forms":       str("morphology"),
-			"pitch":       str("pitch_accent"),
-			"syllables":   str("syllables"),
-			"register":    str("register"),
-			"morphology":  str("morphology"),
-			"collocation": str("collocation"),
-			"syntax":      str("syntax"),
+			"id":             word.ID,
+			"word":           word.Word,
+			"reading":        word.Reading,
+			"meaning":        word.Meaning,
+			"pos":            word.POS,
+			"level":          word.Level,
+			"example":        example,
+			"forms":          str("morphology"),
+			"pitch":          str("pitch_accent"),
+			"syllables":      str("syllables"),
+			"register":       str("register"),
+			"morphology":     str("morphology"),
+			"collocation":    str("collocation"),
+			"syntax":         str("syntax"),
+			"immersion":      immersion && meaningTarget != "",
+			"meaning_target": meaningTarget,
 		})
 		if len(cards) >= count {
 			break
