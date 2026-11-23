@@ -73,6 +73,12 @@ test.describe('electron smoke (mock backend)', () => {
     const browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`)
     const context = browser.contexts()[0]
     const page = context.pages().find((p) => !p.url().startsWith('devtools://')) ?? context.pages()[0]
+    // Fresh mock profiles open the onboarding wizard before the shell.
+    if (await page.getByText('开始之前，先认识一下你').count()) {
+      await page.getByRole('button', { name: '下一步' }).click()
+      await page.getByRole('button', { name: '下一步' }).click()
+      await page.locator('#onboard-finish').click()
+    }
     await page.waitForSelector('.titlebar', { timeout: 60_000 })
 
     // A focus lock may be up depending on mock state; unlock it first.
@@ -80,7 +86,7 @@ test.describe('electron smoke (mock backend)', () => {
       await page.locator('#lock-study').click()
     }
 
-    await page.getByText('开始学习', { exact: true }).first().click()
+    await page.getByRole('button', { name: /开始学习|继续学习/ }).first().click()
     await expect(page.locator('.s-quiz')).toBeVisible({ timeout: 20_000 })
 
     await page.locator('.sidebar').getByText('设置', { exact: true }).click()

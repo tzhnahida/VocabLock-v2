@@ -23,7 +23,7 @@ system: |
     "reading": "pronunciation",
     "meaning": "core meaning in {{.ExplanationLang}}",
     "pos": "part of speech, described in {{.ExplanationLang}} (target-language term in parentheses is fine)",
-    "syllable_count": "syllable/mora count, described in {{.ExplanationLang}} (e.g. 7 个音节)",
+    "syllable_count": "syllable/mora count, described in {{.ExplanationLang}} (numeric count or short phrase)",
     "register": "register or politeness level, explained in {{.ExplanationLang}}",
     "example_sentence": "one natural sentence in {{.Language}}"
   }

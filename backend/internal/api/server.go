@@ -633,13 +633,6 @@ func (b *sessionBudget) capPlan(available int) {
 	}
 }
 
-func (b *sessionBudget) plannedTotal() int {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.rolloverLocked()
-	return b.planTotal
-}
-
 func (b *sessionBudget) reset() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
