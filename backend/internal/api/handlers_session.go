@@ -308,12 +308,6 @@ func (s *Server) autoTune(lang string) {
 		if tomorrow, ok := plan["tomorrow"].(map[string]interface{}); ok {
 			if wc, ok := tomorrow["word_count"].(float64); ok && wc > 0 {
 				words = int(wc)
-				if words != s.Config.App.DailyTarget {
-					s.Config.App.DailyTarget = words
-					if err := s.Config.SaveAppConfig(s.ConfigDir); err != nil {
-						log.Warn("plan", "auto tune save target: %v", err)
-					}
-				}
 			}
 		}
 		s.tuneMu.Lock()
