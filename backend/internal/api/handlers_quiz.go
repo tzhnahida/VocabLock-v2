@@ -865,7 +865,18 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	strictness := strictnessForType(req.QuestionType)
-	result := judge.Judge(req.Answer, expected, strictness, aiCallback)
+	var result *judge.Result
+	// Fill blanks are context-dependent: another valid noun may fit. Let the
+	// AI judge those instead of exact-matching the single stored answer.
+	if req.QuestionType == string(engine.TypeFill) && aiCallback != nil && strings.TrimSpace(req.Answer) != "" {
+		if aiR, err := aiCallback(req.Answer, primaryExpected); err == nil && aiR != nil {
+			aiR.Source = judge.SourceAI
+			result = aiR
+		}
+	}
+	if result == nil {
+		result = judge.Judge(req.Answer, expected, strictness, aiCallback)
+	}
 
 	// Update SM-2 on the right table
 	quality := engine.QualityFromScore(result.Score)

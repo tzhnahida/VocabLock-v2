@@ -141,7 +141,13 @@ func GenerateFill(word *WordInfo, explLang string) *Question {
 		// Sentence-based cloze: "彼は手紙を___。" instead of "か_く (吃)"
 		cloze := strings.Replace(word.Example, word.Word, "___", 1)
 		if cloze != word.Example {
-			prompt = promptPrefix("fill", explLang) + " 「" + cloze + "」"
+			// A bare copula sentence (__です。) accepts almost any noun. Show
+			// the target direction so the blank is not a guessing game.
+			hint := ""
+			if word.POS != "" || word.Meaning != "" {
+				hint = "（" + strings.TrimSpace(word.POS+": "+word.Meaning) + "）"
+			}
+			prompt = promptPrefix("fill", explLang) + " 「" + cloze + "」" + hint
 		}
 	}
 
