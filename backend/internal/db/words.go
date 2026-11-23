@@ -300,6 +300,18 @@ func (d *Database) RecordUnknownHit(language, word string) error {
 	return err
 }
 
+// LearnedCounts reports active words that have been reviewed at least once,
+// plus the subset that reached mature SM-2 status.
+func (d *Database) LearnedCounts(language string) (learned, mature int, err error) {
+	err = d.DB.QueryRow(`
+		SELECT
+			COALESCE(SUM(CASE WHEN repetitions > 0 THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN repetitions >= 4 AND interval > 14 THEN 1 ELSE 0 END), 0)
+		FROM words WHERE language = ? AND status = 'active'
+	`, language).Scan(&learned, &mature)
+	return
+}
+
 func (d *Database) GetReviewWords(language string, limit int) ([]*Word, error) {
 	rows, err := d.DB.Query(`
 		SELECT `+wordColumns+`

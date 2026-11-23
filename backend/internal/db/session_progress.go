@@ -10,7 +10,6 @@ func (d *Database) GetSessionProgress(date, language string) (index int, done bo
 		date, language,
 	).Scan(&idx, &dn)
 	if err != nil {
-		// No row yet is the normal first-run case.
 		return 0, false, nil
 	}
 	return idx, dn != 0, nil
@@ -55,4 +54,32 @@ func (d *Database) TodayQuestionTypeCounts(language string) (map[string]int, err
 		out[t] = n
 	}
 	return out, rows.Err()
+}
+
+func (d *Database) SavePendingQuestion(date, language, questionJSON string, wordID int64) error {
+	_, err := d.DB.Exec(`
+		INSERT INTO pending_question (date, language, question_json, word_id)
+		VALUES (?, ?, ?, ?)
+		ON CONFLICT(date, language) DO UPDATE SET
+			question_json = excluded.question_json,
+			word_id = excluded.word_id
+	`, date, language, questionJSON, wordID)
+	return err
+}
+
+func (d *Database) LoadPendingQuestion(date, language string) (string, int64, error) {
+	var q string
+	var wordID int64
+	err := d.DB.QueryRow(
+		`SELECT question_json, word_id FROM pending_question WHERE date = ? AND language = ?`,
+		date, language,
+	).Scan(&q, &wordID)
+	if err != nil {
+		return "", 0, nil
+	}
+	return q, wordID, nil
+}
+
+func (d *Database) ClearPendingQuestion(date, language string) {
+	_, _ = d.DB.Exec(`DELETE FROM pending_question WHERE date = ? AND language = ?`, date, language)
 }

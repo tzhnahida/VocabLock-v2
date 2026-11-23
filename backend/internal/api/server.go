@@ -546,6 +546,36 @@ type sessionBudget struct {
 	planTotal  int
 	planQuotas map[string]int
 	planServed map[string]int
+
+	// Shortage expansion guard: repeated AI failures must not leave the UI in
+	// a permanent "preparing" loop.
+	shortageAt       time.Time
+	shortageFailures int
+}
+
+func (b *sessionBudget) shortageBlocked() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.rolloverLocked()
+	return b.shortageFailures >= 2 && time.Since(b.shortageAt) < 10*time.Minute
+}
+
+func (b *sessionBudget) markShortageAttempt() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.shortageAt = time.Now()
+}
+
+func (b *sessionBudget) markShortageResult(ok bool) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if ok {
+		b.shortageFailures = 0
+		b.shortageAt = time.Time{}
+		return
+	}
+	b.shortageFailures++
+	b.shortageAt = time.Now()
 }
 
 // ensureSessionPlan computes the session size and per-type quotas once, before

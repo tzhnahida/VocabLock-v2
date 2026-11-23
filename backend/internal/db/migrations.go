@@ -150,6 +150,18 @@ func (d *Database) migrate() error {
 	}
 
 	if _, err := d.DB.Exec(`
+		CREATE TABLE IF NOT EXISTS pending_question (
+			date TEXT NOT NULL,
+			language TEXT NOT NULL,
+			question_json TEXT NOT NULL DEFAULT '',
+			word_id INTEGER NOT NULL DEFAULT 0,
+			PRIMARY KEY (date, language)
+		)
+	`); err != nil {
+		return fmt.Errorf("create pending_question table: %w", err)
+	}
+
+	if _, err := d.DB.Exec(`
 		CREATE TABLE IF NOT EXISTS session_progress (
 			date TEXT NOT NULL,
 			language TEXT NOT NULL,

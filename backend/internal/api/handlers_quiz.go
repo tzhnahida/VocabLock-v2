@@ -206,14 +206,17 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 	// available. Without this, a 15-question target over a 12-word pool ends at
 	// 12 and looks like a broken quota.
 	need := s.Config.App.DailyTarget - reviewed - totalAvailable
-	if need > 0 && s.AI() != nil {
+	if need > 0 && s.AI() != nil && !s.sessionBudget.shortageBlocked() {
 		if s.tryStartExpanding() {
+			s.sessionBudget.markShortageAttempt()
 			log.Debug("session", "TRIGGER shortage expansion: need=%d target=%d reviewed=%d available=%d", need, s.Config.App.DailyTarget, reviewed, totalAvailable)
 			go func() {
 				defer s.stopExpanding()
-				if _, _, err := s.expandWords(context.Background(), lang, need, "fill today's quota"); err != nil {
+				v, _, err := s.expandWords(context.Background(), lang, need, "fill today's quota")
+				if err != nil {
 					log.Error("session", "shortage expansion: %v", err)
 				}
+				s.sessionBudget.markShortageResult(err == nil && v > 0)
 			}()
 		}
 		writeJSON(w, map[string]interface{}{
@@ -312,6 +315,13 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// The plan is an AI decision, not an equal-weight default. Generate/reuse
+	// today's plan before caching type ratios.
+	if s.AI() != nil {
+		planCtx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+		s.ensureDailyPlan(planCtx, lang)
+		cancel()
+	}
 	// Cache plan's question type weights for this session
 	s.cachePlanWeights(lang)
 
@@ -401,6 +411,22 @@ func fillExampleUsable(example, word string) bool {
 	return len([]rune(context)) >= 6
 }
 
+// ensureDailyPlan creates today's AI training plan when none exists. It runs
+// once per day; failures fall back to the existing/default equal weights.
+func (s *Server) ensureDailyPlan(ctx context.Context, lang string) {
+	if s.DB == nil || s.AI() == nil {
+		return
+	}
+	if plan, err := s.DB.GetActivePlan(lang); err == nil && plan != nil && strings.HasPrefix(plan.CreatedAt, clock.Today()) {
+		return
+	}
+	logs, _ := s.DB.GetSessionLogs(lang, 200)
+	stats := buildSessionStats(logs)
+	if _, err := s.runPlan(ctx, lang, stats, map[string]interface{}{}); err != nil {
+		log.Warn("plan", "daily plan generation failed: %v", err)
+	}
+}
+
 func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
 		mock.HandleQuizNext(w, r, s.Config.App.ActiveLang)
@@ -415,6 +441,27 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	budget := s.Config.App.SessionTimeBudget
 	s.ensureSessionPlan(lang)
 	s.restoreSessionProgress(lang)
+	// Resume the exact question that was open before a restart.
+	if raw, wordID, _ := s.DB.LoadPendingQuestion(clock.Today(), lang); raw != "" {
+		var pending engine.Question
+		if json.Unmarshal([]byte(raw), &pending) == nil {
+			var word *db.Word
+			if pending.SubjectType == "word" {
+				word, _ = s.DB.GetWord(pending.SubjectID)
+			}
+			s.cacheQuestion(&pending)
+			payload := questionPayload(&pending, word)
+			if word != nil && word.Repetitions >= 4 && word.Interval > 14 {
+				if target := s.ensureTargetMeaning(r.Context(), word, lang); target != "" {
+					payload["immersive"] = true
+					payload["meaning_target"] = target
+				}
+			}
+			writeJSON(w, payload)
+			return
+		}
+		_ = wordID
+	}
 	available := planTypes(langQuestionTypes(lang, s.Config), s.AI() != nil, s.HasPronounce(), s.HasASR())
 
 	log.Debug("quiz", "next question: lang=%s", lang)
@@ -684,6 +731,10 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if raw, err := json.Marshal(q); err == nil {
+		wordID := q.SubjectID
+		_ = s.DB.SavePendingQuestion(clock.Today(), lang, string(raw), wordID)
+	}
 	payload := questionPayload(q, currentWord)
 	// Per-word immersion: once a word is mature, its explanation can be shown
 	// in the target language first, with the Chinese meaning behind a reveal.
@@ -745,6 +796,9 @@ func compareWordGrammarPriority(w *db.Word, g *db.GrammarPoint) bool {
 }
 
 func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
+	if s.DB != nil {
+		s.DB.ClearPendingQuestion(clock.Today(), s.Config.App.ActiveLang)
+	}
 	if s.Mock {
 		mock.HandleQuizSubmit(w, r)
 		return
@@ -874,18 +928,9 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	strictness := strictnessForType(req.QuestionType)
-	var result *judge.Result
-	// Fill blanks are context-dependent: another valid noun may fit. Let the
-	// AI judge those instead of exact-matching the single stored answer.
-	if req.QuestionType == string(engine.TypeFill) && aiCallback != nil && strings.TrimSpace(req.Answer) != "" {
-		if aiR, err := aiCallback(req.Answer, primaryExpected); err == nil && aiR != nil {
-			aiR.Source = judge.SourceAI
-			result = aiR
-		}
-	}
-	if result == nil {
-		result = judge.Judge(req.Answer, expected, strictness, aiCallback)
-	}
+	// judge.Judge short-circuits exact matches and only calls the AI for
+	// ambiguous/non-exact fill answers. Do not call the AI for every fill.
+	result := judge.Judge(req.Answer, expected, strictness, aiCallback)
 
 	// Update SM-2 on the right table
 	quality := engine.QualityFromScore(result.Score)

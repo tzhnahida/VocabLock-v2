@@ -182,12 +182,28 @@ func (s *Server) handleQuizDirection(w http.ResponseWriter, r *http.Request) {
 
 func buildSessionStats(logs []*db.ReviewLog) string {
 	typeCount := map[string]int{}
+	typeStats := map[string]map[string]interface{}{}
 	correct, total := 0, 0
 	for _, l := range logs {
 		typeCount[l.QuestionType]++
+		st := typeStats[l.QuestionType]
+		if st == nil {
+			st = map[string]interface{}{"attempts": 0, "correct": 0, "accuracy": 0.0}
+			typeStats[l.QuestionType] = st
+		}
+		st["attempts"] = st["attempts"].(int) + 1
+		if l.Correct {
+			st["correct"] = st["correct"].(int) + 1
+		}
 		total++
 		if l.Correct {
 			correct++
+		}
+	}
+	for _, st := range typeStats {
+		attempts := st["attempts"].(int)
+		if attempts > 0 {
+			st["accuracy"] = float64(st["correct"].(int)) / float64(attempts)
 		}
 	}
 	accuracy := 0.0
@@ -195,10 +211,11 @@ func buildSessionStats(logs []*db.ReviewLog) string {
 		accuracy = float64(correct) / float64(total)
 	}
 	stats := map[string]interface{}{
-		"total":    total,
-		"correct":  correct,
-		"accuracy": accuracy,
-		"by_type":  typeCount,
+		"total":       total,
+		"correct":     correct,
+		"accuracy":    accuracy,
+		"by_type":     typeCount,
+		"by_type_acc": typeStats,
 	}
 	b, _ := json.Marshal(stats)
 	return string(b)
@@ -336,6 +353,18 @@ func (s *Server) runPlan(ctx context.Context, lang, stats string, summary map[st
 			trendData = "improving"
 		case statsData.Accuracy < 0.5:
 			trendData = "declining"
+		}
+	}
+
+	if s.DB != nil {
+		var sm map[string]interface{}
+		if json.Unmarshal([]byte(stats), &sm) == nil {
+			learned, mature, _ := s.DB.LearnedCounts(lang)
+			sm["learned_words"] = learned
+			sm["mature_words"] = mature
+			if b, err := json.Marshal(sm); err == nil {
+				stats = string(b)
+			}
 		}
 	}
 

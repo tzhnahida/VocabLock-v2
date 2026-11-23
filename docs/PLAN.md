@@ -80,33 +80,35 @@
 
 ## B. 未实现 / 部分完成（按优先级）
 
-### B1. AI 计划决定题型比例（最高优先级，未实现）
-- [ ] AI 根据已掌握词总量、各题型 attempts/correct/accuracy、学习进度、薄弱项、趋势、时间预算，输出每日 question_type_ratio。
-- [ ] 会话开始读取 plan 的 question_type_ratio / grammar_focus / word_count。
-- [ ] 运行时只在 SM-2 候选里按 AI 权重抽题。
-- [ ] max_slow_type_ratio 限制慢题比例。
-- [ ] 无 AI plan 时才回退等权分配。
-- [x] 旧版代码已研究：plan.yaml、cachePlanWeights、mergeTypeWeights、SelectQuestionTypeWithWeights。
-- 当前状态：typeWeights 基本为空，实际仍是等权随机；buildSessionStats 只有整体 accuracy 和 by_type 数量，缺每题型正确率。
+### B1. AI 计划决定题型比例（核心已实现）
+- [x] AI 根据已掌握词总量、各题型 attempts/correct/accuracy、学习进度、薄弱项、趋势、时间预算，输出每日 question_type_ratio。
+- [x] 会话开始读取 plan 的 question_type_ratio / grammar_focus / word_count。
+- [x] 运行时只在 SM-2 候选里按 AI 权重抽题。
+- [x] max_slow_type_ratio 限制慢题比例。
+- [x] 无 AI plan 时才回退等权分配。
+- [x] buildSessionStats 增加 by_type_acc（attempts/correct/accuracy）与 learned_words / mature_words。
+- [x] 无当日 plan 时在 session/start 调 ensureDailyPlan 生成，再 cachePlanWeights。
+- [ ] 计划失败/超时后的可见提示与手动重生成。
+- [ ] 计划调整理由展示（为什么今天这个比例）。
+- 备注：AI 不可用或超时时仍回退等权随机，这是预期降级。
 
-### B2. 自动扩词可靠性（部分实现）
+### B2. 自动扩词可靠性（核心已实现）
 - [x] 目标缺口触发 AI 扩词。
-- [ ] AI 扩词失败的重试/冷却/降级。
-- [ ] 避免反复失败导致 preparing 无限循环。
+- [x] AI 扩词失败的重试/冷却/降级（连续失败 2 次后 10 分钟内不再反复 preparing）。
+- [x] 避免反复失败导致 preparing 无限循环。
 - [ ] 扩词后校验题库/计划/首页一致。
 - [ ] 词库同步/导入后的自动扩词触发。
 
-### B3. 练习续点精度（部分实现）
+### B3. 练习续点精度（核心已实现）
 - [x] 恢复今日已答数量、题型计数、计划配额。
-- [ ] 恢复具体题目/题目顺序（当前只保证数量和配额）。
-- [ ] 服务重启后未提交题目的缓存恢复。
+- [x] 服务重启后未提交的当前题目恢复（pending_question）。
+- [ ] 恢复完整题目顺序（当前只保证当前题 + 数量/配额）。
 - [ ] 多端/多进程并发保护。
 
-### B4. 填空题与 AI 判题（部分实现）
+### B4. 填空题与 AI 判题（成本控制已实现）
 - [x] 弱上下文过滤。
 - [x] 方向提示（词性/释义）。
-- [x] AI 可用时填空题走 AI 判定。
-- [ ] AI 判题成本控制（不要每题都调用大模型）。
+- [x] 填空题非精确答案时走 AI 判定；精确答案短路，避免每题调用大模型。
 - [ ] AI 与确定性判定分歧记录/回看。
 - [ ] 同义表达、词形变化系统校验。
 
@@ -130,14 +132,11 @@
 - [ ] 阅读/听力页历史音频清理。
 - [ ] 缓存目录容量/启动清理策略。
 
-### B8. 旧 Flutter UI 复刻（部分）
-- [x] 语法学习卡。
-- [x] 会话 intro 页。
-- [x] 学习卡丰富字段。
-- [ ] 旧侧栏 Review / Homework / Audio / Stats / Config / AI 完整对齐。
-- [ ] 旧 onboarding 的 AI 学习顾问、每日时间/正确率设置流程。
-- [ ] 旧版首页完整信息架构（旧版 1000% 进度、type cast 等 bug 不复刻）。
-- [ ] 旧版语法详情页 pattern / usage / formality / mistakes / related 完整字段。
+### B8. 旧 Flutter UI 复刻（已放弃）
+- [x] 语法学习卡、会话 intro、学习卡丰富字段已迁移。
+- [x] 不再复刻旧侧栏 Review / Homework / Audio / Stats / Config / AI。
+- [x] 不再复刻旧 onboarding 的 AI 学习顾问流程。
+- [x] 旧版只作为行为参考，不再追求界面结构一致。
 
 ### B9. 设置与配额语义（需要产品决策）
 - [ ] 当前 daily_target=15、daily_time_target=40min、session_time_budget=40min 不一致：15 题按固定权重约 7.5 分钟，40 分钟几乎不触发。
@@ -245,11 +244,11 @@
 
 - 自动扩词失败循环还没有彻底兜底。
 - 练习续点只到数量/配额，不到同一道题。
-- 题型比例仍基本等权，AI plan 尚未真正接管。
+- AI plan 已接入，但 AI 超时/无 key 时仍回退等权；缺计划失败提示。
 - 填空题 AI 判题会增加延迟/成本。
 - 长句评分通过线和对齐仍不够解释性。
 - 句子 TTS 淘汰只覆盖部分播放路径。
 - 逐词沉浸只覆盖答题反馈，且目标语释义主要靠 prompt 约束。
-- 旧 Flutter 侧栏/onboarding 没有完全复刻。
+- 旧 Flutter 侧栏/onboarding 已明确不复刻。
 - 时间配额 40 分钟与 15 题明显不匹配，需要产品拍板。
 - GitHub push 间歇失败，部分提交只在本地。
