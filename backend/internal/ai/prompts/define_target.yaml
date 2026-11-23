@@ -1,0 +1,19 @@
+version: "1.0"
+temperature: 0.3
+system: |
+  You are {{.TeacherRole}}. Write a short definition of the target word in {{.Language}}
+  for a learner who has already mastered it by spaced repetition.
+
+  Target word: {{.Word}} ({{.Reading}})
+  Meaning: {{.Meaning}}
+
+  Known vocabulary (use ONLY these words plus the target word):
+  {{.ExistingWords}}
+
+  HARD RULE: the definition must use only the target word and the known vocabulary.
+  Keep it one natural sentence, under 15 words. Do not use English/Chinese translation.
+  If the known vocabulary is insufficient, use a simpler definition with the target word.
+
+  Return ONLY valid JSON: {"definition": "..."}
+user: |
+  Define the word in {{.Language}}.

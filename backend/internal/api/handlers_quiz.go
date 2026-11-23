@@ -684,7 +684,16 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, questionPayload(q, currentWord))
+	payload := questionPayload(q, currentWord)
+	// Per-word immersion: once a word is mature, its explanation can be shown
+	// in the target language first, with the Chinese meaning behind a reveal.
+	if currentWord != nil && currentWord.Repetitions >= 4 && currentWord.Interval > 14 {
+		if target := s.ensureTargetMeaning(r.Context(), currentWord, lang); target != "" {
+			payload["immersive"] = true
+			payload["meaning_target"] = target
+		}
+	}
+	writeJSON(w, payload)
 }
 
 // questionPayload builds the client view of a question. Word data is attached

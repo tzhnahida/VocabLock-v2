@@ -10,6 +10,8 @@ export type Question = {
   subject_word?: string
   subject_reading?: string
   subject_meaning?: string
+  immersive?: boolean
+  meaning_target?: string
 }
 
 export type SubmitResult = {

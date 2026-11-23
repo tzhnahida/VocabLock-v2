@@ -72,6 +72,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   const [grammarCards, setGrammarCards] = useState<GrammarCard[]>([])
   const [intro, setIntro] = useState({ words: 0, questions: 0, minutes: 0 })
   const [retryTick, setRetryTick] = useState(0)
+  const [revealMeaning, setRevealMeaning] = useState(false)
   const fieldLabels =
     lang === 'zh'
       ? { morphology: '形态', collocation: '搭配', syntax: '句法' }
@@ -348,6 +349,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
 
   useEffect(() => {
     recorder.reset()
+    setRevealMeaning(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only on question change
   }, [question?.id])
 
@@ -717,7 +719,20 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
                 <div className="fbword">
                   <b>{question.subject_word}</b>
                   {question.subject_reading ? <span> {question.subject_reading}</span> : null}
-                  {question.subject_meaning ? <div>{question.subject_meaning}</div> : null}
+                  {question.subject_meaning ? (
+                    <div>
+                      {question.immersive && question.meaning_target && !revealMeaning
+                        ? question.meaning_target
+                        : question.subject_meaning}
+                      {question.immersive && question.meaning_target ? (
+                        <button className="link" onClick={() => setRevealMeaning((v) => !v)}>
+                          {revealMeaning
+                            ? lang === 'zh' ? '显示学习语言' : lang === 'ja' ? '学習言語を表示' : 'Show target language'
+                            : lang === 'zh' ? '显示中文' : lang === 'ja' ? '中国語を表示' : 'Show Chinese'}
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
               {!result.correct &&

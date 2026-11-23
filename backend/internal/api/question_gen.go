@@ -39,6 +39,83 @@ func (s *Server) answerUsesKnown(answer, target string) bool {
 	return true
 }
 
+// ensureTargetMeaning generates and caches a target-language definition for a
+// mature word. It is used by the per-word immersion layer only.
+func (s *Server) ensureTargetMeaning(ctx context.Context, word *db.Word, lang string) string {
+	if word == nil || s.AI() == nil {
+		return ""
+	}
+	if m := detailField(word.Detail, "meaning_target"); m != "" {
+		return m
+	}
+	pt, err := ai.LoadPrompt("define_target")
+	if err != nil {
+		return ""
+	}
+	teacherRole, _, _, _ := s.expandLangContext(lang)
+	known, _ := s.DB.LearnedWords(lang, 300)
+	messages, err := pt.BuildMessages(&ai.PromptVars{
+		Word:          word.Word,
+		Reading:       word.Reading,
+		Meaning:       word.Meaning,
+		Language:      lang,
+		TeacherRole:   teacherRole,
+		ExistingWords: strings.Join(known, ", "),
+	})
+	if err != nil {
+		return ""
+	}
+	callCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	resp, err := s.AI().Chat(callCtx, messages, pt.Temperature)
+	if err != nil {
+		return ""
+	}
+	var result struct {
+		Definition string `json:"definition"`
+	}
+	if json.Unmarshal([]byte(extractJSON(resp)), &result) != nil || strings.TrimSpace(result.Definition) == "" {
+		return ""
+	}
+	def := strings.TrimSpace(result.Definition)
+	word.Detail = setDetailField(word.Detail, "meaning_target", def)
+	if err := s.DB.UpdateWord(word); err != nil {
+		log.Warn("immersion", "save target meaning %q: %v", word.Word, err)
+	}
+	return def
+}
+
+func detailField(detail, key string) string {
+	if detail == "" || detail == "{}" {
+		return ""
+	}
+	var m map[string]interface{}
+	if json.Unmarshal([]byte(detail), &m) != nil {
+		return ""
+	}
+	if v, ok := m[key].(string); ok {
+		return v
+	}
+	return ""
+}
+
+func setDetailField(detail, key, value string) string {
+	var m map[string]interface{}
+	if detail != "" && detail != "{}" {
+		if json.Unmarshal([]byte(detail), &m) != nil {
+			m = map[string]interface{}{}
+		}
+	} else {
+		m = map[string]interface{}{}
+	}
+	m[key] = value
+	b, err := json.Marshal(m)
+	if err != nil {
+		return detail
+	}
+	return string(b)
+}
+
 // aiGenerateGrammarQuestion calls the AI to generate a question for a grammar point.
 func (s *Server) aiGenerateGrammarQuestion(ctx context.Context, gp *db.GrammarPoint) (*engine.Question, error) {
 	if s.AI() == nil {
