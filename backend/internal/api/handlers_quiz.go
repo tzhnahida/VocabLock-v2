@@ -373,6 +373,12 @@ func typesForWord(word *db.Word, available []engine.QuestionType) []engine.Quest
 	return out
 }
 
+func fillExampleUsable(example, word string) bool {
+	context := strings.ReplaceAll(example, word, "")
+	context = strings.TrimSpace(context)
+	return len([]rune(context)) >= 6
+}
+
 func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
 		mock.HandleQuizNext(w, r, s.Config.App.ActiveLang)
@@ -594,7 +600,7 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 			case engine.TypeChoice:
 				q = engine.GenerateChoice(info, distractors, explLang)
 			case engine.TypeFill:
-				if info.Example != "" {
+				if info.Example != "" && fillExampleUsable(info.Example, info.Word) {
 					q = engine.GenerateFill(info, explLang)
 				} else if currentWord != nil && s.AI() != nil {
 					// No cached example — generate with 3-round vocabulary validation

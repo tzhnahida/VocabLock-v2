@@ -433,7 +433,10 @@ func (d *Database) SetWordTags(id int64, tags string) error {
 // WordPOSCounts returns total word count and a map of POS -> count for
 // non-rejected words in the given language.
 func (d *Database) WordPOSCounts(language string) (total int, posMap map[string]int, err error) {
-	rows, err := d.DB.Query(`SELECT pos FROM words WHERE language = ? AND status != 'rejected' AND pos != ''`, language)
+	// Count every non-rejected word, including seed/pack words whose POS was
+	// not filled yet. Filtering on pos != '' made the vocabulary prompt say
+	// "Total: 0" while the learner already had 12 words.
+	rows, err := d.DB.Query(`SELECT pos FROM words WHERE language = ? AND status != 'rejected'`, language)
 	if err != nil {
 		return 0, nil, fmt.Errorf("word pos counts: %w", err)
 	}
