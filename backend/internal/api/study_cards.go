@@ -28,7 +28,7 @@ func (s *Server) handleQuizStudyCards(w http.ResponseWriter, r *http.Request) {
 		count = 50
 	}
 
-	words, err := s.DB.GetReviewWords(lang, count*4)
+	words, err := s.DB.GetStudyWords(lang, count*4)
 	if err != nil {
 		writeError(w, 500, "list study words: "+err.Error())
 		return
