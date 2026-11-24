@@ -213,20 +213,22 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
         try {
           const progress = await loadSessionProgress().catch(() => ({ study_index: 0, study_done: false }))
           if (cancelled) return
-          if (progress.study_done) {
-            await loadNext()
-            return
-          }
-          const preview = await loadStudyCards(language, 8)
+          const preview = await loadStudyCards(language, 50)
           if (cancelled) return
+          // A previously "done" study list can regain unlearned cards when new
+          // words arrive. If any remain, show them instead of jumping to quiz.
+          const totalStudy = preview.cards.length + preview.grammar.length
           if (preview.cards.length > 0 || preview.grammar.length > 0) {
             setStudyCards(preview.cards)
             setGrammarCards(preview.grammar)
-            if (progress.study_index >= preview.cards.length + preview.grammar.length) {
+            const startIdx = progress.study_done
+              ? 0
+              : Math.min(progress.study_index, totalStudy)
+            if (startIdx >= totalStudy) {
               await loadNext()
               return
             }
-            setStudyIdx(progress.study_index)
+            setStudyIdx(startIdx)
             const questions = (started.new_words ?? 0) + (started.review_words ?? 0) + (started.new_grammar ?? 0) + (started.review_grammar ?? 0)
             setIntro({ words: preview.cards.length, questions: Math.max(questions, preview.cards.length), minutes: Math.max(1, Math.round(Math.max(questions, preview.cards.length) * 0.75)) })
             setPhase('intro')

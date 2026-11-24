@@ -45,6 +45,10 @@ func (s *Server) handleWordsList(w http.ResponseWriter, r *http.Request) {
 	if words == nil {
 		words = []*db.Word{}
 	}
+	for _, w := range words {
+		w.Meaning = displayMeaning(w)
+		w.POS = displayPOS(w)
+	}
 
 	// Pre-warm TTS in background for new words (next_review_at IS NULL).
 	// This feeds the frontend's getStudyWords() — by the time the user
@@ -89,6 +93,8 @@ func (s *Server) handleWordsGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	word.Meaning = displayMeaning(word)
+	word.POS = displayPOS(word)
 	writeJSON(w, word)
 }
 

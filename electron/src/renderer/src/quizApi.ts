@@ -102,7 +102,7 @@ export function saveSessionProgress(studyIndex: number, studyDone: boolean): Pro
   })
 }
 
-export function loadStudyCards(language: string, count = 8): Promise<{ cards: StudyCard[]; grammar: GrammarCard[] }> {
+export function loadStudyCards(language: string, count = 50): Promise<{ cards: StudyCard[]; grammar: GrammarCard[] }> {
   return call<{ cards: StudyCard[]; grammar?: GrammarCard[] }>(
     '/api/v1/quiz/study-cards?count=' + count + '&language=' + encodeURIComponent(language)
   ).then((r) => ({ cards: r.cards ?? [], grammar: r.grammar ?? [] }))
