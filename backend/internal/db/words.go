@@ -312,6 +312,35 @@ func (d *Database) LearnedCounts(language string) (learned, mature int, err erro
 	return
 }
 
+// GetStudyWords returns words that still need a study preview. Unlike
+// GetReviewWords it deliberately ignores next_review_at: a word reviewed once
+// in practice can be scheduled for tomorrow but still needs its first study
+// card today.
+func (d *Database) GetStudyWords(language string, limit int) ([]*Word, error) {
+	rows, err := d.DB.Query(`
+		SELECT `+wordColumns+`
+		FROM words
+		WHERE language = ? AND status = 'active' AND repetitions <= 1
+		ORDER BY
+			CASE WHEN next_review_at IS NULL THEN 0 ELSE 1 END,
+			id ASC
+		LIMIT ?
+	`, language, limit)
+	if err != nil {
+		return nil, fmt.Errorf("get study words: %w", err)
+	}
+	defer rows.Close()
+	var words []*Word
+	for rows.Next() {
+		w, err := scanWordRow(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan study word: %w", err)
+		}
+		words = append(words, w)
+	}
+	return words, rows.Err()
+}
+
 func (d *Database) GetReviewWords(language string, limit int) ([]*Word, error) {
 	rows, err := d.DB.Query(`
 		SELECT `+wordColumns+`
