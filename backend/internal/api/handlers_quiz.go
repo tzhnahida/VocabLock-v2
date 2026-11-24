@@ -742,7 +742,7 @@ func questionPayload(q *engine.Question, word *db.Word) map[string]interface{} {
 			resp["subject_reading"] = word.Reading
 		}
 		if !hideMeaning {
-			resp["subject_meaning"] = word.Meaning
+			resp["subject_meaning"] = displayMeaning(word)
 		}
 	}
 	return resp
@@ -1747,8 +1747,8 @@ func wordToInfo(w *db.Word) *engine.WordInfo {
 		ID:      w.ID,
 		Word:    w.Word,
 		Reading: w.Reading,
-		Meaning: w.Meaning,
-		POS:     w.POS,
+		Meaning: displayMeaning(w),
+		POS:     displayPOS(w),
 		Example: extractFieldFromDetail(w.Detail, "example"),
 	}
 }
@@ -1763,7 +1763,7 @@ func expectedAnswers(qType string, w *db.Word) []string {
 	case engine.TypePronounce, engine.TypeReadWord, engine.TypeReadSentence:
 		return nonEmpty(w.Reading)
 	case engine.TypeMeaning:
-		return nonEmpty(w.Meaning)
+		return nonEmpty(displayMeaning(w))
 	case engine.TypeListening:
 		return nonEmpty(w.Meaning)
 	default:
@@ -1864,13 +1864,14 @@ func (s *Server) makeJudgeWithScenario(qType string, word *db.Word, scenario str
 // Uses remaining words first, then queries DB to fill shortages.
 func (s *Server) buildDistractors(word *db.Word, remaining []*db.Word, lang string) []*engine.WordInfo {
 	result := make([]*engine.WordInfo, 0, 3)
-	seen := map[string]bool{word.Meaning: true}
+	seen := map[string]bool{displayMeaning(word): true}
 
 	addIfNew := func(w *db.Word) bool {
-		if w == nil || w.Meaning == "" || w.ID == word.ID || seen[w.Meaning] {
+		m := displayMeaning(w)
+		if w == nil || m == "" || w.ID == word.ID || seen[m] {
 			return false
 		}
-		seen[w.Meaning] = true
+		seen[m] = true
 		result = append(result, wordToInfo(w))
 		return false // keep collecting until we have 3
 	}

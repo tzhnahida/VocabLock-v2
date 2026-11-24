@@ -18,14 +18,14 @@ func (s *Server) handleQuizStudyCards(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	lang := s.Config.App.ActiveLang
-	count := 8
+	count := 50
 	if v := r.URL.Query().Get("count"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			count = n
 		}
 	}
-	if count > 20 {
-		count = 20
+	if count > 50 {
+		count = 50
 	}
 
 	words, err := s.DB.GetReviewWords(lang, count*4)
@@ -35,7 +35,11 @@ func (s *Server) handleQuizStudyCards(w http.ResponseWriter, r *http.Request) {
 	}
 	cards := make([]map[string]interface{}, 0, count)
 	for _, word := range words {
-		if word.NextReviewAt != nil || strings.TrimSpace(word.Meaning) == "" {
+		// New/unlearned words belong in study even if they were already seen
+		// in practice (repetitions <= 1); next_review_at alone would hide them
+		// and drop the learner straight into the quiz. Once a word has two
+		// successful reviews it is no longer a preview candidate.
+		if word.Repetitions > 1 || strings.TrimSpace(word.Meaning) == "" {
 			continue
 		}
 		// Lexical extras come from the word detail JSON; packs provide a
@@ -70,8 +74,8 @@ func (s *Server) handleQuizStudyCards(w http.ResponseWriter, r *http.Request) {
 			"id":             word.ID,
 			"word":           word.Word,
 			"reading":        word.Reading,
-			"meaning":        word.Meaning,
-			"pos":            word.POS,
+			"meaning":        displayMeaning(word),
+			"pos":            displayPOS(word),
 			"level":          word.Level,
 			"example":        example,
 			"forms":          str("morphology"),
