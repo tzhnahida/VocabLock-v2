@@ -52,6 +52,7 @@ export default function Home({ dash, lang, onStart, onLibrary, onStats, onLock }
   const path = st(lang, 'homePath')
   const shownReviewed = Math.min(dash.reviewedToday, dash.dailyTarget)
   const practiceDone = dash.dailyTarget > 0 && dash.reviewedToday >= dash.dailyTarget
+  const reviewOnly = practiceDone && dueCount > 0
   const weak = Object.entries(dash.typeRates)
     .map(([type, rate]) => ({ type, acc: rate.total > 0 ? rate.correct / rate.total : 0 }))
     .sort((a, b) => a.acc - b.acc)
@@ -74,7 +75,9 @@ export default function Home({ dash, lang, onStart, onLibrary, onStats, onLock }
                   <b>{shownReviewed}</b>
                   <span>{dyn[lang].unitQuestions(dash.dailyTarget)}</span>
                 </div>
-                <div className="note">{dyn[lang].done(Math.round(pct * 100))}</div>
+                <div className="note">
+                  {practiceDone ? path.goalDone : dyn[lang].done(Math.round(pct * 100))}
+                </div>
               </div>
               <div className="ring-lg">
                 <svg viewBox="0 0 104 104">
@@ -111,18 +114,22 @@ export default function Home({ dash, lang, onStart, onLibrary, onStats, onLock }
                 <span>{practiceDone ? path.done : dash.reviewedToday > 0 ? path.current : path.pending}</span>
               </div>
               {dueCount > 0 ? (
-              <div className={'pstep ' + (dueCount > 0 ? 'current' : '')}>
+              <div className={'pstep ' + (reviewOnly ? 'current optional' : 'current')}>
                 <i>3</i>
                 <div>
-                  <b>{path.review}</b>
+                  <b>{practiceDone ? path.reviewOptional : path.review}</b>
                   <small>{path.reviewHint}</small>
                 </div>
-                <span>{dueCount > 0 ? String(dueCount) : path.pending}</span>
+                <span>{practiceDone ? path.optional : String(dueCount)}</span>
               </div>
               ) : null}
             </div>
-            <button className="btn pathcta" onClick={onStart}>
-              <span>{dash.reviewedToday > 0 ? path.cta : path.ctaStart}</span>
+            <button className="btn pathcta" onClick={onStart} disabled={practiceDone && dueCount === 0}>
+              <span>
+                {practiceDone
+                  ? dueCount > 0 ? path.reviewCta(dueCount) : path.allDone
+                  : dash.reviewedToday > 0 ? path.cta : path.ctaStart}
+              </span>
             </button>
           </section>
 
