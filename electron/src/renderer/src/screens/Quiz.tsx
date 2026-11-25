@@ -4,7 +4,6 @@ import type { Dashboard } from '../api'
 import {
   assessPronounce,
   completeSession,
-  continueSession,
   disputeAnswer,
   loadStudyCards,
   nextQuestion,
@@ -73,6 +72,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   const [intro, setIntro] = useState({ words: 0, questions: 0, minutes: 0 })
   const [retryTick, setRetryTick] = useState(0)
   const [revealMeaning, setRevealMeaning] = useState(false)
+  const [sessionTarget, setSessionTarget] = useState(dash.dailyTarget)
   const fieldLabels =
     lang === 'zh'
       ? { morphology: '形态', collocation: '搭配', syntax: '句法' }
@@ -200,6 +200,15 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
       try {
         const started = await startSession(language)
         if (cancelled) return
+        const target = started.planned_questions && started.planned_questions > 0
+          ? started.planned_questions
+          : started.daily_target && started.daily_target > 0
+            ? started.daily_target
+            : dash.dailyTarget
+        setSessionTarget(target)
+        if ((started.reviewed ?? 0) > 0) {
+          setAnswered((n) => Math.max(n, Math.min(started.reviewed ?? 0, target)))
+        }
         if (started.preparing) {
           setPhase('preparing')
           window.setTimeout(() => {
@@ -375,7 +384,9 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
     return () => window.clearTimeout(timer)
   }, [phase, result, loadNext])
 
-  const progress = dash.dailyTarget > 0 ? Math.min(1, dash.reviewedToday / dash.dailyTarget) : 0
+  const effectiveTarget = sessionTarget > 0 ? sessionTarget : dash.dailyTarget
+  const completed = Math.max(answered, Math.min(dash.reviewedToday, effectiveTarget))
+  const progress = effectiveTarget > 0 ? Math.min(1, completed / effectiveTarget) : 0
 
   function renderBody() {
     if (phase === 'preparing') {
@@ -388,17 +399,16 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
       return (
         <div className="emptystate">
           <div>{dyn[lang].dailyDone}</div>
+          <div className="note">
+            {lang === 'zh'
+              ? '目标已完成；到期词复习请回首页'
+              : lang === 'ja'
+                ? '目標は完了。期限切れの復習はホームへ'
+                : 'Goal complete. Use Home for due-word review.'}
+          </div>
           <div className="qfoot" style={{ justifyContent: 'center', gap: 10 }}>
-            <button className="btn ghost" onClick={onExit}>
+            <button className="btn" onClick={onExit}>
               {t(lang, 'quiz.back')}
-            </button>
-            <button
-              className="btn"
-              onClick={() => {
-                void continueSession().then(() => loadNext())
-              }}
-            >
-              {copy.keepGoing}
             </button>
           </div>
         </div>
@@ -804,13 +814,12 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   }
 
   const dayNo = Math.max(1, dash.streak)
-  const roundNo = intro.questions || answered || dash.dailyTarget
   const topLine =
     lang === 'zh'
-      ? `学习 · 第 ${dayNo} 天 · 本轮 ${roundNo}/${dash.dailyTarget}`
+      ? '学习 · 第 ' + dayNo + ' 天 · 本轮 ' + completed + '/' + effectiveTarget
       : lang === 'ja'
-        ? `学習 · ${dayNo}日目 · 今回 ${roundNo}/${dash.dailyTarget}`
-        : `Study · day ${dayNo} · round ${roundNo}/${dash.dailyTarget}`
+        ? '学習 · ' + dayNo + '日目 · 今回 ' + completed + '/' + effectiveTarget
+        : 'Study · day ' + dayNo + ' · round ' + completed + '/' + effectiveTarget
 
   return (
     <div className="content quizshell">
@@ -837,8 +846,8 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
             <span>{t(lang, 'rail.goal')}</span>
           </div>
           <div className="big">
-            <b>{dash.reviewedToday}</b>
-            <span>{`/ ${dash.dailyTarget}`}</span>
+            <b>{completed}</b>
+            <span>{'/ ' + effectiveTarget}</span>
           </div>
           <div className="rbar">
             <i style={{ width: `${progress * 100}%` }} />
@@ -849,11 +858,11 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
         <section className="card rcard">
           <div className="rh">
             <span>{t(lang, 'rail.round')}</span>
-            <span>{answered} / {dash.dailyTarget}</span>
+            <span>{completed} / {effectiveTarget}</span>
           </div>
           <div className="dots">
-            {Array.from({ length: Math.max(dash.dailyTarget, answered) }).map((_, i) => (
-              <i key={i} className={i < answered ? 'd' : i === answered ? 'c' : ''} />
+            {Array.from({ length: Math.max(effectiveTarget, completed) }).map((_, i) => (
+              <i key={i} className={i < completed ? 'd' : i === completed ? 'c' : ''} />
             ))}
           </div>
           {wrong > 0 ? <div className="note">{copy.wrongCount(wrong)}</div> : null}
@@ -885,7 +894,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
 
       </div>
 
-      {(phase as Phase) !== 'study' ? <div className="quizbar">
+      {phase === 'question' || phase === 'feedback' ? <div className="quizbar">
         <button className="btn quiznext" disabled={phase !== 'feedback'} onClick={() => void loadNext()}>
           <i>{t(lang, 'next')}</i>
         </button>

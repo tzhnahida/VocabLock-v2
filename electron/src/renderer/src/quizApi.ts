@@ -35,6 +35,9 @@ export type SessionStart = {
   new_grammar?: number
   review_words?: number
   review_grammar?: number
+  planned_questions?: number
+  reviewed?: number
+  daily_target?: number
 }
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {

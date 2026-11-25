@@ -119,6 +119,17 @@ func (s *Server) handleQuizProgress(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *Server) plannedTarget(reviewed int) int {
+	p := s.sessionBudget.plannedQuestions()
+	if p < reviewed {
+		p = reviewed
+	}
+	if p <= 0 {
+		p = s.Config.App.DailyTarget
+	}
+	return p
+}
+
 func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
 		mock.HandleQuizSessionStart(w, r)
@@ -156,23 +167,29 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 	if s.sessionBudget.isSessionDone() {
 		totalAvailable := nw + ng + rw + rg
 		if totalAvailable == 0 {
+			reviewed, _ := s.DB.GetUniqueSubjectsReviewed(lang)
 			writeJSON(w, map[string]interface{}{
-				"new_words":       0,
-				"new_grammar":     0,
-				"review_words":    0,
-				"review_grammar":  0,
-				"daily_completed": true,
+				"new_words":         0,
+				"new_grammar":       0,
+				"review_words":      0,
+				"review_grammar":    0,
+				"daily_completed":   true,
+				"reviewed":          reviewed,
+				"planned_questions": s.plannedTarget(reviewed),
 			})
 			return
 		}
 		// Still has reviewable items — allow the session without expansion.
 		log.Debug("session", "post-target session: nw=%d ng=%d rw=%d rg=%d", nw, ng, rw, rg)
+		reviewed, _ := s.DB.GetUniqueSubjectsReviewed(lang)
 		writeJSON(w, map[string]interface{}{
-			"new_words":       nw,
-			"new_grammar":     ng,
-			"review_words":    rw,
-			"review_grammar":  rg,
-			"daily_completed": false,
+			"new_words":         nw,
+			"new_grammar":       ng,
+			"review_words":      rw,
+			"review_grammar":    rg,
+			"daily_completed":   false,
+			"reviewed":          reviewed,
+			"planned_questions": s.plannedTarget(reviewed),
 		})
 		return
 	}
@@ -188,11 +205,13 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 	}
 	if s.DailyTargetMet(lang) {
 		writeJSON(w, map[string]interface{}{
-			"new_words":       0,
-			"new_grammar":     0,
-			"review_words":    0,
-			"review_grammar":  0,
-			"daily_completed": true,
+			"new_words":         0,
+			"new_grammar":       0,
+			"review_words":      0,
+			"review_grammar":    0,
+			"daily_completed":   true,
+			"reviewed":          reviewed,
+			"planned_questions": s.plannedTarget(reviewed),
 		})
 		return
 	}
@@ -271,6 +290,7 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, map[string]interface{}{
 			"new_words": 0, "new_grammar": 0, "review_words": 0, "review_grammar": 0,
 			"daily_completed": true, "reviewed": reviewed,
+			"planned_questions": s.plannedTarget(reviewed),
 		})
 		return
 	}
@@ -340,12 +360,14 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 	}
 
 	writeJSON(w, map[string]interface{}{
-		"new_words":       nw,
-		"new_grammar":     ng,
-		"review_words":    rw,
-		"review_grammar":  rg,
-		"daily_remaining": dailyRem,
-		"daily_target":    s.Config.App.DailyTarget,
+		"new_words":         nw,
+		"new_grammar":       ng,
+		"review_words":      rw,
+		"review_grammar":    rg,
+		"daily_remaining":   dailyRem,
+		"daily_target":      s.Config.App.DailyTarget,
+		"planned_questions": s.plannedTarget(reviewed),
+		"reviewed":          reviewed,
 	})
 }
 
