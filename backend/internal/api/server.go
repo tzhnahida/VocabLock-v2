@@ -756,6 +756,7 @@ func (b *sessionBudget) dropPlan() {
 func (b *sessionBudget) plannedQuestions() int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	b.rolloverLocked()
 	return b.planTotal
 }
 
