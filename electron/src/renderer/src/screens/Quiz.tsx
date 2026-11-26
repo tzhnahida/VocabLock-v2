@@ -410,26 +410,50 @@ export default function Quiz({ dash, lang, onExit, onAnswered, review = false }:
       return (
         <div className="emptystate">
           <div>
-            {met
-              ? dyn[lang].dailyDone
-              : lang === 'zh'
-                ? '本轮已结束：' + completed + '/' + effectiveTarget
-                : lang === 'ja'
-                  ? '今回終了：' + completed + '/' + effectiveTarget
-                  : 'Round ended: ' + completed + '/' + effectiveTarget}
+            {review
+              ? met
+                ? lang === 'zh'
+                  ? '额外复习完成'
+                  : lang === 'ja'
+                    ? '追加復習完了'
+                    : 'Extra review complete'
+                : lang === 'zh'
+                  ? '复习结束：' + completed + '/' + effectiveTarget
+                  : lang === 'ja'
+                    ? '復習終了：' + completed + '/' + effectiveTarget
+                    : 'Review ended: ' + completed + '/' + effectiveTarget
+              : met
+                ? dyn[lang].dailyDone
+                : lang === 'zh'
+                  ? '本轮已结束：' + completed + '/' + effectiveTarget
+                  : lang === 'ja'
+                    ? '今回終了：' + completed + '/' + effectiveTarget
+                    : 'Round ended: ' + completed + '/' + effectiveTarget}
           </div>
           <div className="note">
-            {met
-              ? lang === 'zh'
-                ? '目标已完成；到期词复习请回首页'
-                : lang === 'ja'
-                  ? '目標は完了。期限切れの復習はホームへ'
-                  : 'Goal complete. Use Home for due-word review.'
-              : lang === 'zh'
-                ? '可用题目已结束；今日目标尚未完成'
-                : lang === 'ja'
-                  ? '利用可能な問題が終了。今日の目標は未完了です'
-                  : 'No more available questions; today’s goal is not complete.'}
+            {review
+              ? met
+                ? lang === 'zh'
+                  ? '到期词已清空；今日目标不受影响'
+                  : lang === 'ja'
+                    ? '期限切れは完了。今日の目標には影響しません'
+                    : 'Due words cleared; today’s target is unchanged.'
+                : lang === 'zh'
+                  ? '到期词尚未清空，可回首页继续复习'
+                  : lang === 'ja'
+                    ? '期限切れが残っています。ホームから再開できます'
+                    : 'Due words remain; continue from Home.'
+              : met
+                ? lang === 'zh'
+                  ? '目标已完成；到期词复习请回首页'
+                  : lang === 'ja'
+                    ? '目標は完了。期限切れの復習はホームへ'
+                    : 'Goal complete. Use Home for due-word review.'
+                : lang === 'zh'
+                  ? '可用题目已结束；今日目标尚未完成'
+                  : lang === 'ja'
+                    ? '利用可能な問題が終了。今日の目標は未完了です'
+                    : 'No more available questions; today’s goal is not complete.'}
           </div>
           <div className="qfoot" style={{ justifyContent: 'center', gap: 10 }}>
             <button className="btn" onClick={onExit}>
@@ -875,8 +899,8 @@ export default function Quiz({ dash, lang, onExit, onAnswered, review = false }:
       <div className="rail">
         <section className="card rcard">
           <div className="rh">
-            <span>{t(lang, 'rail.today')}</span>
-            <span>{t(lang, 'rail.goal')}</span>
+            <span>{review ? (lang === 'zh' ? '额外复习' : lang === 'ja' ? '追加復習' : 'Review') : t(lang, 'rail.today')}</span>
+            <span>{review ? (lang === 'zh' ? '到期词' : lang === 'ja' ? '期限切れ' : 'Due words') : t(lang, 'rail.goal')}</span>
           </div>
           <div className="big">
             <b>{completed}</b>
@@ -885,12 +909,18 @@ export default function Quiz({ dash, lang, onExit, onAnswered, review = false }:
           <div className="rbar">
             <i style={{ width: `${progress * 100}%` }} />
           </div>
-          {answered > 0 ? <div className="note">{`${t(lang, 'rail.round')} · ${answered}`}</div> : null}
+          {answered > 0 ? (
+            <div className="note">
+              {review
+                ? (lang === 'zh' ? '已复习 · ' : lang === 'ja' ? '復習済み · ' : 'Reviewed · ') + answered
+                : t(lang, 'rail.round') + ' · ' + answered}
+            </div>
+          ) : null}
         </section>
 
         <section className="card rcard">
           <div className="rh">
-            <span>{t(lang, 'rail.round')}</span>
+            <span>{review ? (lang === 'zh' ? '复习进度' : lang === 'ja' ? '復習の進み' : 'Review progress') : t(lang, 'rail.round')}</span>
             <span>{completed} / {effectiveTarget}</span>
           </div>
           <div className="dots">

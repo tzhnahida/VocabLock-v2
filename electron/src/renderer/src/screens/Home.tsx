@@ -46,10 +46,11 @@ export default function Home({ dash, lang, onStart, onReview, onLibrary, onStats
   const weekTotal = week.reduce((sum, d) => sum + d.count, 0)
   const max = Math.max(1, ...week.map((d) => d.count))
   const recent = dash.words.slice(0, 3)
-  const dueCount = dash.words.filter((w) => {
+  const wordDue = dash.words.filter((w) => {
     const d = daysUntil(w.next_review_at)
     return d !== null && d <= 0
   }).length
+  const dueCount = Math.max(wordDue, dash.dueReviews ?? 0)
   const path = st(lang, 'homePath')
   function startPath(): void {
     if (practiceDone && dueCount > 0) {
