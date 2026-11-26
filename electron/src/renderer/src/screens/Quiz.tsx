@@ -846,7 +846,10 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
             </a>{' '}
             · <b>{topLine}</b>
           </span>
-          <span>{`${Math.round(dash.accuracy * 100)}%`}</span>
+          <span>
+            {lang === 'zh' ? '正确率 ' : lang === 'ja' ? '正答率 ' : 'Accuracy '}
+            {Math.round(dash.accuracy * 100)}%
+          </span>
         </div>
         <div className="progress">
           <i style={{ width: `${progress * 100}%` }} />
