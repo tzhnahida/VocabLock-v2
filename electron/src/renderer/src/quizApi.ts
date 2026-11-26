@@ -155,11 +155,10 @@ export function continueSession(): Promise<{ ok: boolean; continue: boolean }> {
   })
 }
 
-export function startSession(language: string, review = false): Promise<SessionStart> {
-  const suffix = review ? '?review=1' : ''
-  return call<SessionStart>('/api/v1/quiz/session/start' + suffix, {
+export function startSession(language: string): Promise<SessionStart> {
+  return call<SessionStart>('/api/v1/quiz/session/start', {
     method: 'POST',
-    body: JSON.stringify({ language, review })
+    body: JSON.stringify({ language })
   })
 }
 

@@ -23,7 +23,7 @@ import { useRecorder } from '../audio/useRecorder'
 import { audioObjectUrl, textAudio, wordAudio } from '../ttsApi'
 import { st } from '../strings'
 
-type Props = { dash: Dashboard; lang: Lang; onExit: () => void; onAnswered: () => void; review?: boolean }
+type Props = { dash: Dashboard; lang: Lang; onExit: () => void; onAnswered: () => void }
 
 type Phase = 'starting' | 'intro' | 'study' | 'question' | 'feedback' | 'done' | 'preparing' | 'empty' | 'error'
 
@@ -59,7 +59,7 @@ function audioHasSpeech(base64: string): boolean {
  * Judging, SM-2 and the review log all happen on the Go side; this screen only
  * renders the branch the server chose (preparing / empty / done / error).
  */
-export default function Quiz({ dash, lang, onExit, onAnswered, review = false }: Props) {
+export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   const [phase, setPhase] = useState<Phase>('starting')
   const [question, setQuestion] = useState<Question | null>(null)
   const [result, setResult] = useState<SubmitResult | null>(null)
@@ -198,18 +198,16 @@ export default function Quiz({ dash, lang, onExit, onAnswered, review = false }:
     let cancelled = false
     void (async () => {
       try {
-        const started = await startSession(language, review)
+        const started = await startSession(language)
         if (cancelled) return
-        const reviewCount = (started.review_words ?? 0) + (started.review_grammar ?? 0)
-        const target = review
-          ? Math.max(1, reviewCount)
-          : started.planned_questions && started.planned_questions > 0
+        const target =
+          started.planned_questions && started.planned_questions > 0
             ? started.planned_questions
             : started.daily_target && started.daily_target > 0
               ? started.daily_target
               : dash.dailyTarget
         setSessionTarget(target)
-        if (!review && (started.reviewed ?? 0) > 0) {
+        if ((started.reviewed ?? 0) > 0) {
           setAnswered((n) => Math.max(n, Math.min(started.reviewed ?? 0, target)))
         }
         if (started.preparing) {
@@ -221,11 +219,6 @@ export default function Quiz({ dash, lang, onExit, onAnswered, review = false }:
         }
         if (started.daily_completed) return setPhase('done')
         if (started.empty) return setPhase('empty')
-        if (review) {
-          setAnswered(0)
-          await loadNext()
-          return
-        }
         // Study-before-test: show the session's new words before asking.
         try {
           const progress = await loadSessionProgress().catch(() => ({ study_index: 0, study_done: false }))
@@ -264,7 +257,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered, review = false }:
     return () => {
       cancelled = true
     }
-  }, [language, loadNext, retryTick, review])
+  }, [language, loadNext, retryTick])
 
   const submit = useCallback(
     async (value: string, audio?: string) => {
@@ -393,9 +386,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered, review = false }:
   }, [phase, result, loadNext])
 
   const effectiveTarget = sessionTarget > 0 ? sessionTarget : dash.dailyTarget
-  const completed = review
-    ? Math.min(answered, effectiveTarget)
-    : Math.max(answered, Math.min(dash.reviewedToday, effectiveTarget))
+  const completed = Math.max(answered, Math.min(dash.reviewedToday, effectiveTarget))
   const progress = effectiveTarget > 0 ? Math.min(1, completed / effectiveTarget) : 0
 
   function renderBody() {
@@ -410,50 +401,26 @@ export default function Quiz({ dash, lang, onExit, onAnswered, review = false }:
       return (
         <div className="emptystate">
           <div>
-            {review
-              ? met
-                ? lang === 'zh'
-                  ? '额外复习完成'
-                  : lang === 'ja'
-                    ? '追加復習完了'
-                    : 'Extra review complete'
-                : lang === 'zh'
-                  ? '复习结束：' + completed + '/' + effectiveTarget
-                  : lang === 'ja'
-                    ? '復習終了：' + completed + '/' + effectiveTarget
-                    : 'Review ended: ' + completed + '/' + effectiveTarget
-              : met
-                ? dyn[lang].dailyDone
-                : lang === 'zh'
-                  ? '本轮已结束：' + completed + '/' + effectiveTarget
-                  : lang === 'ja'
-                    ? '今回終了：' + completed + '/' + effectiveTarget
-                    : 'Round ended: ' + completed + '/' + effectiveTarget}
+            {met
+              ? dyn[lang].dailyDone
+              : lang === 'zh'
+                ? '本轮已结束：' + completed + '/' + effectiveTarget
+                : lang === 'ja'
+                  ? '今回終了：' + completed + '/' + effectiveTarget
+                  : 'Round ended: ' + completed + '/' + effectiveTarget}
           </div>
           <div className="note">
-            {review
-              ? met
-                ? lang === 'zh'
-                  ? '到期词已清空；今日目标不受影响'
-                  : lang === 'ja'
-                    ? '期限切れは完了。今日の目標には影響しません'
-                    : 'Due words cleared; today’s target is unchanged.'
-                : lang === 'zh'
-                  ? '到期词尚未清空，可回首页继续复习'
-                  : lang === 'ja'
-                    ? '期限切れが残っています。ホームから再開できます'
-                    : 'Due words remain; continue from Home.'
-              : met
-                ? lang === 'zh'
-                  ? '目标已完成；到期词复习请回首页'
-                  : lang === 'ja'
-                    ? '目標は完了。期限切れの復習はホームへ'
-                    : 'Goal complete. Use Home for due-word review.'
-                : lang === 'zh'
-                  ? '可用题目已结束；今日目标尚未完成'
-                  : lang === 'ja'
-                    ? '利用可能な問題が終了。今日の目標は未完了です'
-                    : 'No more available questions; today’s goal is not complete.'}
+            {met
+              ? lang === 'zh'
+                ? '目标已完成；剩余到期词会并入明天的练习'
+                : lang === 'ja'
+                  ? '目標は完了。残った期限切れは明日の練習に混ざります'
+                  : 'Goal complete. Remaining due words roll into tomorrow’s practice.'
+              : lang === 'zh'
+                ? '可用题目已结束；今日目标尚未完成'
+                : lang === 'ja'
+                  ? '利用可能な問題が終了。今日の目標は未完了です'
+                  : 'No more available questions; today’s goal is not complete.'}
           </div>
           <div className="qfoot" style={{ justifyContent: 'center', gap: 10 }}>
             <button className="btn" onClick={onExit}>
@@ -863,13 +830,8 @@ export default function Quiz({ dash, lang, onExit, onAnswered, review = false }:
   }
 
   const dayNo = Math.max(1, dash.streak)
-  const topLine = review
-    ? lang === 'zh'
-      ? '额外复习 · ' + completed + '/' + effectiveTarget
-      : lang === 'ja'
-        ? '追加復習 · ' + completed + '/' + effectiveTarget
-        : 'Extra review · ' + completed + '/' + effectiveTarget
-    : lang === 'zh'
+  const topLine =
+    lang === 'zh'
       ? '学习 · 第 ' + dayNo + ' 天 · 本轮 ' + completed + '/' + effectiveTarget
       : lang === 'ja'
         ? '学習 · ' + dayNo + '日目 · 今回 ' + completed + '/' + effectiveTarget
@@ -899,8 +861,8 @@ export default function Quiz({ dash, lang, onExit, onAnswered, review = false }:
       <div className="rail">
         <section className="card rcard">
           <div className="rh">
-            <span>{review ? (lang === 'zh' ? '额外复习' : lang === 'ja' ? '追加復習' : 'Review') : t(lang, 'rail.today')}</span>
-            <span>{review ? (lang === 'zh' ? '到期词' : lang === 'ja' ? '期限切れ' : 'Due words') : t(lang, 'rail.goal')}</span>
+            <span>{t(lang, 'rail.today')}</span>
+            <span>{t(lang, 'rail.goal')}</span>
           </div>
           <div className="big">
             <b>{completed}</b>
@@ -910,17 +872,13 @@ export default function Quiz({ dash, lang, onExit, onAnswered, review = false }:
             <i style={{ width: `${progress * 100}%` }} />
           </div>
           {answered > 0 ? (
-            <div className="note">
-              {review
-                ? (lang === 'zh' ? '已复习 · ' : lang === 'ja' ? '復習済み · ' : 'Reviewed · ') + answered
-                : t(lang, 'rail.round') + ' · ' + answered}
-            </div>
+            <div className="note">{t(lang, 'rail.round') + ' · ' + answered}</div>
           ) : null}
         </section>
 
         <section className="card rcard">
           <div className="rh">
-            <span>{review ? (lang === 'zh' ? '复习进度' : lang === 'ja' ? '復習の進み' : 'Review progress') : t(lang, 'rail.round')}</span>
+            <span>{t(lang, 'rail.round')}</span>
             <span>{completed} / {effectiveTarget}</span>
           </div>
           <div className="dots">

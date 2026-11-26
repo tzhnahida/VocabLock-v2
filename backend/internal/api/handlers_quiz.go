@@ -144,18 +144,6 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 	}
 
 	lang := s.Config.App.ActiveLang
-	var startReq struct {
-		Review bool `json:"review"`
-	}
-	_ = json.NewDecoder(r.Body).Decode(&startReq)
-	if r.URL.Query().Get("review") == "1" {
-		startReq.Review = true
-	}
-	if startReq.Review {
-		// Explicit extra-review entry: bypass the completed-day gate while
-		// still keeping the daily target unchanged.
-		s.sessionBudget.setForceContinue(true)
-	}
 	// Fix the session size BEFORE any study card or question is served.
 	s.ensureSessionPlan(lang)
 	s.restoreSessionProgress(lang)
@@ -163,11 +151,6 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		writeError(w, 500, "session counts: "+err.Error())
 		return
-	}
-	if startReq.Review {
-		// An explicit review session is only the due backlog: never inject
-		// today's new-word study cards into it.
-		nw, ng = 0, 0
 	}
 
 	// If bootstrap hasn't finished, block — show preparing

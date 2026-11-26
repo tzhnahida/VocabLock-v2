@@ -118,11 +118,11 @@ export default function Home({ dash, lang, onStart, onLibrary, onStats, onLock }
                 <span>{practiceDone ? path.done : dash.reviewedToday > 0 ? path.current : path.pending}</span>
               </div>
               <div
-                className={'pstep clickable ' + (practiceDone ? 'done' : dash.reviewedToday > 0 ? 'current' : '')}
-                onClick={startPath}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') startPath() }}
+                className={'pstep' + (practiceDone ? ' done' : ' clickable' + (dash.reviewedToday > 0 ? ' current' : ''))}
+                onClick={practiceDone ? undefined : startPath}
+                role={practiceDone ? undefined : 'button'}
+                tabIndex={practiceDone ? -1 : 0}
+                onKeyDown={(e) => { if (!practiceDone && (e.key === 'Enter' || e.key === ' ')) startPath() }}
               >
                 <i>3</i>
                 <div>
@@ -194,20 +194,6 @@ export default function Home({ dash, lang, onStart, onLibrary, onStats, onLock }
                 <i key={d.key} className={d.count > 0 ? 'd' : undefined} />
               ))}
             </div>
-          </section>
-
-          <section className="card c-due">
-            <div className="rh">
-              <span>{t(lang, 'due.title')}</span>
-              <a className="link" onClick={onStart}>
-                {t(lang, 'due.go')}
-              </a>
-            </div>
-            <div className="hbig sm">
-              <b>{dueCount}</b>
-              <span>{t(lang, 'due.unit')}</span>
-            </div>
-            <div className="note">{dyn[lang].dueSub(dueCount)}</div>
           </section>
 
           <section className="card c-weak">
