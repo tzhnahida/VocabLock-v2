@@ -37,7 +37,6 @@ export default function App() {
   const [ready, setReady] = useState(false)
   const [dash, setDash] = useState<Dashboard>(demoDashboard)
   const [screen, setScreen] = useState<Screen>('home')
-  const [reviewMode, setReviewMode] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>('dark')
   const [lang, setLang] = useState<Lang>('zh')
   // True only in the dedicated kiosk window; there the server owns the lock.
@@ -134,11 +133,6 @@ export default function App() {
     setScreen(next)
   }, [])
   const goQuiz = useCallback(() => {
-    setReviewMode(false)
-    setScreen('quiz')
-  }, [])
-  const goReview = useCallback(() => {
-    setReviewMode(true)
     setScreen('quiz')
   }, [])
 
@@ -186,13 +180,13 @@ export default function App() {
         <Sidebar dash={dash} screen={screen} lang={lang} onNavigate={go} />
         <main>
           <section className="screen s-home">
-            <Home dash={dash} lang={lang} onStart={goQuiz} onReview={goReview} onLibrary={() => go('library')} onStats={() => go('stats')} onLock={goQuiz} />
+            <Home dash={dash} lang={lang} onStart={goQuiz} onLibrary={() => go('library')} onStats={() => go('stats')} onLock={goQuiz} />
           </section>
           <section className="screen s-library">
             <Library dash={dash} lang={lang} onChanged={refresh} />
           </section>
           <section className="screen s-quiz">
-            <Quiz dash={dash} lang={lang} review={reviewMode} onExit={() => { setReviewMode(false); go('home') }} onAnswered={refresh} />
+            <Quiz dash={dash} lang={lang} onExit={() => go('home')} onAnswered={refresh} />
           </section>
           <section className="screen s-stats">
             <Stats dash={dash} lang={lang} />
