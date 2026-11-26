@@ -396,15 +396,30 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
       return <div className="emptystate">{dyn[lang].emptyVault}</div>
     }
     if (phase === 'done') {
+      const met = completed >= effectiveTarget
       return (
         <div className="emptystate">
-          <div>{dyn[lang].dailyDone}</div>
+          <div>
+            {met
+              ? dyn[lang].dailyDone
+              : lang === 'zh'
+                ? '本轮已结束：' + completed + '/' + effectiveTarget
+                : lang === 'ja'
+                  ? '今回終了：' + completed + '/' + effectiveTarget
+                  : 'Round ended: ' + completed + '/' + effectiveTarget}
+          </div>
           <div className="note">
-            {lang === 'zh'
-              ? '目标已完成；到期词复习请回首页'
-              : lang === 'ja'
-                ? '目標は完了。期限切れの復習はホームへ'
-                : 'Goal complete. Use Home for due-word review.'}
+            {met
+              ? lang === 'zh'
+                ? '目标已完成；到期词复习请回首页'
+                : lang === 'ja'
+                  ? '目標は完了。期限切れの復習はホームへ'
+                  : 'Goal complete. Use Home for due-word review.'
+              : lang === 'zh'
+                ? '可用题目已结束；今日目标尚未完成'
+                : lang === 'ja'
+                  ? '利用可能な問題が終了。今日の目標は未完了です'
+                  : 'No more available questions; today’s goal is not complete.'}
           </div>
           <div className="qfoot" style={{ justifyContent: 'center', gap: 10 }}>
             <button className="btn" onClick={onExit}>

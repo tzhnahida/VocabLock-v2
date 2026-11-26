@@ -417,6 +417,22 @@ func (s *Server) ensureDailyPlan(ctx context.Context, lang string) {
 	}
 }
 
+// shouldExtendToTarget keeps a short plan from ending the day before the
+// configured question target when reviewable words remain. The plan may trim
+// the mix, but it must not strand the learner at 10/12 with due words left.
+func (s *Server) shouldExtendToTarget(lang string, reviewed int) bool {
+	if reviewed >= s.Config.App.DailyTarget {
+		return false
+	}
+	words, err := s.DB.GetReviewWords(lang, 1)
+	if err != nil || len(words) == 0 {
+		return false
+	}
+	s.sessionBudget.setForceContinue(true)
+	log.Debug("quiz", "plan exhausted at %d/%d, but due words remain; extending", reviewed, s.Config.App.DailyTarget)
+	return true
+}
+
 func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	if s.Mock {
 		mock.HandleQuizNext(w, r, s.Config.App.ActiveLang)
@@ -476,7 +492,7 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 		})
 		s.exitNativeLock()
 		return
-	} else if budget > 0 && s.sessionBudget.planExhausted(budget) && !s.sessionBudget.isForceContinue() {
+	} else if budget > 0 && s.sessionBudget.planExhausted(budget) && !s.sessionBudget.isForceContinue() && !s.shouldExtendToTarget(lang, reviewed) {
 		// The planned questions (or their time budget) are used up. The
 		// completion screen offers "continue deliberately" instead of
 		// silently extending the session.
