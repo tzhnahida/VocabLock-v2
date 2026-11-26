@@ -512,7 +512,7 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 		})
 		s.exitNativeLock()
 		return
-	} else if budget > 0 && s.sessionBudget.planExhausted(budget) && !s.sessionBudget.isForceContinue() && !s.shouldExtendToTarget(lang, reviewed) {
+	} else if budget > 0 && s.sessionBudget.planExhausted(budget) && !s.sessionBudget.isForceContinue() && (s.sessionBudget.timeExhausted(budget) || !s.shouldExtendToTarget(lang, reviewed)) {
 		// The planned questions (or their time budget) are used up. The
 		// completion screen offers "continue deliberately" instead of
 		// silently extending the session.
