@@ -7,7 +7,6 @@ type Props = {
   dash: Dashboard
   lang: Lang
   onStart: () => void
-  onReview: () => void
   onLibrary: () => void
   onStats: () => void
   onLock: () => void
@@ -40,7 +39,7 @@ function dateLine(lang: Lang): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ` · ${wdLabel}`
 }
 
-export default function Home({ dash, lang, onStart, onReview, onLibrary, onStats, onLock }: Props) {
+export default function Home({ dash, lang, onStart, onLibrary, onStats, onLock }: Props) {
   const pct = dash.dailyTarget > 0 ? Math.min(1, dash.reviewedToday / dash.dailyTarget) : 0
   const week = lastSeven(dash.heatmap)
   const weekTotal = week.reduce((sum, d) => sum + d.count, 0)
@@ -53,15 +52,11 @@ export default function Home({ dash, lang, onStart, onReview, onLibrary, onStats
   const dueCount = Math.max(wordDue, dash.dueReviews ?? 0)
   const path = st(lang, 'homePath')
   function startPath(): void {
-    if (practiceDone && dueCount > 0) {
-      onReview()
-      return
-    }
+    // Review is part of the same daily session, not a separate mode.
     onStart()
   }
   const shownReviewed = Math.min(dash.reviewedToday, dash.dailyTarget)
   const practiceDone = dash.dailyTarget > 0 && dash.reviewedToday >= dash.dailyTarget
-  const reviewOnly = practiceDone && dueCount > 0
   const weak = Object.entries(dash.typeRates)
     .map(([type, rate]) => ({ type, acc: rate.total > 0 ? rate.correct / rate.total : 0 }))
     .sort((a, b) => a.acc - b.acc)
@@ -105,7 +100,7 @@ export default function Home({ dash, lang, onStart, onReview, onLibrary, onStats
                 <b>{Math.round(pct * 100)}%</b>
               </div>
             </div>
-            <div className={'pathsteps' + (dueCount > 0 ? '' : ' two')}>
+            <div className="pathsteps">
               <div className={'pstep ' + (dash.reviewedToday > 0 ? 'done' : 'current')}>
                 <i>1</i>
                 <div>
@@ -122,9 +117,8 @@ export default function Home({ dash, lang, onStart, onReview, onLibrary, onStats
                 </div>
                 <span>{practiceDone ? path.done : dash.reviewedToday > 0 ? path.current : path.pending}</span>
               </div>
-              {dueCount > 0 ? (
               <div
-                className={'pstep clickable ' + (reviewOnly ? 'current optional' : 'current')}
+                className={'pstep clickable ' + (practiceDone ? 'done' : dash.reviewedToday > 0 ? 'current' : '')}
                 onClick={startPath}
                 role="button"
                 tabIndex={0}
@@ -132,18 +126,15 @@ export default function Home({ dash, lang, onStart, onReview, onLibrary, onStats
               >
                 <i>3</i>
                 <div>
-                  <b>{practiceDone ? path.reviewOptional : path.review}</b>
+                  <b>{path.review}</b>
                   <small>{path.reviewHint}</small>
                 </div>
-                <span>{practiceDone ? path.optional : String(dueCount)}</span>
+                <span>{practiceDone ? path.done : String(dueCount)}</span>
               </div>
-              ) : null}
             </div>
-            <button className="btn pathcta" onClick={startPath} disabled={practiceDone && dueCount === 0}>
+            <button className="btn pathcta" onClick={startPath} disabled={practiceDone}>
               <span>
-                {practiceDone
-                  ? dueCount > 0 ? path.reviewCta(dueCount) : path.allDone
-                  : dash.reviewedToday > 0 ? path.cta : path.ctaStart}
+                {practiceDone ? path.allDone : dash.reviewedToday > 0 ? path.cta : path.ctaStart}
               </span>
             </button>
           </section>
