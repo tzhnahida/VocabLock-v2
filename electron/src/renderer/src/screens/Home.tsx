@@ -124,7 +124,13 @@ export default function Home({ dash, lang, onStart, onLibrary, onStats, onLock }
                 <span>{practiceDone ? path.done : dash.reviewedToday > 0 ? path.current : path.pending}</span>
               </div>
               {dueCount > 0 ? (
-              <div className={'pstep ' + (reviewOnly ? 'current optional' : 'current')}>
+              <div
+                className={'pstep clickable ' + (reviewOnly ? 'current optional' : 'current')}
+                onClick={startPath}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') startPath() }}
+              >
                 <i>3</i>
                 <div>
                   <b>{practiceDone ? path.reviewOptional : path.review}</b>
