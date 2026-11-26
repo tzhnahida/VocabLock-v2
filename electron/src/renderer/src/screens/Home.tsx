@@ -1,6 +1,7 @@
 import { t, dyn, typeName, ago, type Lang } from '../i18n'
 import { st } from '../strings'
 import { daysUntil, type Dashboard } from '../api'
+import { continueSession } from '../quizApi'
 import AssignmentCard from '../components/Assignment'
 
 type Props = {
@@ -50,6 +51,15 @@ export default function Home({ dash, lang, onStart, onLibrary, onStats, onLock }
     return d !== null && d <= 0
   }).length
   const path = st(lang, 'homePath')
+  function startPath(): void {
+    if (practiceDone && dueCount > 0) {
+      // Post-target review is opt-in: flag the session so /quiz/next bypasses
+      // the completed-day gate and serves the due words.
+      void continueSession().then(onStart).catch(onStart)
+      return
+    }
+    onStart()
+  }
   const shownReviewed = Math.min(dash.reviewedToday, dash.dailyTarget)
   const practiceDone = dash.dailyTarget > 0 && dash.reviewedToday >= dash.dailyTarget
   const reviewOnly = practiceDone && dueCount > 0
@@ -124,7 +134,7 @@ export default function Home({ dash, lang, onStart, onLibrary, onStats, onLock }
               </div>
               ) : null}
             </div>
-            <button className="btn pathcta" onClick={onStart} disabled={practiceDone && dueCount === 0}>
+            <button className="btn pathcta" onClick={startPath} disabled={practiceDone && dueCount === 0}>
               <span>
                 {practiceDone
                   ? dueCount > 0 ? path.reviewCta(dueCount) : path.allDone
