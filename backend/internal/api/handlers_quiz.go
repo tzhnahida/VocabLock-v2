@@ -203,7 +203,7 @@ func (s *Server) handleQuizSessionStart(w http.ResponseWriter, r *http.Request) 
 		log.Warn("quiz", "get unique subjects for session start: %v", err)
 		reviewed = 0
 	}
-	if s.DailyTargetMet(lang) {
+	if !s.sessionBudget.isForceContinue() && s.DailyTargetMet(lang) {
 		writeJSON(w, map[string]interface{}{
 			"new_words":         0,
 			"new_grammar":       0,
@@ -481,7 +481,7 @@ func (s *Server) handleQuizNext(w http.ResponseWriter, r *http.Request) {
 	stageTypes := available
 	if err != nil {
 		log.Warn("quiz", "get unique subjects for next: %v", err)
-	} else if s.DailyTargetMet(lang) {
+	} else if !s.sessionBudget.isForceContinue() && s.DailyTargetMet(lang) {
 		log.Debug("quiz", "daily target met: reviewed=%d time_min=%d", reviewed, s.Config.App.DailyTimeTarget)
 		writeJSON(w, map[string]interface{}{
 			"completed":        true,
