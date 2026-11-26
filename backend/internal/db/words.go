@@ -312,15 +312,14 @@ func (d *Database) LearnedCounts(language string) (learned, mature int, err erro
 	return
 }
 
-// GetStudyWords returns words that still need a study preview. Unlike
-// GetReviewWords it deliberately ignores next_review_at: a word reviewed once
-// in practice can be scheduled for tomorrow but still needs its first study
-// card today.
+// GetStudyWords returns words that have never been reviewed. A word with
+// repetitions > 0 is already learned, even if its first review interval is
+// short; showing it again would make yesterday's words reappear as new.
 func (d *Database) GetStudyWords(language string, limit int) ([]*Word, error) {
 	rows, err := d.DB.Query(`
 		SELECT `+wordColumns+`
 		FROM words
-		WHERE language = ? AND status = 'active' AND repetitions <= 1
+		WHERE language = ? AND status = 'active' AND repetitions = 0
 		ORDER BY
 			CASE WHEN next_review_at IS NULL THEN 0 ELSE 1 END,
 			id ASC

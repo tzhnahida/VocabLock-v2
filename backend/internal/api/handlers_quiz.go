@@ -93,7 +93,9 @@ func (s *Server) handleQuizProgress(w http.ResponseWriter, r *http.Request) {
 	// Report the achievable target: a 15-question setting over a 12-word pool
 	// is a 12/12 day, not "12/15, keep going".
 	effectiveTarget := s.Config.App.DailyTarget
+	dueReviews := 0
 	if nw, ng, rw, rg, err := s.DB.SessionCounts(lang); err == nil {
+		dueReviews = rw + rg
 		available := nw + ng + rw + rg
 		if reviewed > 0 && available == 0 {
 			effectiveTarget = reviewed
@@ -116,6 +118,7 @@ func (s *Server) handleQuizProgress(w http.ResponseWriter, r *http.Request) {
 		"reviewed_today": reviewed,
 		"remaining":      remaining,
 		"daily_target":   effectiveTarget,
+		"due_reviews":    dueReviews,
 	})
 }
 

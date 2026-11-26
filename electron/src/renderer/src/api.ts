@@ -24,6 +24,7 @@ export type Dashboard = {
   theme: 'light' | 'dark'
   reviewedToday: number
   dailyTarget: number
+  dueReviews: number
   remaining: number
   accuracy: number
   streak: number
@@ -84,6 +85,7 @@ export const demoDashboard: Dashboard = {
   theme: 'dark',
   reviewedToday: 12,
   dailyTarget: 20,
+  dueReviews: 3,
   remaining: 8,
   accuracy: 0.86,
   streak: 12,
@@ -170,6 +172,7 @@ export async function loadDashboard(ctx: Ctx | null): Promise<Dashboard> {
       theme: config['theme'] === 'vscode-light' || config['theme'] === 'light' ? 'light' : 'dark',
       reviewedToday: reviewed,
       dailyTarget,
+      dueReviews: num(progress['due_reviews']),
       remaining,
       accuracy,
       streak: num(streak['streak']),
