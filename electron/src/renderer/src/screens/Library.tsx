@@ -69,6 +69,7 @@ export default function Library({ dash, lang, onChanged }: Props) {
 
       <div className="libbody">
         <section className="card tablecard">
+          <div className="tablewrap">
           <table>
             <colgroup>
               <col style={{ width: '23%' }} />
@@ -115,6 +116,7 @@ export default function Library({ dash, lang, onChanged }: Props) {
               })}
             </tbody>
           </table>
+          </div>
           <div className="pager">
             <span>{dyn[lang].pager(rows.length === 0 ? 0 : 1, rows.length, dash.totalWords)}</span>
             <div className="pgs">

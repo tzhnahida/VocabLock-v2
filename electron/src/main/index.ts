@@ -63,6 +63,7 @@ const lockDemo = process.argv.includes('--lock-demo')
 const captureMode = Boolean(screenshotPath)
 
 let win: BrowserWindow | null = null
+let windowedBounds: { x: number; y: number; width: number; height: number } | null = null
 let lockWin: BrowserWindow | null = null
 let tray: Tray | null = null
 let quitting = false
@@ -107,29 +108,29 @@ function loadInto(target: BrowserWindow): void {
   else if (target_.file) void target.loadFile(target_.file)
 }
 
-// Testing and focus sessions can be pinned to a secondary display with
-// VOCABLOCK_WINDOW_DISPLAY=2 (1-based); the default remains the primary screen.
+// Testing can pin the window to a display with
+// VOCABLOCK_WINDOW_DISPLAY=2 (1-based). Without it, open on the display the
+// user is currently using and never force the window onto a secondary screen.
 function targetDisplay(): ReturnType<typeof screen.getPrimaryDisplay> {
   const raw = process.env.VOCABLOCK_WINDOW_DISPLAY
   const all = screen.getAllDisplays()
-  const primary = screen.getPrimaryDisplay()
   if (raw) {
     const idx = Number(raw) - 1
     if (Number.isFinite(idx) && all[idx]) return all[idx]
-    return primary
   }
-  // Default to the secondary display when one exists, so launches (including
-  // the autostart entry) never cover the user's primary workspace.
-  return all.find((d) => d.id !== primary.id) ?? primary
+  if (win) return screen.getDisplayMatching(win.getBounds())
+  return screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
 }
 
 function createWindow(): void {
   // A fixed 1280x800 looked tiny on a 1440p/1080p desktop; size the window to
   // most of the work area while staying above the layout's minimum.
   const display = targetDisplay()
-  const { width: areaW, height: areaH } = display.workAreaSize
-  const width = Math.min(1440, Math.max(1040, Math.round(areaW * 0.9)))
-  const height = Math.min(920, Math.max(680, Math.round(areaH * 0.9)))
+  const { x: areaX, y: areaY, width: areaW, height: areaH } = display.workArea
+  const width = Math.min(1440, Math.max(1040, Math.round(areaW * 0.86)))
+  const height = Math.min(920, Math.max(680, Math.round(areaH * 0.84)))
+  const x = areaX + Math.round((areaW - width) / 2)
+  const y = areaY + Math.round((areaH - height) / 2)
   // Scripted captures need a painting window; park it far off-screen and show
   // it without activation so the user keeps focus on whatever they are doing.
   win = new BrowserWindow({
@@ -137,11 +138,11 @@ function createWindow(): void {
     ...(captureMode
       ? { width, height, x: -32000, y: -32000 }
       : {
-          x: display.bounds.x,
-          y: display.bounds.y,
-          width: display.bounds.width,
-          height: display.bounds.height,
-          fullscreen: true,
+          x,
+          y,
+          width,
+          height,
+          fullscreen: false,
           fullscreenable: true
         }),
     show: false
@@ -153,8 +154,8 @@ function createWindow(): void {
       return
     }
     if (hidden) return
-    // Constructed fullscreen on the target display; show it that way rather
-    // than showing a window and waiting for a later maximize click.
+    // Open as a normal window on the user's current display; only an active
+    // focus lock promotes it to fullscreen.
     await pollLockState()
     win.show()
     if (locked) applyFocusWindow(true)
@@ -248,6 +249,10 @@ function applyFocusWindow(lock: boolean): void {
   win.setMaximizable(!lock)
   win.setClosable(!lock)
   if (lock) {
+    if (win && !win.isFullScreen()) {
+      const b = win.getBounds()
+      windowedBounds = { x: b.x, y: b.y, width: b.width, height: b.height }
+    }
     const display = targetDisplay()
     const bounds = { x: display.bounds.x, y: display.bounds.y, width: display.bounds.width, height: display.bounds.height }
     try {
@@ -264,6 +269,13 @@ function applyFocusWindow(lock: boolean): void {
   } else {
     win.setKiosk(false)
     win.setFullScreen(false)
+    const restore = windowedBounds
+    if (restore) {
+      setTimeout(() => {
+        if (!win || locked) return
+        win.setBounds(restore)
+      }, 250)
+    }
   }
 }
 
