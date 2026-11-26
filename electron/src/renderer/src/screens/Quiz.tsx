@@ -23,7 +23,7 @@ import { useRecorder } from '../audio/useRecorder'
 import { audioObjectUrl, textAudio, wordAudio } from '../ttsApi'
 import { st } from '../strings'
 
-type Props = { dash: Dashboard; lang: Lang; onExit: () => void; onAnswered: () => void }
+type Props = { dash: Dashboard; lang: Lang; onExit: () => void; onAnswered: () => void; review?: boolean }
 
 type Phase = 'starting' | 'intro' | 'study' | 'question' | 'feedback' | 'done' | 'preparing' | 'empty' | 'error'
 
@@ -59,7 +59,7 @@ function audioHasSpeech(base64: string): boolean {
  * Judging, SM-2 and the review log all happen on the Go side; this screen only
  * renders the branch the server chose (preparing / empty / done / error).
  */
-export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
+export default function Quiz({ dash, lang, onExit, onAnswered, review = false }: Props) {
   const [phase, setPhase] = useState<Phase>('starting')
   const [question, setQuestion] = useState<Question | null>(null)
   const [result, setResult] = useState<SubmitResult | null>(null)
@@ -198,15 +198,18 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
     let cancelled = false
     void (async () => {
       try {
-        const started = await startSession(language)
+        const started = await startSession(language, review)
         if (cancelled) return
-        const target = started.planned_questions && started.planned_questions > 0
-          ? started.planned_questions
-          : started.daily_target && started.daily_target > 0
-            ? started.daily_target
-            : dash.dailyTarget
+        const reviewCount = (started.review_words ?? 0) + (started.review_grammar ?? 0)
+        const target = review
+          ? Math.max(1, reviewCount)
+          : started.planned_questions && started.planned_questions > 0
+            ? started.planned_questions
+            : started.daily_target && started.daily_target > 0
+              ? started.daily_target
+              : dash.dailyTarget
         setSessionTarget(target)
-        if ((started.reviewed ?? 0) > 0) {
+        if (!review && (started.reviewed ?? 0) > 0) {
           setAnswered((n) => Math.max(n, Math.min(started.reviewed ?? 0, target)))
         }
         if (started.preparing) {
@@ -218,6 +221,11 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
         }
         if (started.daily_completed) return setPhase('done')
         if (started.empty) return setPhase('empty')
+        if (review) {
+          setAnswered(0)
+          await loadNext()
+          return
+        }
         // Study-before-test: show the session's new words before asking.
         try {
           const progress = await loadSessionProgress().catch(() => ({ study_index: 0, study_done: false }))
@@ -256,7 +264,7 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
     return () => {
       cancelled = true
     }
-  }, [language, loadNext, retryTick])
+  }, [language, loadNext, retryTick, review])
 
   const submit = useCallback(
     async (value: string, audio?: string) => {
@@ -385,7 +393,9 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   }, [phase, result, loadNext])
 
   const effectiveTarget = sessionTarget > 0 ? sessionTarget : dash.dailyTarget
-  const completed = Math.max(answered, Math.min(dash.reviewedToday, effectiveTarget))
+  const completed = review
+    ? Math.min(answered, effectiveTarget)
+    : Math.max(answered, Math.min(dash.reviewedToday, effectiveTarget))
   const progress = effectiveTarget > 0 ? Math.min(1, completed / effectiveTarget) : 0
 
   function renderBody() {
@@ -829,8 +839,13 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   }
 
   const dayNo = Math.max(1, dash.streak)
-  const topLine =
-    lang === 'zh'
+  const topLine = review
+    ? lang === 'zh'
+      ? '额外复习 · ' + completed + '/' + effectiveTarget
+      : lang === 'ja'
+        ? '追加復習 · ' + completed + '/' + effectiveTarget
+        : 'Extra review · ' + completed + '/' + effectiveTarget
+    : lang === 'zh'
       ? '学习 · 第 ' + dayNo + ' 天 · 本轮 ' + completed + '/' + effectiveTarget
       : lang === 'ja'
         ? '学習 · ' + dayNo + '日目 · 今回 ' + completed + '/' + effectiveTarget

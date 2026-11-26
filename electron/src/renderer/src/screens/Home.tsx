@@ -1,13 +1,13 @@
 import { t, dyn, typeName, ago, type Lang } from '../i18n'
 import { st } from '../strings'
 import { daysUntil, type Dashboard } from '../api'
-import { continueSession } from '../quizApi'
 import AssignmentCard from '../components/Assignment'
 
 type Props = {
   dash: Dashboard
   lang: Lang
   onStart: () => void
+  onReview: () => void
   onLibrary: () => void
   onStats: () => void
   onLock: () => void
@@ -40,7 +40,7 @@ function dateLine(lang: Lang): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ` · ${wdLabel}`
 }
 
-export default function Home({ dash, lang, onStart, onLibrary, onStats, onLock }: Props) {
+export default function Home({ dash, lang, onStart, onReview, onLibrary, onStats, onLock }: Props) {
   const pct = dash.dailyTarget > 0 ? Math.min(1, dash.reviewedToday / dash.dailyTarget) : 0
   const week = lastSeven(dash.heatmap)
   const weekTotal = week.reduce((sum, d) => sum + d.count, 0)
@@ -53,9 +53,7 @@ export default function Home({ dash, lang, onStart, onLibrary, onStats, onLock }
   const path = st(lang, 'homePath')
   function startPath(): void {
     if (practiceDone && dueCount > 0) {
-      // Post-target review is opt-in: flag the session so /quiz/next bypasses
-      // the completed-day gate and serves the due words.
-      void continueSession().then(onStart).catch(onStart)
+      onReview()
       return
     }
     onStart()
