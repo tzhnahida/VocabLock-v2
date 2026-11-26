@@ -728,6 +728,16 @@ func (b *sessionBudget) planExhausted(budgetMinutes int) bool {
 	return false
 }
 
+// timeExhausted reports the time half of planExhausted. A time budget is a
+// hard stop; only a short question-count plan may be extended to include due
+// review words without turning the session into an endless grind.
+func (b *sessionBudget) timeExhausted(budgetMinutes int) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.rolloverLocked()
+	return budgetMinutes > 0 && b.timeUsed >= budgetMinutes*6
+}
+
 // typeAvailable reports whether a type still has quota left in today's plan.
 func (b *sessionBudget) typeAvailable(typeName string) bool {
 	b.mu.Lock()
