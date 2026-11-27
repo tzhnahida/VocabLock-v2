@@ -35,10 +35,11 @@ func (s *Server) handleQuizStudyCards(w http.ResponseWriter, r *http.Request) {
 	}
 	cards := make([]map[string]interface{}, 0, count)
 	for _, word := range words {
-		// Only never-reviewed words belong in the new-word study preview.
-		// repetitions > 0 means the word has been learned and now belongs to
-		// due review, not to tomorrow's new-word lesson.
-		if word.Repetitions > 0 || strings.TrimSpace(word.Meaning) == "" {
+		// Only never-scheduled words belong in the new-word study preview.
+		// A word with next_review_at has been reviewed at least once — even
+		// when a failed answer reset repetitions to 0 — so it belongs to due
+		// review, not to today's new-word lesson.
+		if word.NextReviewAt != nil || strings.TrimSpace(word.Meaning) == "" {
 			continue
 		}
 		// Lexical extras come from the word detail JSON; packs provide a

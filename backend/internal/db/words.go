@@ -312,17 +312,16 @@ func (d *Database) LearnedCounts(language string) (learned, mature int, err erro
 	return
 }
 
-// GetStudyWords returns words that have never been reviewed. A word with
-// repetitions > 0 is already learned, even if its first review interval is
-// short; showing it again would make yesterday's words reappear as new.
+// GetStudyWords returns words that have never been reviewed: a word with a
+// next_review_at was scheduled by SM-2 at least once. Repetitions cannot stand
+// in for that test — SM-2 resets repetitions to 0 after a failed review, so a
+// word the learner already studied would otherwise reappear as brand new.
 func (d *Database) GetStudyWords(language string, limit int) ([]*Word, error) {
 	rows, err := d.DB.Query(`
 		SELECT `+wordColumns+`
 		FROM words
-		WHERE language = ? AND status = 'active' AND repetitions = 0
-		ORDER BY
-			CASE WHEN next_review_at IS NULL THEN 0 ELSE 1 END,
-			id ASC
+		WHERE language = ? AND status = 'active' AND next_review_at IS NULL
+		ORDER BY id ASC
 		LIMIT ?
 	`, language, limit)
 	if err != nil {
