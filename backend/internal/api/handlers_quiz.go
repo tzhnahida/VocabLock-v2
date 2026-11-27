@@ -931,14 +931,17 @@ func (s *Server) handleQuizSubmit(w http.ResponseWriter, r *http.Request) {
 		} else {
 			expected = []string{primaryExpected}
 		}
-		if s.AI() != nil {
+		// The AI tier exists for open answers that may be phrased differently.
+		// A question posed with options never needs it (see optionQuestion).
+		if s.AI() != nil && !optionQuestion(req.QuestionType) {
 			aiCallback = s.makeAIJudge(req.QuestionType, word)
 		}
 	}
 
 	strictness := strictnessForType(req.QuestionType)
 	// judge.Judge short-circuits exact matches and only calls the AI for
-	// ambiguous/non-exact fill answers. Do not call the AI for every fill.
+	// ambiguous/non-exact answers. aiCallback is nil for option questions,
+	// which are a closed set and must be graded locally.
 	result := judge.Judge(req.Answer, expected, strictness, aiCallback)
 
 	// Update SM-2 on the right table
@@ -1444,6 +1447,23 @@ func (s *Server) maybeAdjustDailyTarget(lang string) bool {
 func questionRequiresCachedAnswer(qtype string) bool {
 	switch engine.QuestionType(qtype) {
 	case engine.TypeListening, engine.TypeReadingComp, engine.TypeGrammar, engine.TypeDialogueWrite, engine.TypeDialogueSpeak:
+		return true
+	}
+	return false
+}
+
+// optionQuestion reports whether the server posed this question with a fixed
+// set of options. Those answers are a closed set: the learner can only echo
+// one of the choices, so a non-matching pick is definitively wrong and an AI
+// opinion can never change the verdict.
+//
+// Skipping the AI tier here is not just an optimisation: grading a wrong
+// multiple-choice pick through the LLM made every wrong answer wait for a
+// DeepSeek round trip (~1s, unbounded on a bad link) while the UI showed
+// nothing, which read as "the click did not register".
+func optionQuestion(qtype string) bool {
+	switch engine.QuestionType(qtype) {
+	case engine.TypeChoice, engine.TypeListening, engine.TypeReadingComp, engine.TypeGrammar:
 		return true
 	}
 	return false

@@ -92,6 +92,11 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   const [pron, setPron] = useState<PronounceResult | null>(null)
   const [assessing, setAssessing] = useState(false)
   const [disputed, setDisputed] = useState(false)
+  // picked is the option the learner just clicked. It is shown immediately so
+  // the click is acknowledged before the verdict arrives, and busyRef blocks a
+  // second click from submitting the same question twice.
+  const [picked, setPicked] = useState<string | null>(null)
+  const busyRef = useRef(false)
   const inputRef = useRef<HTMLInputElement | null>(null)
   const recorder = useRecorder()
   const copy = st(lang, 'quiz')
@@ -104,6 +109,8 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
   const loadNext = useCallback(async () => {
     setPhase('starting')
     setResult(null)
+    setPicked(null)
+    busyRef.current = false
     setAnswer('')
     setDisputed(false)
     try {
@@ -261,11 +268,13 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
 
   const submit = useCallback(
     async (value: string, audio?: string) => {
-      if (!question || phase !== 'question') return
+      if (!question || phase !== 'question' || busyRef.current) return
       const trimmed = value.trim()
       // Read-aloud questions carry their answer in the recording: an empty
       // recording is a deliberate skip, not a no-op.
       if (trimmed === '' && audio === undefined) return
+      busyRef.current = true
+      setPicked(trimmed)
       try {
         const res = await submitAnswer({
           questionId: question.id,
@@ -285,6 +294,8 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
         setError(e instanceof Error ? e.message : String(e))
         setPhase('error')
       }
+      // busyRef stays set until loadNext clears it: between the verdict and
+      // the next question a second click would submit the same id again.
     },
     [question, phase, language, onAnswered]
   )
@@ -713,12 +724,15 @@ export default function Quiz({ dash, lang, onExit, onAnswered }: Props) {
               const isCorrect = answered && result?.correct === true && answer === opt
               const isWrongPick = answered && answer === opt && result?.correct === false
               const showRight = answered && result?.correct === false && result.expected_answer === opt
+              // The click is painted before the verdict arrives so the option
+              // never looks inert while the request is in flight.
+              const isPicked = !answered && picked === opt
               return (
                 <div
                   key={i}
-                  className={`opt${isCorrect || showRight ? ' good' : ''}${isWrongPick ? ' bad' : ''}`}
+                  className={`opt${isPicked ? ' sel' : ''}${isCorrect || showRight ? ' good' : ''}${isWrongPick ? ' bad' : ''}`}
                   onClick={() => {
-                    if (phase === 'question') void submit(opt)
+                    if (phase === 'question' && !busyRef.current) void submit(opt)
                   }}
                 >
                   <span className="k">{i + 1}</span>

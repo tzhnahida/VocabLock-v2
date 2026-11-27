@@ -155,6 +155,10 @@ html[data-theme="light"] .btn.ghost{color:var(--muted)}
   border:1px solid var(--border);background:var(--panel);font-size:14px;color:var(--text);text-align:left;cursor:pointer;
   transition:background var(--dur),border-color var(--dur)}
 .opt:hover{border-color:var(--faint)}
+/* Painted on click, before the verdict arrives, so the option never looks
+   inert while the request is in flight. */
+.opt.sel{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent)}
+.opt.sel .k{background:transparent;border-color:var(--accent);color:var(--accent)}
 .opt .k{width:21px;height:21px;flex:none;border-radius:5px;background:var(--soft);border:1px solid var(--border);
   display:grid;place-items:center;font-size:10.5px;color:var(--faint);font-variant-numeric:tabular-nums}
 .opt .mark{margin-left:auto;font-size:12px;font-weight:600}
